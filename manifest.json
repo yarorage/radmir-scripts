@@ -1,6 +1,6 @@
 ﻿{
     "version":  "1.0.0",
-    "updatedAt":  "2026-09-01 23:35",
+    "updatedAt":  "2026-09-01 23:40",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -143,8 +143,8 @@
                   },
                   {
                       "path":  "moonloader/Les.lua",
-                      "sha256":  "c959fc1aa2131953743039bcc6bb09bf190e03647bac8364c9b425ec849b59f9",
-                      "size":  50102,
+                      "sha256":  "a9a66bd735501b751b1b6cb81d5bdf557b2f284cf9a04f5dd87b6d41e5d53b27",
+                      "size":  50864,
                       "dest":  "gameRoot"
                   },
                   {

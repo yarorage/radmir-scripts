@@ -162,6 +162,21 @@ local Ohota = {
     LastTargetHandle = nil,
 }
 
+-- Защита от CEF/D3D-крашей: не рисуем оверлеи, пока устройство сбрасывается.
+_devBarrier = 0.0   -- время, раньше которого рендер запрещён
+
+function renderAllowed()
+    return os.clock() >= _devBarrier
+end
+
+function onScriptD3DDeviceLost()
+    _devBarrier = os.clock() + 1.0
+end
+
+function onScriptD3DDeviceRestore()
+    _devBarrier = os.clock() + 0.6
+end
+
 -- все пункты выключены до первого открытия меню
 Ohota.Wh.v = false
 Ohota.WhPlayers.v = false
@@ -324,6 +339,10 @@ function main()
 
     while true do
         wait(0)
+        -- Защита от CEF/D3D-крашей: пока устройство сбрасывается/восстанавливается,
+        -- полностью пропускаем и графику (ESP/имиудж/текст), и объектную уборку
+        -- (setObjectCoordinates/RPC43 бьются об обновляющийся D3D-ресурс).
+        if not renderAllowed() then goto continue end
 
         -- охранные вызовы ESP (безопасно)
         if Ohota.EspTush.v and type(renderEspTush) == "function" then pcall(renderEspTush) end
@@ -591,11 +610,16 @@ function main()
         else
             imgui.ShowCursor = true
         end
+        ::continue::
     end
 end
 
 -- Меню
 function imgui.OnDrawFrame()
+    if not renderAllowed() then
+        imgui.ShowCursor = false
+        return
+    end
     local sw, sh = getScreenResolution()
     if Menu.windowState.v then
         apply_custom_style()
