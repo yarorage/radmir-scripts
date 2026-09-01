@@ -17,14 +17,27 @@ ffi.cdef[[
     void* GetForegroundWindow(void);
     uint32_t GetWindowThreadProcessId(void* hWnd, uint32_t* lpdwProcessId);
     int IsIconic(void* hWnd);
+    int OpenClipboard(void* hWnd);
+    int EmptyClipboard(void);
+    int CloseClipboard(void);
+    void* GetClipboardData(uint32_t uFormat);
+    void* SetClipboardData(uint32_t uFormat, void* hMem);
     short GetAsyncKeyState(int vKey);
     uint32_t GetKeyboardLayout(uint32_t idThread);
     int MessageBeep(uint32_t uType);
     int PlaySoundA(const char* pszSound, void* hmod, uint32_t fdwSound);
 ]]
 
+ffi.cdef[[
+    uintptr_t GlobalAlloc(uint32_t uFlags, uintptr_t dwBytes);
+    uint8_t* GlobalLock(void* hMem);
+    int GlobalUnlock(void* hMem);
+    void* GlobalFree(void* hMem);
+]]
+
 local user32 = ffi.load("user32")
 local winmm = ffi.load("winmm")
+local kernel32 = ffi.load("kernel32")
 
 local KEYEVENTF_KEYDOWN = 0x0
 local KEYEVENTF_KEYUP   = 0x2
@@ -32,6 +45,9 @@ local MOUSEEVENTF_LEFTDOWN = 0x02
 local MOUSEEVENTF_LEFTUP   = 0x04
 local SND_ALIAS = 0x00010000
 local SND_ASYNC = 0x0001
+local CF_TEXT = 1
+local GMEM_MOVEABLE = 0x0002
+local GMEM_ZEROINIT = 0x0040
 
 local script_name = "AutoLogin"
 local config_folder = getWorkingDirectory() .. "\\config\\AutoLogin"
@@ -187,6 +203,49 @@ local function play_gta_confirm_sound()
     winmm.PlaySoundA("SystemAsterisk", nil, bit.bor(SND_ALIAS, SND_ASYNC))
 end
 
+local function set_clipboard_text(str)
+    str = str or ""
+    local hmem = kernel32.GlobalAlloc(bit.bor(GMEM_MOVEABLE, GMEM_ZEROINIT), #str + 1)
+    if hmem == nil then return false end
+    local ptr = kernel32.GlobalLock(hmem)
+    if ptr == nil then
+        kernel32.GlobalFree(hmem)
+        return false
+    end
+    if #str > 0 then ffi.copy(ptr, str, #str) end
+    kernel32.GlobalUnlock(hmem)
+    local ok = false
+    if user32.OpenClipboard(nil) ~= 0 then
+        user32.EmptyClipboard()
+        if user32.SetClipboardData(CF_TEXT, hmem) ~= nil then
+            ok = true
+            hmem = nil
+        end
+        user32.CloseClipboard()
+    end
+    if hmem ~= nil then
+        kernel32.GlobalFree(hmem)
+    end
+    return ok
+end
+
+local function get_clipboard_text()
+    local text = ""
+    if user32.OpenClipboard(nil) == 0 then
+        return text
+    end
+    local hmem = user32.GetClipboardData(CF_TEXT)
+    if hmem ~= nil then
+        local ptr = kernel32.GlobalLock(hmem)
+        if ptr ~= nil then
+            text = ffi.string(ptr)
+            kernel32.GlobalUnlock(hmem)
+        end
+    end
+    user32.CloseClipboard()
+    return text
+end
+
 is_password_form_visible = function()
     return (password == "" or force_password_form) and not password_form_closed
 end
@@ -316,7 +375,7 @@ local function trigger_reconnect()
             user32.keybd_event(0x7A, 0, KEYEVENTF_KEYDOWN, 0)
             wait(50)
             user32.keybd_event(0x7A, 0, KEYEVENTF_KEYUP, 0)
-            log("–еконнект: F11 (один раз). ∆дЄм AuthorizationT, пароль не вводим вслепую.")
+            log("–еконнект: F11 (один раз). ∆дЄм Authorization, пароль не вводим вслепую.")
             wait(800)
             emulate_reconnect_ui_cleanup()
         elseif ip and port then
@@ -549,16 +608,21 @@ end
 
 start_reconnect_watch = function()
     reconnect_watch_active = true
-    reconnect_watch_until = os.clock() + 20
+    reconnect_watch_until = os.clock() + 35
     saw_loading_after_rec = false
     saw_queue_after_rec = false
-    log("Watchdog реконнекта: 20 сек (ждЄм «агрузка / очередь)")
+    log("Watchdog реконнекта: 35 сек (ждЄм «агрузка / очередь / подключение)")
     lua_thread.create(function()
         while reconnect_watch_active and os.clock() < reconnect_watch_until do
             wait(500)
-            if saw_loading_after_rec or saw_queue_after_rec or is_spawned or login_submitted then
+            local connected = false
+            if sampIsPlayerConnected then
+                local ok_conn, res = pcall(sampIsPlayerConnected)
+                connected = ok_conn and res
+            end
+            if saw_loading_after_rec or saw_queue_after_rec or is_spawned or login_submitted or connected then
                 reconnect_watch_active = false
-                log("Watchdog: ок (загрузка/очередь/спавн/вход) Ч F11 не нужен")
+                log("Watchdog: ок (загрузка/очередь/спавн/вход/подключен) Ч F11 не нужен")
                 return
             end
         end
@@ -568,8 +632,18 @@ start_reconnect_watch = function()
             and not is_spawned
             and not login_submitted
             and not is_logging_in then
+            local connected_now = false
+            if sampIsPlayerConnected then
+                local ok_conn2, res2 = pcall(sampIsPlayerConnected)
+                connected_now = ok_conn2 and res2
+            end
+            if connected_now then
+                reconnect_watch_active = false
+                log("Watchdog: подключение активно (" .. tostring(connected_now) .. ") Ч ждЄм логин, F11 не шлЄм")
+                return
+            end
             reconnect_watch_active = false
-            log("Watchdog: 20с без загрузки и без очереди Ч принудительный F11")
+            log("Watchdog: 35с без загрузки и без очереди Ч принудительный F11 (spawned=" .. tostring(is_spawned) .. ", login_submitted=" .. tostring(login_submitted) .. ", pending=" .. tostring(pending_autologin) .. ")")
             is_spawned = false
             is_logging_in = false
             lua_thread.create(function()
@@ -721,7 +795,7 @@ schedule_autologin_after_reconnect = function()
     pending_autologin = true
     is_spawned = false
     is_logging_in = false
-    log("schedule: ждЄм пакет AuthorizationT[auth] (без слепого ввода)")
+    log("schedule: ждЄм пакет Authorization[auth] (без слепого ввода)")
     lua_thread.create(function()
         for i = 1, 40 do
             if is_spawned or not script_active then
@@ -755,7 +829,14 @@ function sampevents.onServerMessage(color, text)
         spawn_timer_seconds = 0
         pending_autologin = true
     end
-    if is_reconnecting then return end
+    local is_conn_ui =
+        text:find('«агрузка') or text:find('Loading')
+        or (text:find('Authorization') and text:find('"auth"'))
+        or text:find('OnAuthorizationStart')
+        or text:find('OnAuthorizationStarts')
+        or text:find('¬ведите пароль')
+        or text:find('ѕоле парол€')
+    if is_reconnecting and not is_conn_ui then return end
     if lower_text:find("вы отключены от сервера")
         or lower_text:find("соединение потер€но")
         or lower_text:find("соединение разорвано")
@@ -1090,7 +1171,7 @@ function sampevents.onServerJoin()
     spawn_timer_seconds = 0
     pending_autologin = true
     last_login_attempt = 0
-    log("onServerJoin Ч ждЄм CEF AuthorizationT / автовход")
+    log("onServerJoin Ч ждЄм CEF Authorization / автовход")
     schedule_autologin_after_reconnect()
     if password ~= "" and not force_password_form then
         lua_thread.create(function()
@@ -1146,7 +1227,11 @@ function onWindowMessage(msg, wparam, lparam)
     end
 
     if is_password_form_visible() and (msg == 0x0100 or msg == 0x0104) and wparam == 0x1B then
-        close_password_form()
+        if password == "" then
+            chat_msg("{FF3333}—начала введите пароль Ч без него автовход не работает!")
+        else
+            close_password_form()
+        end
         return
     end
 
@@ -1168,7 +1253,8 @@ function onWindowMessage(msg, wparam, lparam)
         end
     end
 
-    if is_password_form_visible() and pass_input_active then
+    if is_password_form_visible() and pass_input_active and not (sampIsChatInputActive and sampIsChatInputActive()) then
+        local ctrl_down = (user32.GetAsyncKeyState(0x11) < 0)
         if msg == 0x0100 then
             if wparam == 0x08 then
                 if #temp_password > 0 then
@@ -1184,12 +1270,28 @@ function onWindowMessage(msg, wparam, lparam)
                 else
                     chat_msg("{FF3333}ѕароль не может быть пустым!")
                 end
+            elseif wparam == 0x56 and ctrl_down then
+                local ok_cb, cb = pcall(get_clipboard_text)
+                if not ok_cb then cb = "" end
+                if #cb > 0 then
+                    if #temp_password + #cb > 32 then
+                        cb = cb:sub(1, 32 - #temp_password)
+                    end
+                    temp_password = temp_password .. cb
+                    log("¬ставка из буфера обмена: " .. tostring(#cb) .. " симв.")
+                end
+            elseif wparam == 0x43 and ctrl_down then
+                pcall(set_clipboard_text, temp_password)
+                log("—копировано в буфер обмена: " .. tostring(#temp_password) .. " симв.")
             end
         elseif msg == 0x0102 then
-            if wparam >= 32 and wparam <= 126 and #temp_password < 32 then
-                temp_password = temp_password .. string.char(wparam)
-            elseif wparam > 126 and #temp_password < 32 then
-                temp_password = temp_password .. string.char(wparam)
+            local is_cv = (wparam == 0x56 or wparam == 0x76 or wparam == 0x43 or wparam == 0x63)
+            if not (ctrl_down and is_cv) then
+                if wparam >= 32 and wparam <= 126 and #temp_password < 32 then
+                    temp_password = temp_password .. string.char(wparam)
+                elseif wparam > 126 and #temp_password < 32 then
+                    temp_password = temp_password .. string.char(wparam)
+                end
             end
         end
     end
@@ -1322,9 +1424,11 @@ local function timer_render_thread()
             local display_pass = (#temp_password > 0) and (show_password_chars and temp_password or string.rep("*", #temp_password)) or "ѕароль..."
             local pass_color = #temp_password > 0 and 0xFFF0F0F5 or 0xFF6A6A7A
             renderFontDrawText(r_font, display_pass, pass_field_x + 10, pass_field_y + 9, pass_color)
-            if pass_input_active and #temp_password > 0 and (os.clock() % 1.0) < 0.5 then
+            if pass_input_active then
                 local tw = renderGetFontDrawTextLength(r_font, display_pass)
-                renderDrawBox(pass_field_x + 10 + tw + 2, pass_field_y + 8, 2, 18, 0xFF6C5CE7)
+                if (os.clock() % 1.0) < 0.5 then
+                    renderDrawBox(pass_field_x + 10 + tw + 2, pass_field_y + 8, 2, 18, 0xFF6C5CE7)
+                end
             end
 
             pass_btn_x = pass_field_x + pass_field_w + 8
@@ -1353,6 +1457,8 @@ local function timer_render_thread()
             local sl = renderGetFontDrawTextLength(r_font, "SHIFT")
             renderFontDrawText(r_font, "SHIFT", form_x + pad + (48 - sl) / 2, hint_y + 4, shift_active and 0xFF95D5B2 or 0xFF7A7A8A)
             renderFontDrawText(r_font, "Enter Ч подтвердить    Esc Ч закрыть", form_x + pad + 56, hint_y + 4, 0xFF7A7A8A)
+            renderFontDrawText(r_font, "Ћ ћ по полю Ч активировать ввод", form_x + pad + 56, hint_y + 26, 0xFF7A7A8A)
+            renderFontDrawText(r_font, "Ctrl+V Ч вставить    Ctrl+C Ч копировать", form_x + pad, hint_y + 48, 0xFF8888B8)
 
             renderDrawBox(form_x, form_y + form_h - 26, form_w, 26, 0xF014141C)
             renderFontDrawText(r_font, "ѕароль хранитс€ локально в config/AutoLogin", form_x + pad, form_y + form_h - 20, 0xFF555568)
@@ -1360,7 +1466,11 @@ local function timer_render_thread()
             local current_pass_lbutton_state = (user32.GetAsyncKeyState(0x01) < 0)
             if last_pass_lbutton_state and not current_pass_lbutton_state then
                 if close_hovered then
-                    close_password_form()
+                    if password == "" then
+                        chat_msg("{FF3333}—начала введите пароль Ч без него автовход не работает!")
+                    else
+                        close_password_form()
+                    end
                 elseif field_hovered then
                     pass_input_active = true
                 elseif eye_hovered then
@@ -1522,48 +1632,7 @@ local function mafk_hotkey_thread()
     end
 end
 
-local function nick_hotkey_thread()
-    local prev_down = (user32.GetAsyncKeyState(0x30) < 0)
-    local hold_until = 0
-    while true do
-        wait(25)
-        local down = (user32.GetAsyncKeyState(0x30) < 0)
-        if down and not prev_down then
-            hold_until = os.clock() + 1
-        elseif not down and prev_down then
-            if hold_until > 0 and os.clock() >= hold_until then
-                if not (sampIsChatInputActive and sampIsChatInputActive()) then
-                    local nick = player_nick or ""
-                    if #nick == 0 then
-                        local ok1, r1 = pcall(function() return sampGetLocalPlayerNickName() end)
-                        if ok1 and r1 and #r1 > 0 then
-                            nick = r1
-                        end
-                    end
-                    if #nick == 0 then
-                        local ok2, id = pcall(function() return sampGetLocalPlayerId() end)
-                        if ok2 and id then
-                            local ok3, r3 = pcall(function() return sampGetPlayerNickName(id) end)
-                            if ok3 and r3 and #r3 > 0 then
-                                nick = r3
-                            end
-                        end
-                    end
-                    if #nick > 0 then
-                        player_nick = nick
-                        chat_msg("Ќик игрока: " .. nick)
-                    else
-                        chat_msg("{FF3333}Ќик пока не определЄн (по€вл€етс€ после входа в игру)")
-                    end
-                end
-            end
-            hold_until = 0
-        end
-        prev_down = down
-    end
-end
-
-function main()
+local function main()
     while not isSampAvailable() do wait(100) end
     load_config()
     register_commands()
@@ -1574,6 +1643,5 @@ function main()
     lua_thread.create(timer_render_thread)
     lua_thread.create(anti_afk_thread)
     lua_thread.create(mafk_hotkey_thread)
-    lua_thread.create(nick_hotkey_thread)
     while true do wait(10000) end
 end
