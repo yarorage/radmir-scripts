@@ -72,6 +72,23 @@ end
 local AutoYLastSetFill = 0
 local AutoYPresses = 0
 
+-- отладка моделей объектов (объявлено до главного цикла)
+local _dbgScanAt = 0
+local _dbgScreen = {}
+local _dbgObjs = {}   -- объекты в радиусе для отрисовки: {m=, x=, y=, z=, s=}
+local _probeId = 613  -- текущая модель пробы построек (F6/F7)
+
+-- Автопрогон полос построек (F8 старт/стоп, F9 размер полосы).
+-- ОДНА модель за тик (пачки ломают рендер samp.dll+0x12843), бюджет на сессию.
+local _sweepRun = false
+local _sweepCursor = 1
+local _sweepBandW = 5
+local _sweepLast = 0
+local _sweepTotal = 0
+local _sweepMin = 1
+local _sweepMax = 1024
+local _sweepBudget = 500
+
 -- Класс "Кликер"
 local Clicker = {}
 function Clicker:new(Button, Sleep)
@@ -138,7 +155,9 @@ local Ohota = {
     AutoY_Clicker = Clicker:new(vkeys.VK_Y, waitWaitClickY),
     Clear = imgui.ImBool(false),       -- убирать призраков туш (20 с)
     ClearFol = imgui.ImBool(false),    -- убирать деревья/листву вокруг
+    DbgObjs = imgui.ImBool(false),     -- отладка моделей объектов на экране
     FolApplied = false,
+    FolBldTimer = 0,
     FirstApplied = false,
     LastTargetHandle = nil,
 }
@@ -158,6 +177,7 @@ Ohota.AimPlayers.v = false
 Ohota.AutoY.v = false
 Ohota.Clear.v = false
 Ohota.ClearFol.v = false
+Ohota.DbgObjs.v = false
 Ohota.FirstApplied = false
 
 function imgui_Menu_windowState(arg)
@@ -232,8 +252,67 @@ function main()
         end
     end)
 
+    -- Проба моделей построек: F6/F7 - вручную, F8 - автопрогон полос, F9 - размер полосы.
+    -- Работает только при включённой отладке (защита от случайных удалений).
+    local VK_F6 = 0x75
+    local VK_F7 = 0x76
+    local VK_F8 = 0x77
+    local VK_F9 = 0x78
+    lua_thread.create(function()
+        local prev6, prev7, prev8, prev9 = false, false, false, false
+        while true do
+            wait(20)
+            local d6 = (user32.GetAsyncKeyState(VK_F6) < 0)
+            local d7 = (user32.GetAsyncKeyState(VK_F7) < 0)
+            local d8 = (user32.GetAsyncKeyState(VK_F8) < 0)
+            local d9 = (user32.GetAsyncKeyState(VK_F9) < 0)
+            if Ohota.DbgObjs.v and game_has_focus() and not sampIsChatInputActive() and not sampIsDialogActive() then
+                if d6 and not prev6 then
+                    _probeId = _probeId - 1
+                    probeBuilding(_probeId)
+                end
+                if d7 and not prev7 then
+                    _probeId = _probeId + 1
+                    probeBuilding(_probeId)
+                end
+                if d8 and not prev8 then
+                    _sweepRun = not _sweepRun
+                    if _sweepRun then
+                        _sweepTotal = 0
+                        if _sweepCursor < _sweepMin or _sweepCursor > _sweepMax then
+                            _sweepCursor = _sweepMin
+                        end
+                    end
+                end
+                if d9 and not prev9 then
+                    if _sweepBandW == 5 then _sweepBandW = 1
+                    elseif _sweepBandW == 1 then _sweepBandW = 10
+                    elseif _sweepBandW == 10 then _sweepBandW = 25
+                    else _sweepBandW = 5 end
+                end
+            end
+            -- автопрогон: одна модель за тик (0.4 с) — без пачек, чтобы не ронять рендер
+            if _sweepRun and Ohota.DbgObjs.v and (os.clock() - _sweepLast) >= 0.4 then
+                _sweepLast = os.clock()
+                _sweepTotal = _sweepTotal + 1
+                if _sweepTotal > _sweepBudget then
+                    _sweepRun = false
+                    _sweepTotal = 0
+                else
+                    pcall(sweepOne, _sweepCursor)
+                    _sweepCursor = _sweepCursor + 1
+                    if _sweepCursor > _sweepMax then _sweepCursor = _sweepMin end
+                end
+            end
+            prev6, prev7, prev8, prev9 = d6, d7, d8, d9
+        end
+    end)
+
     -- Шрифт для живых животных
     font_whGreen = renderCreateFont('Arial', 7, 13)
+
+    -- Шрифт для отладки объектов
+    font_dbg = renderCreateFont('Arial', 7, 13)
 
     imgui.Process = true
     imgui.ShowCursor = false
@@ -253,15 +332,44 @@ function main()
             if not Ohota.FolApplied then
                 Ohota.FolApplied = true
                 Ohota.FolTimer = os.clock()
+                Ohota.FolBldTimer = 0
                 pcall(applyFoliageClear)
             elseif (os.clock() - (Ohota.FolTimer or 0)) > 2.0 then
                 Ohota.FolTimer = os.clock()
                 pcall(applyFoliageClear)
             end
+            -- статические деревья/кусты карты (buildings) убираем через RPC 43
+            if (os.clock() - (Ohota.FolBldTimer or 0)) > 5.0 then
+                Ohota.FolBldTimer = os.clock()
+                pcall(sendRemoveBuildingRPCs)
+            end
         else
-            if Ohota.FolApplied then
+            if Ohota.FolApplied or next(_folHidden) ~= nil then
                 Ohota.FolApplied = false
                 pcall(restoreFoliage)
+            end
+        end
+
+        -- отладка моделей объектов (раз в 1.5 c)
+        if Ohota.DbgObjs.v then
+            if (os.clock() - _dbgScanAt) > 1.5 then
+                _dbgScanAt = os.clock()
+                dbg('--- скан объектов вокруг ---')
+                pcall(dbgObjectsScan)
+            end
+            pcall(dbgObjectsRender)
+            renderFontDrawText(font_dbg, 'ПРОБА построек: ID ' .. _probeId .. '  (F6 назад / F7 вперёд)', 12, 105, 0xFFFF66FF)
+            if _sweepRun then
+                local _bs = math.floor((_sweepCursor - 1) / _sweepBandW) * _sweepBandW + 1
+                local _be = math.min(_bs + _sweepBandW - 1, _sweepMax)
+                renderFontDrawText(font_dbg, string.format('АВТОПРОБА: БАНД %d-%d (F8 стоп, F9 ширина=%d) курсор=%d',
+                    _bs, _be, _sweepBandW, _sweepCursor), 12, 118, 0xFF66FF00)
+            else
+                renderFontDrawText(font_dbg, string.format('АВТОПРОБА выкл — F8 старт (ширина=%d, F9 менять)', _sweepBandW), 12, 118, 0xFF66FF00)
+            end
+            local _sw, _sh = getScreenResolution()
+            for _i, _line in ipairs(_dbgScreen) do
+                renderFontDrawText(font_dbg, _line, 12 + ((_i - 1) % 2) * 330, 130 + math.floor((_i - 1) / 2) * 13, 0xFFFFFF00)
             end
         end
 
@@ -558,6 +666,9 @@ function imgui.OnDrawFrame()
             if imgui.Checkbox(u8"Убирать деревья вокруг", Ohota.ClearFol) then end
             if imgui.IsItemHovered() then imgui.SetTooltip(u8"Визуально убирает деревья/кусты в радиусе вокруг персонажа") end
 
+            if imgui.Checkbox(u8"Отладка моделей объектов", Ohota.DbgObjs) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"Показывает модели объектов вокруг на экране и пишет их в les_dbg.txt (для поиска верных ID деревьев)") end
+
             imgui.Separator()
             imgui.TextColored(imgui.ImVec4(0.55, 0.55, 0.55, 1.0), u8"/les - меню, /lesr - перезапуск")
         imgui.End()
@@ -718,6 +829,33 @@ function renderEspCars()
     end
 end
 
+-- Отрисовка отладки: бокс + линия + ID на каждом объекте в радиусе
+function dbgObjectsRender()
+    local sw, sh = getScreenResolution()
+    for _, o in ipairs(_dbgObjs) do
+        local X, Y = convert3DCoordsToScreen(o.x, o.y, o.z)
+        local TX, TY = convert3DCoordsToScreen(o.x, o.y, o.z + 6.0)
+        if X and Y and TX and TY and X == X and Y == Y and TX == TX and TY == TY
+           and X > -50 and X < 8050 and Y > -50 and Y < 6050
+           and TX > -50 and TX < 8050 and TY > -50 and TY < 6050 then
+            local h = math.max(math.abs(Y - TY), 8)
+            h = math.min(h, 80)
+            local w = h * 0.8
+            local x0 = X - w / 2
+            local y0 = TY - h * 0.05
+            local color = 0xFFFFFF00
+            if o.s then
+                color = 0xFF00CCFF
+            elseif TREE_SET[o.m] then
+                color = 0xFF00FF00
+            end
+            renderDrawBoxWithBorder(x0, y0, w, h, color, 1, color)
+            renderDrawLine(sw / 2, sh / 2, X, Y, 1.0, color)
+            renderFontDrawText(font_dbg, tostring(o.m) .. (o.s and 'S' or ''), X, y0 - 14, color)
+        end
+    end
+end
+
 -- Деревья/кусты: в GTA растительность хранится в пуле ОБЪЕКТОВ (не зданий),
 -- поэтому RPC 43 их не удаляет. НЕ удаляем объекты и НЕ телепортируем далеко
 -- (риск краша) — прячем каждое дерево, погружая его на 500 м вниз НА ТОМ ЖЕ
@@ -727,16 +865,33 @@ local TREE_MODELS = {}
 for _i = 613, 820 do
     TREE_MODELS[#TREE_MODELS + 1] = _i
 end
-local TREE_SET = {}
+TREE_SET = {}
 for _, m in ipairs(TREE_MODELS) do TREE_SET[m] = true end
 local FOLIAGE_RADIUS = 120.0
 local FOLIAGE_SINK = 500.0
 local FOLIAGE_MAX_PER_PASS = 20
+local FOLIAGE_MAX_RESTORE_PER_PASS = 25
+local _folBldPosX, _folBldPosY, _folBldPosZ = nil, nil, nil
+local _folBldStep = 0        -- индекс текущей модели в пошаговом проходе (0 = не идёт)
+local FOLIAGE_RPC_PER_STEP = 5   -- сколько моделей за один вызов (без пачек в кадре)
 
 local _objHideOk = (type(getAllObjects) == "function" and type(setObjectCoordinates) == "function"
                     and type(getObjectModel) == "function" and type(getObjectCoordinates) == "function")
 
-local _folHidden = {}   -- obj -> {x, y, z} (оригинальные координаты)
+-- true = объект серверный (не трогаем), false = игровой (можно прятать).
+-- Натив возвращает -1/0 или false для игровых объектов; -1 в Lua — истина,
+-- поэтому проверяем явно.
+local function isServerObject(obj)
+    if not sampGetObjectSampIdByHandle then return false end
+    local ok, r1, r2 = pcall(sampGetObjectSampIdByHandle, obj)
+    if not ok then return false end
+    if r1 == false then return false end
+    if r1 == true then return true end
+    if type(r1) == 'number' then return r1 >= 0 end
+    return false
+end
+
+_folHidden = {}   -- obj -> {x, y, z} (оригинальные координаты)
 local _folCheckAt = 0
 
 function applyFoliageClear()
@@ -746,7 +901,7 @@ function applyFoliageClear()
     for _, obj in pairs(getAllObjects()) do
         if done >= FOLIAGE_MAX_PER_PASS then break end
         if doesObjectExist and doesObjectExist(obj) and not _folHidden[obj] then
-            local isServer = sampGetObjectSampIdByHandle and sampGetObjectSampIdByHandle(obj)
+            local isServer = isServerObject(obj)
             if not isServer then
                 local om, m = pcall(getObjectModel, obj)
                 if om and m and TREE_SET[m] then
@@ -776,13 +931,155 @@ end
 
 function restoreFoliage()
     if not _objHideOk then return end
+    local done = 0
     for h, coords in pairs(_folHidden) do
+        if done >= FOLIAGE_MAX_RESTORE_PER_PASS then break end
         if doesObjectExist and doesObjectExist(h) then
             pcall(setObjectCoordinates, h, coords[1], coords[2], coords[3])
         end
         _folHidden[h] = nil
+        done = done + 1
     end
-    _folHidden = {}
+end
+
+-- Статические деревья/кусты (building-сущности карты) — только через RemoveBuildingForPlayer.
+-- RPC 43 уходит клиенту локально и не трогает сервер. Чтобы НЕ лавиннились RPC при
+-- частом вкл/выкл и НЕ сыпались пачками в один кадр (samp.dll+0x12843):
+--  - полный проход выполняется только когда игрок отошёл > 150 м от точки прошлого прохода;
+--  - модели отдаются по FOLIAGE_RPC_PER_STEP штуки за вызов из главного цикла (5/тик).
+function sendRemoveBuildingRPCs()
+    if type(raknetEmulRpcReceiveBitStream) ~= "function" then return end
+    local px, py, pz = getCharCoordinates(PLAYER_PED)
+    -- новый проход начинает только если далеко от прошлой точки (рапид-вкл/выкл не перемещает)
+    if _folBldStep == 0 then
+        if _folBldPosX ~= nil then
+            local dx = px - _folBldPosX
+            local dy = py - _folBldPosY
+            local dz = pz - _folBldPosZ
+            if (dx*dx + dy*dy + dz*dz) <= (150.0 * 150.0) then return end
+        end
+        _folBldStep = 1
+    end
+    local stop = _folBldStep + FOLIAGE_RPC_PER_STEP - 1
+    if stop > #TREE_MODELS then stop = #TREE_MODELS end
+    repeat
+        local model = TREE_MODELS[_folBldStep]
+        local bs = raknetNewBitStream()
+        raknetBitStreamWriteInt32(bs, model)
+        raknetBitStreamWriteFloat(bs, px)
+        raknetBitStreamWriteFloat(bs, py)
+        raknetBitStreamWriteFloat(bs, pz)
+        raknetBitStreamWriteFloat(bs, FOLIAGE_RADIUS)
+        pcall(raknetEmulRpcReceiveBitStream, 43, bs)
+        raknetDeleteBitStream(bs)
+        _folBldStep = _folBldStep + 1
+    until _folBldStep > stop
+    if _folBldStep > #TREE_MODELS then
+        _folBldStep = 0
+        _folBldPosX, _folBldPosY, _folBldPosZ = px, py, pz
+    end
+end
+
+-- Проба: убрать постройку с указанной моделью вокруг игрока (одним RPC 43).
+function probeBuilding(id)
+    if type(raknetEmulRpcReceiveBitStream) ~= "function" then return end
+    local px, py, pz = getCharCoordinates(PLAYER_PED)
+    local bs = raknetNewBitStream()
+    raknetBitStreamWriteInt32(bs, id)
+    raknetBitStreamWriteFloat(bs, px)
+    raknetBitStreamWriteFloat(bs, py)
+    raknetBitStreamWriteFloat(bs, pz)
+    raknetBitStreamWriteFloat(bs, FOLIAGE_RADIUS)
+    pcall(raknetEmulRpcReceiveBitStream, 43, bs)
+    raknetDeleteBitStream(bs)
+    dbg('PROBE id=' .. id)
+end
+
+-- Одна модель за вызов: удаляет постройки только этой модели вокруг игрока.
+function sweepOne(id)
+    if type(raknetEmulRpcReceiveBitStream) ~= "function" then return end
+    local px, py, pz = getCharCoordinates(PLAYER_PED)
+    local bs = raknetNewBitStream()
+    raknetBitStreamWriteInt32(bs, id)
+    raknetBitStreamWriteFloat(bs, px)
+    raknetBitStreamWriteFloat(bs, py)
+    raknetBitStreamWriteFloat(bs, pz)
+    raknetBitStreamWriteFloat(bs, FOLIAGE_RADIUS)
+    pcall(raknetEmulRpcReceiveBitStream, 43, bs)
+    raknetDeleteBitStream(bs)
+    dbg('SWEEP id=' .. id)
+end
+
+-- Отладка: показать модели объектов вокруг (в реальном времени)
+function dbgObjectsScan()
+    _dbgScreen = {}
+    _dbgObjs = {}
+    if not _objHideOk then
+        _dbgScreen[1] = 'нет API объектов (getAllObjects недоступен)'
+        return
+    end
+    local px, py, pz = getCharCoordinates(PLAYER_PED)
+    local radius = FOLIAGE_RADIUS
+    local counts = {}
+    local total, treeById, hiddenNow, serverCnt, withinRad = 0, 0, 0, 0, 0
+    for _, obj in pairs(getAllObjects()) do
+        if doesObjectExist and doesObjectExist(obj) then
+            local om, m = pcall(getObjectModel, obj)
+            if not (om and m) then m = 0 end
+            if not counts[m] then counts[m] = { n = 0, s = 0, hid = 0, rad = 0 } end
+            counts[m].n = counts[m].n + 1
+            total = total + 1
+            local oc, _, cx, cy, cz = pcall(getObjectCoordinates, obj)
+            local dist = 1e9
+            if oc then
+                dist = math.sqrt((cx - px) ^ 2 + (cy - py) ^ 2 + (cz - pz) ^ 2)
+            end
+            if dist <= radius then
+                counts[m].rad = counts[m].rad + 1
+                withinRad = withinRad + 1
+            end
+            local isServer = isServerObject(obj)
+            if isServer then counts[m].s = counts[m].s + 1 serverCnt = serverCnt + 1 end
+            if _folHidden[obj] then counts[m].hid = counts[m].hid + 1 hiddenNow = hiddenNow + 1 end
+            if TREE_SET[m] then treeById = treeById + 1 end
+            if dist <= radius then
+                _dbgObjs[#_dbgObjs + 1] = { m = m, x = cx, y = cy, z = cz, s = isServer }
+                dbg(string.format('OBJ model=%d dist=%.0f server=%s hidden=%s pos=%.1f,%.1f,%.1f',
+                    m, dist, tostring(isServer), tostring(_folHidden[obj] ~= nil), cx, cy, cz))
+            end
+        end
+    end
+    _dbgScreen[1] = string.format('Объектов всего: %d | в радиусе: %d | по ID дерева: %d | скрыто: %d | серверных: %d',
+        total, withinRad, treeById, hiddenNow, serverCnt)
+    local sorted = {}
+    for m, c in pairs(counts) do
+        if c.n > 0 and (c.rad > 0 or c.s > 0) then
+            sorted[#sorted + 1] = {
+                n = c.n,
+                r = c.rad,
+                s = string.format('ID %d: x%d%s%s%s', m, c.n,
+                    (c.rad > 0 and (' в радиус=' .. c.rad) or ''),
+                    (c.s > 0 and (' серв=' .. c.s) or ''),
+                    (c.hid > 0 and (' скрыто=' .. c.hid) or ''))
+            }
+        end
+    end
+    table.sort(sorted, function(a, b)
+        if a.r ~= b.r then return a.r > b.r end
+        return a.n > b.n
+    end)
+    local _shown = 0
+    for _, row in ipairs(sorted) do
+        if _shown >= 14 then break end
+        _dbgScreen[#_dbgScreen + 1] = row.s
+        _shown = _shown + 1
+    end
+    if #sorted > _shown then
+        _dbgScreen[#_dbgScreen + 1] = '... итого моделей ' .. #sorted .. ' (полный список в les_dbg.txt)'
+    end
+    if #_dbgScreen < 2 then
+        _dbgScreen[#_dbgScreen + 1] = 'рядом объектов нет'
+    end
 end
 
 function onReceivePacket(id, bs)
