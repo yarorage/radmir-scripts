@@ -98,10 +98,6 @@ function meta:__unm() -- unary minus
 	return vector3d(-self.x, -self.y, -self.z)
 end
 
-function meta:__len()
-	return self:len()
-end
-
 ffi.metatype('vector3d', meta)
 mt.provide_access('vector3d', vec3d, true, false)
 

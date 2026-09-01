@@ -25,20 +25,16 @@ function module.ffi.cdef(def)
 	if c == 0 then return end
 
 	for child in def:gmatch('(struct%s*[%a%d%p]+)%s*:') do
-		mt.set_handler(
-			child,
-			'__index',
-			function(s, k)
-				return s.__parent[k] or error(('%s has no member named "%s"'):format(child, k or '?'))
-			end
-		)
-		mt.set_handler(
-			child,
-			'__newindex',
-			function(s, k, v)
-				s.__parent[k] = v
-			end
-		)
+		local function index_handler(s, k)
+			return s.__parent[k] or error(('%s has no member named "%s"'):format(child, k or '?'))
+		end
+
+		local function newindex_handler(s, k, v)
+			s.__parent[k] = v
+		end
+
+		mt.set_handler(child, '__index', index_handler)
+		mt.set_handler(child, '__newindex', newindex_handler)
 	end
 end
 

@@ -8,7 +8,7 @@
 	Copyright (c) 2018 BlastHack.
 ]]
 
-local shared  = require 'SAMemory.shared'
+local samem  = require 'SAMemory.shared'
 
 shared.require 'RenderWare'
 

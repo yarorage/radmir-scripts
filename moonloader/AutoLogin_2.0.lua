@@ -1229,13 +1229,19 @@ local function timer_render_thread()
             btn_w = btn_w_val + 12
             btn_h = 24
             local cursor_x, cursor_y = getCursorPos()
-            local is_hovered = (cursor_x >= btn_x and cursor_x <= btn_x + btn_w and cursor_y >= btn_y and cursor_y <= btn_y + btn_h)
+            local pad = 10
+            local is_hovered = (cursor_x >= btn_x - pad and cursor_x <= btn_x + btn_w + pad and cursor_y >= btn_y - pad and cursor_y <= btn_y + btn_h + pad)
             local current_lbutton_state = (user32.GetAsyncKeyState(0x01) < 0)
             local btn_bg_color = is_hovered and 0x55FFFFFF or 0x33000000
             renderDrawBox(btn_x, btn_y, btn_w, btn_h, btn_bg_color)
             renderFontDrawText(r_font, btn_str, btn_x + 6, btn_y + 2, is_hovered and 0xFF33FF33 or 0xFFFFFFFF)
+            -- фиксируем попадание в момент НАЖАТИЯ ЛКМ (не отпускания)
+            if current_lbutton_state and not last_lbutton_state and is_hovered then
+                spawn_btn_pressed = true
+            end
             if last_lbutton_state and not current_lbutton_state then
-                if is_hovered then
+                if spawn_btn_pressed then
+                    spawn_btn_pressed = false
                     spawn_choice = not spawn_choice
                     save_config()
                     local status = spawn_choice and "{33FF33}Да (Enter)" or "{FF3333}Нет (Esc)"

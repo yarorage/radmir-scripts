@@ -42,20 +42,20 @@ local function statusHandler(status, ...)
 end
 
 function socket.protect(func)
-  return function (...)
+return function (...)
            return statusHandler(pcall(func, ...))
-         end
+       end
 end
 
 function socket.newtry(finalizer)
-  return function (...)
-           local status = (...)
-           if not status then
+return function (...)
+         local status = (...)
+         if not status then
              pcall(finalizer, select(2, ...))
-             error({ (select(2, ...)) }, 0)
-           end
-           return ...
+           error({ (select(2, ...)) }, 0)
          end
+         return ...
+       end
 end
 
 local copas = {}
@@ -181,16 +181,6 @@ local _sleeping = {
     end
 } --_sleeping
 
-local function newtimer(timeout)
-  timeout = timeout or WATCH_DOG_TIMEOUT
-  return {
-    timeout_time = gettime() + timeout,
-    expired = function(self)
-      return gettime() >= self.timeout_time
-    end
-  }
-end
-
 local _servers = newset() -- servers being handled
 local _reading_log = {}
 local _writing_log = {}
@@ -215,24 +205,23 @@ end
 -- UDP: a UDP socket expects a second argument to be a number, so it MUST
 -- be provided as the 'pattern' below defaults to a string. Will throw a
 -- 'bad argument' error if omitted.
-function copas.receive(client, pattern, part, timeout)
+function copas.receive(client, pattern, part)
   local s, err
   pattern = pattern or "*l"
   local current_log = _reading_log
-  local timer = newtimer(timeout)
   repeat
     s, err, part = client:receive(pattern, part)
-    if s or (not _isTimeout[err]) or timer:expired() then
+    if s or (not _isTimeout[err]) then 
       current_log[client] = nil
       return s, err, part
     end
     if err == "wantwrite" then
       current_log = _writing_log
-      current_log[client] = timer
+      current_log[client] = gettime()
       coroutine.yield(client, _writing)
     else
       current_log = _reading_log
-      current_log[client] = timer
+      current_log[client] = gettime()
       coroutine.yield(client, _reading)
     end
   until false
@@ -240,17 +229,16 @@ end
 
 -- receives data from a client over UDP. Not available for TCP.
 -- (this is a copy of receive() method, adapted for receivefrom() use)
-function copas.receivefrom(client, size, timeout)
+function copas.receivefrom(client, size)
   local s, err, port
   size = size or UDP_DATAGRAM_MAX
-  local timer = newtimer(timeout)
   repeat
     s, err, port = client:receivefrom(size) -- upon success err holds ip address
-    if s or err ~= "timeout" or timer:expired() then
+    if s or err ~= "timeout" then
       _reading_log[client] = nil
       return s, err, port
     end
-    _reading_log[client] = timer
+    _reading_log[client] = gettime()
     coroutine.yield(client, _reading)
   until false
 end
@@ -261,20 +249,19 @@ function copas.receivePartial(client, pattern, part)
   local s, err
   pattern = pattern or "*l"
   local current_log = _reading_log
-  local timer = newtimer()
   repeat
     s, err, part = client:receive(pattern, part)
-    if s or ((type(pattern)=="number") and part~="" and part ~=nil ) or (not _isTimeout[err]) or timer:expired() then
+    if s or ((type(pattern)=="number") and part~="" and part ~=nil ) or (not _isTimeout[err]) then
       current_log[client] = nil
       return s, err, part
     end
     if err == "wantwrite" then
       current_log = _writing_log
-      current_log[client] = timer
+      current_log[client] = gettime()
       coroutine.yield(client, _writing)
     else
       current_log = _reading_log
-      current_log[client] = timer
+      current_log[client] = gettime()
       coroutine.yield(client, _reading)
     end
   until false
@@ -283,35 +270,34 @@ end
 -- sends data to a client. The operation is buffered and
 -- yields to the writing set on timeouts
 -- Note: from and to parameters will be ignored by/for UDP sockets
-function copas.send(client, data, from, to, timeout)
+function copas.send(client, data, from, to)
   local s, err
   from = from or 1
   local lastIndex = from - 1
   local current_log = _writing_log
-  local timer = newtimer(timeout)
   repeat
     s, err, lastIndex = client:send(data, lastIndex + 1, to)
     -- adds extra coroutine swap
     -- garantees that high throughput doesn't take other threads to starvation
     if (math.random(100) > 90) then
-      current_log[client] = timer   -- TODO: how to handle this?? 
+      current_log[client] = gettime()   -- TODO: how to handle this?? 
       if current_log == _writing_log then
         coroutine.yield(client, _writing)
       else
         coroutine.yield(client, _reading)
       end
     end
-    if s or (not _isTimeout[err]) or timer:expired() then
+    if s or (not _isTimeout[err]) then 
       current_log[client] = nil
       return s, err,lastIndex
     end
     if err == "wantread" then
       current_log = _reading_log
-      current_log[client] = timer
+      current_log[client] = gettime()
       coroutine.yield(client, _reading)
     else
       current_log = _writing_log
-      current_log[client] = timer
+      current_log[client] = gettime()
       coroutine.yield(client, _writing)
     end
   until false
@@ -319,41 +305,36 @@ end
 
 -- sends data to a client over UDP. Not available for TCP.
 -- (this is a copy of send() method, adapted for sendto() use)
-function copas.sendto(client, data, ip, port, timeout)
+function copas.sendto(client, data, ip, port)
   local s, err
-  local timer = newtimer(timeout)
+
   repeat
     s, err = client:sendto(data, ip, port)
     -- adds extra coroutine swap
     -- garantees that high throughput doesn't take other threads to starvation
     if (math.random(100) > 90) then
-      _writing_log[client] = timer
+      _writing_log[client] = gettime()
       coroutine.yield(client, _writing)
     end
-    if s or err ~= "timeout" or timer:expired() then
+    if s or err ~= "timeout" then
       _writing_log[client] = nil
       return s, err
     end
-    _writing_log[client] = timer
+    _writing_log[client] = gettime()
     coroutine.yield(client, _writing)
   until false
 end
 
 -- waits until connection is completed
-function copas.connect(skt, host, port, timeout)
+function copas.connect(skt, host, port)
   skt:settimeout(0)
   local ret, err, tried_more_than_once
-  local timer = newtimer(timeout)
   repeat
-    ret, err = skt:connect(host, port)
-    if (not ret) and timer:expired() then
-      return ret, "timeout"
-    end
+    ret, err = skt:connect (host, port)
     -- non-blocking connect on Windows results in error "Operation already
     -- in progress" to indicate that it is completing the request async. So essentially
     -- it is the same as "timeout"
-    -- "Invalid argument" explanation: https://github.com/diegonehab/luasocket/pull/190
-    if ret or (err ~= "timeout" and err ~= "Operation already in progress" and err ~= "Invalid argument") then
+    if ret or (err ~= "timeout" and err ~= "Operation already in progress") then
       -- Once the async connect completes, Windows returns the error "already connected"
       -- to indicate it is done, so that error should be ignored. Except when it is the 
       -- first call to connect, then it was already connected to something else and the 
@@ -366,7 +347,7 @@ function copas.connect(skt, host, port, timeout)
       return ret, err
     end
     tried_more_than_once = tried_more_than_once or true
-    _writing_log[skt] = timer
+    _writing_log[skt] = gettime()
     coroutine.yield(skt, _writing)
   until false
 end
@@ -383,7 +364,7 @@ end
 -- @param skt Regular LuaSocket CLIENT socket object
 -- @param sslt Table with ssl parameters
 -- @return wrapped ssl socket, or throws an error
-function copas.dohandshake(skt, sslt)
+function copas.dohandshake(skt, sslt)  
   ssl = ssl or require("ssl")
   local nskt, err = ssl.wrap(skt, sslt)
   if not nskt then return error(err) end
@@ -416,14 +397,14 @@ local _skt_mt_tcp = {
                    __index = {
                               
                    send = function (self, data, from, to)
-                            return copas.send(self.socket, data, from, to, self.timeout)
+                            return copas.send (self.socket, data, from, to)
                           end,
 
                    receive = function (self, pattern, prefix)
                                if (self.timeout==0) then
                                  return copas.receivePartial(self.socket, pattern, prefix)
                                end
-                               return copas.receive(self.socket, pattern, prefix, self.timeout)
+                               return copas.receive(self.socket, pattern, prefix)
                              end,
 
                    flush = function (self)
@@ -437,8 +418,8 @@ local _skt_mt_tcp = {
 
                    -- TODO: socket.connect is a shortcut, and must be provided with an alternative
                    -- if ssl parameters are available, it will also include a handshake
-                   connect = function(self, host, port)
-                     local res, err = copas.connect(self.socket, host, port, self.timeout)
+                   connect = function(self, ...)
+                     local res, err = copas.connect(self.socket, ...)
                      if res and self.ssl_params then
                        res, err = self:dohandshake()
                      end  
@@ -483,17 +464,17 @@ local _skt_mt_udp = {__index = { }}
 for k,v in pairs(_skt_mt_tcp) do _skt_mt_udp[k] = _skt_mt_udp[k] or v end
 for k,v in pairs(_skt_mt_tcp.__index) do _skt_mt_udp.__index[k] = v end
 
-_skt_mt_udp.__index.sendto =      function (self, data, ip, port)
+_skt_mt_udp.__index.sendto =      function (self, ...)
                                     -- UDP sending is non-blocking, but we provide starvation prevention, so replace anyway
-                                    return copas.sendto(self.socket, data, ip, port, self.timeout)
+                                    return copas.sendto (self.socket, ...)
                                   end
 
 _skt_mt_udp.__index.receive =     function (self, size)
-                                    return copas.receive(self.socket, (size or UDP_DATAGRAM_MAX), nil, self.timeout)
+                                    return copas.receive (self.socket, (size or UDP_DATAGRAM_MAX))
                                   end
 
 _skt_mt_udp.__index.receivefrom = function (self, size)
-                                    return copas.receivefrom(self.socket, (size or UDP_DATAGRAM_MAX), self.timeout)
+                                    return copas.receivefrom (self.socket, (size or UDP_DATAGRAM_MAX))
                                   end
                    
                                   -- TODO: is this DNS related? hence blocking?
@@ -558,6 +539,7 @@ local function _doTick (co, skt, ...)
   if not co then return end
 
   local ok, res, new_q = coroutine.resume(co, skt, ...)
+
   if ok and res and new_q then
     new_q:insert (res)
     new_q:push (res, co)
@@ -731,29 +713,37 @@ local last_cleansing = 0
 -------------------------------------------------------------------------------
 -- Checks for reads and writes on sockets
 -------------------------------------------------------------------------------
-local function _select(timeout)
-  local r_evs, w_evs, err = socket.select(_reading, _writing, timeout)
-  _readable_t._evs, _writable_t._evs = r_evs, w_evs
+local function _select (timeout)
+  local err
+  local now = gettime()
+  local duration = function(t2, t1) return t2-t1 end
 
-  -- Check all sockets selected for reading, and check how long they have been waiting
-  -- for data already, without select returning them as readable
-  for skt, timer in pairs(_reading_log) do
-    if not r_evs[skt] and timer:expired() then
-      -- This one timedout while waiting to become readable, so move
-      -- it in the readable list and try and read anyway, despite not 
-      -- having been returned by select
-      _reading_log[skt] = nil
-      r_evs[#r_evs + 1] = skt
-      r_evs[skt] = #r_evs
+  _readable_t._evs, _writable_t._evs, err = socket.select(_reading, _writing, timeout)
+  local r_evs, w_evs = _readable_t._evs, _writable_t._evs
+
+  if duration(now, last_cleansing) > WATCH_DOG_TIMEOUT then
+    last_cleansing = now
+    
+    -- Check all sockets selected for reading, and check how long they have been waiting
+    -- for data already, without select returning them as readable
+    for skt,time in pairs(_reading_log) do
+      if not r_evs[skt] and duration(now, time) > WATCH_DOG_TIMEOUT then
+        -- This one timedout while waiting to become readable, so move
+        -- it in the readable list and try and read anyway, despite not 
+        -- having been returned by select
+        _reading_log[skt] = nil
+        r_evs[#r_evs + 1] = skt
+        r_evs[skt] = #r_evs
+      end
     end
-  end
 
-  -- Do the same for writing
-  for skt, timer in pairs(_writing_log) do
-    if not w_evs[skt] and timer:expired() then
-      _writing_log[skt] = nil
-      w_evs[#w_evs + 1] = skt
-      w_evs[skt] = #w_evs
+    -- Do the same for writing
+    for skt,time in pairs(_writing_log) do
+      if not w_evs[skt] and duration(now, time) > WATCH_DOG_TIMEOUT then
+        _writing_log[skt] = nil
+        w_evs[#w_evs + 1] = skt
+        w_evs[skt] = #w_evs
+      end
     end
   end
 
@@ -774,19 +764,19 @@ end
 function copas.step(timeout)
   _sleeping_t:tick(gettime())
 
-  -- Need to wake up the select call in time for the next sleeping event
+  -- Need to wake up the select call it time for the next sleeping event
   local nextwait = _sleeping:getnext()
   if nextwait then
     timeout = timeout and math.min(nextwait, timeout) or nextwait
   else
     if copas.finished() then
       return false
-    end
+  end
   end
 
   local err = _select (timeout)
   if err then
-    if err == "timeout" then return false end
+  if err == "timeout" then return false end
     return nil, err
   end
 
