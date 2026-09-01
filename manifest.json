@@ -148,6 +148,12 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/LesGuard.lua",
+                      "sha256":  "ed68b1490edfbd3ad04c56ae17cef647322defecf118afa97ffca71f31f78e1f",
+                      "size":  1672,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/RecconnectByYaroRage.lua",
                       "sha256":  "24f861513d1a78698cf79bd6319368508039a2323fb459c4328930cd72db34f9",
                       "size":  4535,
