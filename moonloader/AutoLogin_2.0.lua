@@ -17,15 +17,15 @@ ffi.cdef[[
     void* GetForegroundWindow(void);
     uint32_t GetWindowThreadProcessId(void* hWnd, uint32_t* lpdwProcessId);
     int IsIconic(void* hWnd);
+    short GetAsyncKeyState(int vKey);
+    uint32_t GetKeyboardLayout(uint32_t idThread);
+    int MessageBeep(uint32_t uType);
+    int PlaySoundA(const char* pszSound, void* hmod, uint32_t fdwSound);
     int OpenClipboard(void* hWnd);
     int EmptyClipboard(void);
     int CloseClipboard(void);
     void* GetClipboardData(uint32_t uFormat);
     void* SetClipboardData(uint32_t uFormat, void* hMem);
-    short GetAsyncKeyState(int vKey);
-    uint32_t GetKeyboardLayout(uint32_t idThread);
-    int MessageBeep(uint32_t uType);
-    int PlaySoundA(const char* pszSound, void* hmod, uint32_t fdwSound);
 ]]
 
 ffi.cdef[[
@@ -375,7 +375,7 @@ local function trigger_reconnect()
             user32.keybd_event(0x7A, 0, KEYEVENTF_KEYDOWN, 0)
             wait(50)
             user32.keybd_event(0x7A, 0, KEYEVENTF_KEYUP, 0)
-            log("–еконнект: F11 (один раз). ∆дЄм Authorization, пароль не вводим вслепую.")
+            log("–еконнект: F11 (один раз). ∆дЄм AuthorizationT, пароль не вводим вслепую.")
             wait(800)
             emulate_reconnect_ui_cleanup()
         elseif ip and port then
@@ -608,21 +608,16 @@ end
 
 start_reconnect_watch = function()
     reconnect_watch_active = true
-    reconnect_watch_until = os.clock() + 35
+    reconnect_watch_until = os.clock() + 20
     saw_loading_after_rec = false
     saw_queue_after_rec = false
-    log("Watchdog реконнекта: 35 сек (ждЄм «агрузка / очередь / подключение)")
+    log("Watchdog реконнекта: 20 сек (ждЄм «агрузка / очередь)")
     lua_thread.create(function()
         while reconnect_watch_active and os.clock() < reconnect_watch_until do
             wait(500)
-            local connected = false
-            if sampIsPlayerConnected then
-                local ok_conn, res = pcall(sampIsPlayerConnected)
-                connected = ok_conn and res
-            end
-            if saw_loading_after_rec or saw_queue_after_rec or is_spawned or login_submitted or connected then
+            if saw_loading_after_rec or saw_queue_after_rec or is_spawned or login_submitted then
                 reconnect_watch_active = false
-                log("Watchdog: ок (загрузка/очередь/спавн/вход/подключен) Ч F11 не нужен")
+                log("Watchdog: ок (загрузка/очередь/спавн/вход) Ч F11 не нужен")
                 return
             end
         end
@@ -632,26 +627,19 @@ start_reconnect_watch = function()
             and not is_spawned
             and not login_submitted
             and not is_logging_in then
-            local connected_now = false
-            if sampIsPlayerConnected then
-                local ok_conn2, res2 = pcall(sampIsPlayerConnected)
-                connected_now = ok_conn2 and res2
-            end
-            if connected_now then
-                reconnect_watch_active = false
-                log("Watchdog: подключение активно (" .. tostring(connected_now) .. ") Ч ждЄм логин, F11 не шлЄм")
-                return
-            end
             reconnect_watch_active = false
-            log("Watchdog: 35с без загрузки и без очереди Ч принудительный F11 (spawned=" .. tostring(is_spawned) .. ", login_submitted=" .. tostring(login_submitted) .. ", pending=" .. tostring(pending_autologin) .. ")")
+            log("Watchdog: 20с без загрузки и без очереди Ч принудительный F11")
             is_spawned = false
             is_logging_in = false
             lua_thread.create(function()
                 if login_submitted or is_spawned then return end
-                pcall(wait_for_game_focus)
-                wait(200)
                 local hwnd = user32.FindWindowA("Grand theft auto San Andreas", nil)
                 if hwnd ~= nil then
+                    if not (user32.IsIconic(hwnd) == 0 and user32.GetForegroundWindow() == hwnd) then
+                        log("Watchdog: жду фокуса GTA, затем F11")
+                    end
+                    wait_for_game_focus()
+                    wait(200)
                     user32.keybd_event(0x7A, 0, KEYEVENTF_KEYDOWN, 0)
                     wait(50)
                     user32.keybd_event(0x7A, 0, KEYEVENTF_KEYUP, 0)
@@ -659,6 +647,8 @@ start_reconnect_watch = function()
                     wait(800)
                     if login_submitted or is_spawned then return end
                     emulate_reconnect_ui_cleanup()
+                else
+                    log("Watchdog: окно GTA не найдено Ч F11 пропущен")
                 end
                 is_spawned = false
                 pending_autologin = true
@@ -795,7 +785,7 @@ schedule_autologin_after_reconnect = function()
     pending_autologin = true
     is_spawned = false
     is_logging_in = false
-    log("schedule: ждЄм пакет Authorization[auth] (без слепого ввода)")
+    log("schedule: ждЄм пакет AuthorizationT[auth] (без слепого ввода)")
     lua_thread.create(function()
         for i = 1, 40 do
             if is_spawned or not script_active then
@@ -829,14 +819,7 @@ function sampevents.onServerMessage(color, text)
         spawn_timer_seconds = 0
         pending_autologin = true
     end
-    local is_conn_ui =
-        text:find('«агрузка') or text:find('Loading')
-        or (text:find('Authorization') and text:find('"auth"'))
-        or text:find('OnAuthorizationStart')
-        or text:find('OnAuthorizationStarts')
-        or text:find('¬ведите пароль')
-        or text:find('ѕоле парол€')
-    if is_reconnecting and not is_conn_ui then return end
+    if is_reconnecting then return end
     if lower_text:find("вы отключены от сервера")
         or lower_text:find("соединение потер€но")
         or lower_text:find("соединение разорвано")
@@ -909,8 +892,6 @@ function onReceivePacket(id, bs)
         end
     end
 
-    if not script_active or password == "" then return end
-
     if text:find('GameText') and (text:find('«агрузка') or text:find('~y~')) then
         if text:find('«агрузка') or text:find('Loading') then
             saw_loading_after_rec = true
@@ -930,6 +911,8 @@ function onReceivePacket(id, bs)
         is_logging_in = false
         log("Loading[3000] (UI/загрузка) Ч is_spawned не мен€ем")
     end
+
+    if not script_active or password == "" then return end
 
     if text:find('setPlayerNickName')
         or text:find('ƒобро пожаловать')
@@ -1171,7 +1154,7 @@ function sampevents.onServerJoin()
     spawn_timer_seconds = 0
     pending_autologin = true
     last_login_attempt = 0
-    log("onServerJoin Ч ждЄм CEF Authorization / автовход")
+    log("onServerJoin Ч ждЄм CEF AuthorizationT / автовход")
     schedule_autologin_after_reconnect()
     if password ~= "" and not force_password_form then
         lua_thread.create(function()
@@ -1253,7 +1236,7 @@ function onWindowMessage(msg, wparam, lparam)
         end
     end
 
-    if is_password_form_visible() and pass_input_active and not (sampIsChatInputActive and sampIsChatInputActive()) then
+    if is_password_form_visible() and pass_input_active then
         local ctrl_down = (user32.GetAsyncKeyState(0x11) < 0)
         if msg == 0x0100 then
             if wparam == 0x08 then
@@ -1363,105 +1346,113 @@ local function timer_render_thread()
 
         if is_password_form_visible() then
             local sw, sh = getScreenResolution()
-            local form_w, form_h = 480, 210
+            local form_w, form_h = 560, 250
             local form_x = math.floor((sw - form_w) / 2)
             local form_y = math.floor((sh - form_h) / 2)
-            local pad = 18
+            local pad = 20
 
-            renderDrawBox(form_x + 5, form_y + 6, form_w, form_h, 0x50000000)
-            renderDrawBox(form_x, form_y, form_w, form_h, 0xF0111118)
-            renderDrawBox(form_x, form_y, form_w, 1, 0x40FFFFFF)
-            renderDrawBox(form_x, form_y + form_h - 1, form_w, 1, 0x20FFFFFF)
-            renderDrawBox(form_x, form_y, 1, form_h, 0x20FFFFFF)
-            renderDrawBox(form_x + form_w - 1, form_y, 1, form_h, 0x20FFFFFF)
+            renderDrawBox(form_x + 10, form_y + 14, form_w, form_h, 0x26002077)
+            renderDrawBox(form_x + 5, form_y + 8, form_w, form_h, 0x1A00104D)
+            renderDrawBox(form_x, form_y, form_w, form_h, 0xF70E1426)
+            renderDrawBox(form_x, form_y, form_w, form_h, 0x22FFFFFF)
+            renderDrawBox(form_x + 1, form_y + 1, form_w - 2, form_h - 2, 0xFF22304F)
+            renderDrawBox(form_x + 2, form_y + 2, form_w - 4, form_h - 4, 0xF70E1426)
 
-            local head_h = 48
-            renderDrawBox(form_x, form_y, form_w, head_h, 0xF0181822)
-            renderDrawBox(form_x, form_y + head_h - 2, form_w, 2, 0xFF6C5CE7)
+            local head_h = 52
+            renderDrawBox(form_x, form_y, form_w, head_h, 0xF9142138)
+            renderDrawBox(form_x, form_y, form_w, head_h - 12, 0x662A4BA6)
+            renderDrawBox(form_x, form_y + head_h - 8, form_w, 4, 0x33294CC0)
+            renderDrawBox(form_x, form_y + head_h - 4, form_w, 4, 0xFF4D7CFE)
 
-            renderDrawBox(form_x + pad, form_y + 14, 28, 20, 0xFF6C5CE7)
-            renderFontDrawText(r_font, "AL", form_x + pad + 5, form_y + 16, 0xFFFFFFFF)
-            renderFontDrawText(r_font, "AutoLogin", form_x + pad + 36, form_y + 10, 0xFFFFFFFF)
-            renderFontDrawText(r_font, "¬ведите пароль аккаунта", form_x + pad + 36, form_y + 26, 0xFF8B8BA0)
+            renderDrawBox(form_x + pad, form_y + 12, 26, 26, 0xFF234CA8)
+            renderDrawBox(form_x + pad, form_y + 12, 26, 26, 0x22FFFFFF)
+            renderDrawBox(form_x + pad + 1, form_y + 13, 24, 1, 0x44FFFFFF)
+            renderFontDrawText(r_font, "AL", form_x + pad + 6, form_y + 15, 0xFFFFFFFF)
+            renderFontDrawText(r_font, "AutoLogin", form_x + pad + 38, form_y + 9, 0xFFF0F4FF)
+            renderFontDrawText(r_font, "¬ведите пароль аккаунта", form_x + pad + 38, form_y + 29, 0xFF93A5CE)
 
             local cursor_x, cursor_y = getCursorPos()
             local layout_name = get_current_keyboard_layout_name()
 
             local close_label = "«акрыть"
             local clw = renderGetFontDrawTextLength(r_font, close_label)
-            close_btn_w = clw + 16
-            close_btn_h = 24
+            close_btn_w = clw + 18
+            close_btn_h = 26
             close_btn_x = form_x + form_w - pad - close_btn_w
-            close_btn_y = form_y + 12
+            close_btn_y = form_y + 13
             local close_hovered = (cursor_x >= close_btn_x and cursor_x <= close_btn_x + close_btn_w and cursor_y >= close_btn_y and cursor_y <= close_btn_y + close_btn_h)
-            renderDrawBox(close_btn_x, close_btn_y, close_btn_w, close_btn_h, close_hovered and 0xFF4A3040 or 0xFF2A2228)
-            renderFontDrawText(r_font, close_label, close_btn_x + 8, close_btn_y + 4, close_hovered and 0xFFFF8A8A or 0xFFC8C8D8)
+            renderDrawBox(close_btn_x, close_btn_y, close_btn_w, close_btn_h, close_hovered and 0xFF7A2E41 or 0xFF1B2440)
+            renderDrawBox(close_btn_x, close_btn_y, close_btn_w, close_btn_h, 0x18FFFFFF)
+            renderFontDrawText(r_font, close_label, close_btn_x + 8, close_btn_y + 5, close_hovered and 0xFFFF9B9B or 0xFF93A2C9)
 
-            local row_y = form_y + 64
+            local row_h = 38
+            local row_y = form_y + 74
             if password_form_error ~= "" then
-                renderFontDrawText(r_font, password_form_error, form_x + pad, form_y + 54, 0xFFFF6B6B)
-                row_y = form_y + 78
+                renderFontDrawText(r_font, password_form_error, form_x + pad, form_y + 60, 0xFFFF7A90)
+                row_y = form_y + 94
             end
-            local row_h = 34
 
-            local lay_w = 40
-            renderDrawBox(form_x + pad, row_y, lay_w, row_h, 0xFF252532)
+            local lay_w = 44
+            renderDrawBox(form_x + pad, row_y, lay_w, row_h, 0xFF131C3A)
+            renderDrawBox(form_x + pad, row_y, lay_w, row_h, 0x12FFFFFF)
             local ll = renderGetFontDrawTextLength(r_font, layout_name)
-            renderFontDrawText(r_font, layout_name, form_x + pad + (lay_w - ll) / 2, row_y + 9, 0xFFB8B8FF)
+            renderFontDrawText(r_font, layout_name, form_x + pad + (lay_w - ll) / 2, row_y + 11, 0xFF87A8F0)
 
-            pass_field_x = form_x + pad + lay_w + 8
+            pass_field_x = form_x + pad + lay_w + 10
             pass_field_y = row_y
-            pass_field_w = 200
+            pass_field_w = 236
             pass_field_h = row_h
             local field_hovered = (cursor_x >= pass_field_x and cursor_x <= pass_field_x + pass_field_w and cursor_y >= pass_field_y and cursor_y <= pass_field_y + pass_field_h)
-            renderDrawBox(pass_field_x, pass_field_y, pass_field_w, pass_field_h, pass_input_active and 0xFF2A2A3A or 0xFF1E1E28)
-            local fb = pass_input_active and 0xFF6C5CE7 or 0x30FFFFFF
-            renderDrawBox(pass_field_x, pass_field_y, pass_field_w, 1, fb)
-            renderDrawBox(pass_field_x, pass_field_y + pass_field_h - 1, pass_field_w, 1, fb)
-            renderDrawBox(pass_field_x, pass_field_y, 1, pass_field_h, fb)
-            renderDrawBox(pass_field_x + pass_field_w - 1, pass_field_y, 1, pass_field_h, fb)
+            renderDrawBox(pass_field_x, pass_field_y, pass_field_w, pass_field_h, pass_input_active and 0xFF101A33 or 0xFF0A0F1F)
+            renderDrawBox(pass_field_x, pass_field_y, pass_field_w, pass_field_h, 0x12FFFFFF)
+            local fb = pass_input_active and 0xFF4D7CFE or 0xFF2A3D8F
+            renderDrawBox(pass_field_x, pass_field_y, pass_field_w, 2, fb)
+            renderDrawBox(pass_field_x, pass_field_y + pass_field_h - 2, pass_field_w, 2, fb)
+            renderDrawBox(pass_field_x, pass_field_y, 1, pass_field_h, 0x22FFFFFF)
+            renderDrawBox(pass_field_x + pass_field_w - 1, pass_field_y, 1, pass_field_h, 0x22FFFFFF)
 
             local display_pass = (#temp_password > 0) and (show_password_chars and temp_password or string.rep("*", #temp_password)) or "ѕароль..."
-            local pass_color = #temp_password > 0 and 0xFFF0F0F5 or 0xFF6A6A7A
-            renderFontDrawText(r_font, display_pass, pass_field_x + 10, pass_field_y + 9, pass_color)
-            if pass_input_active then
+            local pass_color = #temp_password > 0 and 0xFFF2F5FF or 0xFF5A6B96
+            renderFontDrawText(r_font, display_pass, pass_field_x + 12, pass_field_y + 11, pass_color)
+            if pass_input_active and #temp_password > 0 and (os.clock() % 1.0) < 0.5 then
                 local tw = renderGetFontDrawTextLength(r_font, display_pass)
-                if (os.clock() % 1.0) < 0.5 then
-                    renderDrawBox(pass_field_x + 10 + tw + 2, pass_field_y + 8, 2, 18, 0xFF6C5CE7)
-                end
+                renderDrawBox(pass_field_x + 12 + tw + 2, pass_field_y + 10, 2, 18, 0xFF6FA0FF)
             end
 
-            pass_btn_x = pass_field_x + pass_field_w + 8
+            pass_btn_x = pass_field_x + pass_field_w + 10
             pass_btn_y = row_y
-            pass_btn_w = 96
+            pass_btn_w = 116
             pass_btn_h = row_h
             local btn_hovered = (cursor_x >= pass_btn_x and cursor_x <= pass_btn_x + pass_btn_w and cursor_y >= pass_btn_y and cursor_y <= pass_btn_y + pass_btn_h)
-            renderDrawBox(pass_btn_x, pass_btn_y, pass_btn_w, pass_btn_h, btn_hovered and 0xFF7B6CF0 or 0xFF6C5CE7)
-            local accept_label = "ѕрин€ть"
+            renderDrawBox(pass_btn_x, pass_btn_y, pass_btn_w, pass_btn_h, btn_hovered and 0xFF5B8DEF or 0xFF3D6FF2)
+            renderDrawBox(pass_btn_x, pass_btn_y, pass_btn_w, 2, 0x66FFFFFF)
+            renderDrawBox(pass_btn_x, pass_btn_y, pass_btn_w, pass_btn_h, 0x14FFFFFF)
+            local accept_label = "ѕодтвердить"
             local alw = renderGetFontDrawTextLength(r_font, accept_label)
-            renderFontDrawText(r_font, accept_label, pass_btn_x + (pass_btn_w - alw) / 2, pass_btn_y + 9, 0xFFFFFFFF)
+            renderFontDrawText(r_font, accept_label, pass_btn_x + (pass_btn_w - alw) / 2, pass_btn_y + 11, 0xFFFFFFFF)
 
-            eye_btn_x = pass_btn_x + pass_btn_w + 8
+            eye_btn_x = pass_btn_x + pass_btn_w + 10
             eye_btn_y = row_y
-            eye_btn_w = 72
+            eye_btn_w = 84
             eye_btn_h = row_h
             local eye_hovered = (cursor_x >= eye_btn_x and cursor_x <= eye_btn_x + eye_btn_w and cursor_y >= eye_btn_y and cursor_y <= eye_btn_y + eye_btn_h)
-            renderDrawBox(eye_btn_x, eye_btn_y, eye_btn_w, eye_btn_h, eye_hovered and 0xFF353548 or 0xFF252532)
+            renderDrawBox(eye_btn_x, eye_btn_y, eye_btn_w, eye_btn_h, eye_hovered and 0xFF1E2B52 or 0xFF131A30)
+            renderDrawBox(eye_btn_x, eye_btn_y, eye_btn_w, eye_btn_h, 0x12FFFFFF)
             local eye_text = show_password_chars and "—крыть" or "ѕоказ."
             local elw = renderGetFontDrawTextLength(r_font, eye_text)
-            renderFontDrawText(r_font, eye_text, eye_btn_x + (eye_btn_w - elw) / 2, eye_btn_y + 9, 0xFFC8C8D8)
+            renderFontDrawText(r_font, eye_text, eye_btn_x + (eye_btn_w - elw) / 2, eye_btn_y + 11, 0xFF9FB3E8)
 
-            local hint_y = row_y + 42
+            local hint_y = row_y + row_h + 12
             local shift_active = is_shift_pressed()
-            renderDrawBox(form_x + pad, hint_y, 48, 22, shift_active and 0xFF2D6A4F or 0xFF252532)
+            renderDrawBox(form_x + pad, hint_y, 48, 22, shift_active and 0xFF2E5ECF or 0xFF131A30)
             local sl = renderGetFontDrawTextLength(r_font, "SHIFT")
-            renderFontDrawText(r_font, "SHIFT", form_x + pad + (48 - sl) / 2, hint_y + 4, shift_active and 0xFF95D5B2 or 0xFF7A7A8A)
-            renderFontDrawText(r_font, "Enter Ч подтвердить    Esc Ч закрыть", form_x + pad + 56, hint_y + 4, 0xFF7A7A8A)
-            renderFontDrawText(r_font, "Ћ ћ по полю Ч активировать ввод", form_x + pad + 56, hint_y + 26, 0xFF7A7A8A)
-            renderFontDrawText(r_font, "Ctrl+V Ч вставить    Ctrl+C Ч копировать", form_x + pad, hint_y + 48, 0xFF8888B8)
+            renderFontDrawText(r_font, "SHIFT", form_x + pad + (48 - sl) / 2, hint_y + 4, shift_active and 0xFFCFE2FF or 0xFF8494BD)
+            renderFontDrawText(r_font, "Enter подтвердить    Esc закрыть", form_x + pad + 56, hint_y + 4, 0xFF8494BD)
+            renderFontDrawText(r_font, "Ctrl+V вставить    Ctrl+C копировать", form_x + pad, hint_y + 24, 0xFF6E86C2)
 
-            renderDrawBox(form_x, form_y + form_h - 26, form_w, 26, 0xF014141C)
-            renderFontDrawText(r_font, "ѕароль хранитс€ локально в config/AutoLogin", form_x + pad, form_y + form_h - 20, 0xFF555568)
+            renderDrawBox(form_x, form_y + form_h - 32, form_w, 32, 0xEF070C1B)
+            renderDrawBox(form_x, form_y + form_h - 33, form_w, 1, 0xFF1F2E55)
+            renderFontDrawText(r_font, "ѕароль хранитс€ локально в config/AutoLogin", form_x + pad, form_y + form_h - 24, 0xFF56658C)
 
             local current_pass_lbutton_state = (user32.GetAsyncKeyState(0x01) < 0)
             if last_pass_lbutton_state and not current_pass_lbutton_state then
@@ -1632,7 +1623,48 @@ local function mafk_hotkey_thread()
     end
 end
 
-local function main()
+local function nick_hotkey_thread()
+    local prev_down = (user32.GetAsyncKeyState(0x30) < 0)
+    local hold_until = 0
+    while true do
+        wait(25)
+        local down = (user32.GetAsyncKeyState(0x30) < 0)
+        if down and not prev_down then
+            hold_until = os.clock() + 1
+        elseif not down and prev_down then
+            if hold_until > 0 and os.clock() >= hold_until then
+                if not (sampIsChatInputActive and sampIsChatInputActive()) then
+                    local nick = player_nick or ""
+                    if #nick == 0 then
+                        local ok1, r1 = pcall(function() return sampGetLocalPlayerNickName() end)
+                        if ok1 and r1 and #r1 > 0 then
+                            nick = r1
+                        end
+                    end
+                    if #nick == 0 then
+                        local ok2, id = pcall(function() return sampGetLocalPlayerId() end)
+                        if ok2 and id then
+                            local ok3, r3 = pcall(function() return sampGetPlayerNickName(id) end)
+                            if ok3 and r3 and #r3 > 0 then
+                                nick = r3
+                            end
+                        end
+                    end
+                    if #nick > 0 then
+                        player_nick = nick
+                        chat_msg("Ќик игрока: " .. nick)
+                    else
+                        chat_msg("{FF3333}Ќик пока не определЄн (по€вл€етс€ после входа в игру)")
+                    end
+                end
+            end
+            hold_until = 0
+        end
+        prev_down = down
+    end
+end
+
+function main()
     while not isSampAvailable() do wait(100) end
     load_config()
     register_commands()
@@ -1643,5 +1675,6 @@ local function main()
     lua_thread.create(timer_render_thread)
     lua_thread.create(anti_afk_thread)
     lua_thread.create(mafk_hotkey_thread)
+    lua_thread.create(nick_hotkey_thread)
     while true do wait(10000) end
 end
