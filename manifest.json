@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.0.2",
     "launcherVersion":  "1.0.3",
-    "updatedAt":  "2026-09-02 21:37",
+    "updatedAt":  "2026-09-03 00:14",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -120,8 +120,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLogin_2.0.lua",
-                      "sha256":  "71faa329c8151b0b9af5941c85410d9c63770a75c14eea14be6826f93b57f822",
-                      "size":  69943,
+                      "sha256":  "aeb012b4b16c5050c4e3bf727b474c084b3cdfa7ef025eefad74bd55142cdc40",
+                      "size":  73113,
                       "dest":  "gameRoot"
                   },
                   {
@@ -170,48 +170,6 @@
                       "path":  "moonloader/SF Integration.lua",
                       "sha256":  "3b9b6ebd972df0c4f4c0fd0fb7d2497cccfa4fb336494e7acecd8b28443379e3",
                       "size":  2328,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/testLuaJIT.lua",
-                      "sha256":  "b598bf80bef6d679b6f3f84c6b3915b6e50365b2d94a29aedae7960b4f3e7eb6",
-                      "size":  45059,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabots.lua",
-                      "sha256":  "ca9b4bbc7d5ee979cbf5b38ed8996fd4f4bd42f6f394ca51f26719e9d4bed773",
-                      "size":  183331,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultragui.lua",
-                      "sha256":  "9fcb1e409aa3d3412be212b72a3313dcbfc91a50c9aff39fca657b416e7ad890",
-                      "size":  102789,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrapackets.lua",
-                      "sha256":  "b8fafe573b3876d7858fbb2e26d63fc567e58478eadb4a79433a3a29478de7d5",
-                      "size":  92405,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrapolez.lua",
-                      "sha256":  "f3cb6147351ddbfd224d94ef5a642221e4ec072f398488c07b349a7bf2ef9a04",
-                      "size":  40255,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrarecord.lua",
-                      "sha256":  "38d6673403f79ad0984376f7004aac29bf2b04848a1c9d2c0862742eda25fec7",
-                      "size":  8761,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrautils.lua",
-                      "sha256":  "f2a5ea835adfec8efd4144f1d135090c27a5f70bf5422e4f3e258b71b8ba5d68",
-                      "size":  67950,
                       "dest":  "gameRoot"
                   },
                   {
@@ -3878,180 +3836,6 @@
                       "path":  "moonloader/resource/fonts/fontawesome-webfont.ttf",
                       "sha256":  "aa58f33f239a0fb02f5c7a6c45c043d7a9ac9a093335806694ecd6d4edc0d6a8",
                       "size":  165548,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/libs.lua",
-                      "sha256":  "a7c007f52a9c9648fcc156ae2ebf85c6ebd47b143ac785b281e8175fa5cfc7d8",
-                      "size":  26458,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/ultrabots.lua",
-                      "sha256":  "2437a1d73ee9eaf4a3ecc43e3aee4fdd847b6810e3fc38c28e3f4d8358b703c8",
-                      "size":  14069827,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/ultragui.lua",
-                      "sha256":  "666e6f220aae161a5b02b96c5578319bebba01e485b300095732d73f04593ca1",
-                      "size":  454048,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/ultrapackets.lua",
-                      "sha256":  "30ec40953b0359bafdd7706be5e2baee3ad7e7d8db5cb3c9b0cdffeae65fd75c",
-                      "size":  66950739,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/ultrapolez.lua",
-                      "sha256":  "d56f527d8e7deb09497f90a8d1b66f0105495f87076749ee7077a73359a6b9fe",
-                      "size":  69110667,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/ultrarecord.lua",
-                      "sha256":  "ee6d57830860e859b4c2af8b10b25447245fce59758f86fe73b41188e1b957a5",
-                      "size":  5145,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/ultrautils.lua",
-                      "sha256":  "5375116da79c4d4fbddc5d99430f8924dc245e3b6a5fe29acaed889c2e267725",
-                      "size":  575669,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/other/anims.lua",
-                      "sha256":  "bccac33100ee216610a4472cc9e796d6234954c5ab18be249ce98359044998fe",
-                      "size":  5699,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/other/buy_virt.png",
-                      "sha256":  "6a545a6b1389254a902492b507b61ab581bb21cc62316eb26b49e659cac97aa8",
-                      "size":  30601,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/other/del1_fa-solid-900.ttf",
-                      "sha256":  "5c13caa17dbfce55cd0afe4b4dcf7fbe26ab783fce15f17dde44fa6b52bcb36c",
-                      "size":  202616,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/other/fa-solid-900.ttf",
-                      "sha256":  "5c13caa17dbfce55cd0afe4b4dcf7fbe26ab783fce15f17dde44fa6b52bcb36c",
-                      "size":  202616,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/other/hwids.lua",
-                      "sha256":  "eae78f0eb0b73c453a94e31de5c4dd4e0ced6b81241deb40c8ed7411a1a256f6",
-                      "size":  3700,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/other/icon.png",
-                      "sha256":  "6fb8b34ab6cec16974316845baa0614bb8c89d858bcc2eff6d93712bed00e71c",
-                      "size":  288133,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/other/lebarov.png",
-                      "sha256":  "6028c13e8d23ada12a6af60334cbaab77ea2c15fc15e124b23c03da43d3eb2b9",
-                      "size":  2880680,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/other/simlist.lua",
-                      "sha256":  "15e570d9539f6cab61ee6ba9c9d78f1c02843447c99a74e2f4b9a7e9eea62671",
-                      "size":  6340,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/other/svalka.lua",
-                      "sha256":  "56cbb562cf6dc24cb6f9e16b815d6a1ee1df11db9ea51610e79ccaef4ec840e6",
-                      "size":  6032,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/other/ҐЇ45Ї4.jpg",
-                      "sha256":  "4bf9c718d258d72b126b6fdbb6edf81e46d648591af0a1f2aef5c5b6c7e36893",
-                      "size":  1131866,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/sounds/chat_notify.mp3",
-                      "sha256":  "853bc412d6d1223887e204972750ce56b3d88d46d15fa78927601ea6fefef299",
-                      "size":  26583,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/sounds/click.mp3",
-                      "sha256":  "d09a68b3384d9a516a0d9e54298bbb62174e1601e27a0d959a29790e9366f65b",
-                      "size":  8829,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/sounds/error_key.mp3",
-                      "sha256":  "92d5359a8b592cab30d92de786a39dfa3a1da2a5a63dfa1f3c2a3fd3e38be1a7",
-                      "size":  43023,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/sounds/kakaet.mp3",
-                      "sha256":  "9721df3f3065233f23b2216e341a98562ec8121d75e78a3467215103c48d099f",
-                      "size":  37241,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/sounds/menu_button1.mp3",
-                      "sha256":  "b0f3aa6e1825dd16fce52f6afd5a2391c17447eeac78f23b7ee130e3a9a20764",
-                      "size":  12999,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/sounds/menu_button2.mp3",
-                      "sha256":  "57c4e7f753ca1733b221dad1e4178d19be034914480f9966455f79a422efee6e",
-                      "size":  8412,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/sounds/menu_button3.mp3",
-                      "sha256":  "daa84f748d89404a06e1fb023006f0720d62d3cf91d082d33cf6f012d40b207d",
-                      "size":  7578,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/sounds/menu_button4.mp3",
-                      "sha256":  "605965e2cdc38b42cb56aa683053a9091e126ec0b9e1fedd3d803c0b4a54b049",
-                      "size":  8829,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/sounds/menu_button5.mp3",
-                      "sha256":  "5a9ec845a3bcec547ac3bad19b13c24f2651bb38d91b2fd3147e820bf5834a31",
-                      "size":  12999,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/sounds/menu_button6.mp3",
-                      "sha256":  "03cedce37197da9d4b6c26e229c017bdcdae834529ceb444b37079b3264a6a54",
-                      "size":  5493,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/sounds/menu_button7.mp3",
-                      "sha256":  "12899f88ac43230ff871f7383adfd31ca04e7b691f2d8e4d2adbfc78affc2871",
-                      "size":  14250,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/ultrabot_res/ultracoords/coords.lua",
-                      "sha256":  "f402573707b1038ceb8f2827e6b0495d0ac7cf3e282c7d896c21364610d82e29",
-                      "size":  3195,
                       "dest":  "gameRoot"
                   }
               ],
