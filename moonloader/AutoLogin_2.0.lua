@@ -89,6 +89,7 @@ local show_password_chars = true
 local force_password_form = false
 local password_form_error = ""
 local password_form_closed = false
+local render_disabled = false
 local reconnect_watch_active = false
 local reconnect_watch_until = 0
 local saw_loading_after_rec = false
@@ -99,6 +100,8 @@ local pass_field_x, pass_field_y, pass_field_w, pass_field_h = 0, 0, 0, 0
 local eye_btn_x, eye_btn_y, eye_btn_w, eye_btn_h = 0, 0, 0, 0
 local close_btn_x, close_btn_y, close_btn_w, close_btn_h = 0, 0, 0, 0
 local last_pass_lbutton_state = false
+local ui_font = nil
+local ui_font_size = 14
 
 local mafk_active = false
 local mafk_hold_start = 0
@@ -568,6 +571,13 @@ local function clear_input_field()
 end
 
 local function type_password()
+    local caps_was_on = (user32.GetAsyncKeyState(0x14) % 2 == 1)
+    if caps_was_on then
+        user32.keybd_event(0x14, 0, KEYEVENTF_KEYDOWN, 0)
+        wait(50)
+        user32.keybd_event(0x14, 0, KEYEVENTF_KEYUP, 0)
+        wait(100)
+    end
     local shift_map = {
         ['!'] = 0x31, ['@'] = 0x32, ['#'] = 0x33, ['$'] = 0x34, ['%'] = 0x35,
         ['^'] = 0x36, ['&'] = 0x37, ['*'] = 0x38, ['('] = 0x39, [')'] = 0x30,
@@ -612,6 +622,12 @@ local function type_password()
             end
         end
         wait(40)
+    end
+    if caps_was_on then
+        user32.keybd_event(0x14, 0, KEYEVENTF_KEYDOWN, 0)
+        wait(50)
+        user32.keybd_event(0x14, 0, KEYEVENTF_KEYUP, 0)
+        wait(50)
     end
 end
 
@@ -792,6 +808,7 @@ on_password_saved = function()
     force_password_form = false
     password_form_error = ""
     password_form_closed = true
+    render_disabled = true
     log("Пароль сохранён — пробуем автовход в открытую CEF-форму")
     lua_thread.create(function()
         wait(300)
@@ -857,7 +874,8 @@ perform_login = function()
     pending_autologin = false
     close_menu_emul_until = 0
     reconnect_watch_active = false
-    log("Ввод пароля...")
+    render_disabled = true
+    log("Ввод пароля (render отключён)...")
 
     lua_thread.create(function()
         pcall(wait_for_game_focus)
@@ -1404,7 +1422,9 @@ local function timer_render_thread()
     local r_font = renderCreateFont("Arial", 14, 13)
     while true do
         wait(0)
-
+        if render_disabled then
+            if is_spawned then render_disabled = false end
+        else
         if os.clock() < mafk_notify_until then
             local sw, sh = getScreenResolution()
             local status_str = mafk_active and "{33FF33}Включен" or "{FF3333}Выключен"
@@ -1466,61 +1486,70 @@ local function timer_render_thread()
 
         if is_password_form_visible() then
             local sw, sh = getScreenResolution()
-            local form_w, form_h = 560, 250
+            local sc = math.max(0.5, sh / 1080.0)
+            local form_w, form_h = math.floor(560 * sc), math.floor(250 * sc)
             local form_x = math.floor((sw - form_w) / 2)
             local form_y = math.floor((sh - form_h) / 2)
-            local pad = 20
+            local pad = math.floor(20 * sc)
+            local scf = function(v) return math.floor(v * sc + 0.5) end
 
-            renderDrawBox(form_x + 10, form_y + 14, form_w, form_h, 0x26002077)
-            renderDrawBox(form_x + 5, form_y + 8, form_w, form_h, 0x1A00104D)
+            renderDrawBox(form_x + scf(10), form_y + scf(14), form_w, form_h, 0x26002077)
+            renderDrawBox(form_x + scf(5), form_y + scf(8), form_w, form_h, 0x1A00104D)
             renderDrawBox(form_x, form_y, form_w, form_h, 0xF70E1426)
             renderDrawBox(form_x, form_y, form_w, form_h, 0x22FFFFFF)
             renderDrawBox(form_x + 1, form_y + 1, form_w - 2, form_h - 2, 0xFF22304F)
             renderDrawBox(form_x + 2, form_y + 2, form_w - 4, form_h - 4, 0xF70E1426)
 
-            local head_h = 52
+            local head_h = scf(52)
+            local fs = 14
+            if sc >= 1.5 then fs = 22 end
+            if not ui_font or ui_font_size ~= fs then
+                ui_font = renderCreateFont("Arial", fs, fs - 1)
+                ui_font_size = fs
+            end
+            local r_font_l = ui_font
             renderDrawBox(form_x, form_y, form_w, head_h, 0xF9142138)
-            renderDrawBox(form_x, form_y, form_w, head_h - 12, 0x662A4BA6)
-            renderDrawBox(form_x, form_y + head_h - 8, form_w, 4, 0x33294CC0)
-            renderDrawBox(form_x, form_y + head_h - 4, form_w, 4, 0xFF4D7CFE)
+            renderDrawBox(form_x, form_y, form_w, head_h + scf(-12), 0x662A4BA6)
+            renderDrawBox(form_x, form_y + head_h + scf(-8), form_w, scf(4), 0x33294CC0)
+            renderDrawBox(form_x, form_y + head_h + scf(-4), form_w, scf(4), 0xFF4D7CFE)
 
-            renderDrawBox(form_x + pad, form_y + 12, 26, 26, 0xFF234CA8)
-            renderDrawBox(form_x + pad, form_y + 12, 26, 26, 0x22FFFFFF)
-            renderDrawBox(form_x + pad + 1, form_y + 13, 24, 1, 0x44FFFFFF)
-            renderFontDrawText(r_font, "AL", form_x + pad + 6, form_y + 15, 0xFFFFFFFF)
-            renderFontDrawText(r_font, "AutoLogin", form_x + pad + 38, form_y + 9, 0xFFF0F4FF)
-            renderFontDrawText(r_font, "Введите пароль аккаунта", form_x + pad + 38, form_y + 29, 0xFF93A5CE)
+            renderDrawBox(form_x + pad, form_y + scf(12), scf(26), scf(26), 0xFF234CA8)
+            renderDrawBox(form_x + pad, form_y + scf(12), scf(26), scf(26), 0x22FFFFFF)
+            renderDrawBox(form_x + pad + 1, form_y + scf(13), scf(24), 1, 0x44FFFFFF)
+            renderFontDrawText(r_font_l, "AL", form_x + pad + scf(6), form_y + scf(15), 0xFFFFFFFF)
+            renderFontDrawText(r_font_l, "AutoLogin", form_x + pad + scf(38), form_y + scf(9), 0xFFF0F4FF)
+            renderFontDrawText(r_font_l, "Введите пароль аккаунта", form_x + pad + scf(38), form_y + scf(29), 0xFF93A5CE)
 
             local cursor_x, cursor_y = getCursorPos()
             local layout_name = get_current_keyboard_layout_name()
 
             local close_label = "Закрыть"
-            local clw = renderGetFontDrawTextLength(r_font, close_label)
-            close_btn_w = clw + 18
-            close_btn_h = 26
+            local clw = renderGetFontDrawTextLength(r_font_l, close_label)
+            close_btn_w = clw + scf(18)
+            close_btn_h = scf(26)
             close_btn_x = form_x + form_w - pad - close_btn_w
-            close_btn_y = form_y + 13
+            close_btn_y = form_y + scf(13)
             local close_hovered = (cursor_x >= close_btn_x and cursor_x <= close_btn_x + close_btn_w and cursor_y >= close_btn_y and cursor_y <= close_btn_y + close_btn_h)
             renderDrawBox(close_btn_x, close_btn_y, close_btn_w, close_btn_h, close_hovered and 0xFF7A2E41 or 0xFF1B2440)
             renderDrawBox(close_btn_x, close_btn_y, close_btn_w, close_btn_h, 0x18FFFFFF)
-            renderFontDrawText(r_font, close_label, close_btn_x + 8, close_btn_y + 5, close_hovered and 0xFFFF9B9B or 0xFF93A2C9)
+            renderFontDrawText(r_font_l, close_label, close_btn_x + scf(8), close_btn_y + scf(5), close_hovered and 0xFFFF9B9B or 0xFF93A2C9)
 
-            local row_h = 38
-            local row_y = form_y + 74
+            local row_h = scf(38)
+            local row_y = form_y + scf(74)
             if password_form_error ~= "" then
-                renderFontDrawText(r_font, password_form_error, form_x + pad, form_y + 60, 0xFFFF7A90)
-                row_y = form_y + 94
+                renderFontDrawText(r_font_l, password_form_error, form_x + pad, form_y + scf(60), 0xFFFF7A90)
+                row_y = form_y + scf(94)
             end
 
-            local lay_w = 44
+            local lay_w = scf(44)
             renderDrawBox(form_x + pad, row_y, lay_w, row_h, 0xFF131C3A)
             renderDrawBox(form_x + pad, row_y, lay_w, row_h, 0x12FFFFFF)
-            local ll = renderGetFontDrawTextLength(r_font, layout_name)
-            renderFontDrawText(r_font, layout_name, form_x + pad + (lay_w - ll) / 2, row_y + 11, 0xFF87A8F0)
+            local ll = renderGetFontDrawTextLength(r_font_l, layout_name)
+            renderFontDrawText(r_font_l, layout_name, form_x + pad + (lay_w - ll) / 2, row_y + scf(11), 0xFF87A8F0)
 
-            pass_field_x = form_x + pad + lay_w + 10
+            pass_field_x = form_x + pad + lay_w + scf(10)
             pass_field_y = row_y
-            pass_field_w = 236
+            pass_field_w = scf(236)
             pass_field_h = row_h
             local field_hovered = (cursor_x >= pass_field_x and cursor_x <= pass_field_x + pass_field_w and cursor_y >= pass_field_y and cursor_y <= pass_field_y + pass_field_h)
             renderDrawBox(pass_field_x, pass_field_y, pass_field_w, pass_field_h, pass_input_active and 0xFF101A33 or 0xFF0A0F1F)
@@ -1533,46 +1562,46 @@ local function timer_render_thread()
 
             local display_pass = (#temp_password > 0) and (show_password_chars and temp_password or string.rep("*", #temp_password)) or "Пароль..."
             local pass_color = #temp_password > 0 and 0xFFF2F5FF or 0xFF5A6B96
-            renderFontDrawText(r_font, display_pass, pass_field_x + 12, pass_field_y + 11, pass_color)
+            renderFontDrawText(r_font_l, display_pass, pass_field_x + scf(12), pass_field_y + scf(11), pass_color)
             if pass_input_active and #temp_password > 0 and (os.clock() % 1.0) < 0.5 then
-                local tw = renderGetFontDrawTextLength(r_font, display_pass)
-                renderDrawBox(pass_field_x + 12 + tw + 2, pass_field_y + 10, 2, 18, 0xFF6FA0FF)
+                local tw = renderGetFontDrawTextLength(r_font_l, display_pass)
+                renderDrawBox(pass_field_x + scf(12) + tw + 2, pass_field_y + scf(10), 2, scf(18), 0xFF6FA0FF)
             end
 
-            pass_btn_x = pass_field_x + pass_field_w + 10
+            pass_btn_x = pass_field_x + pass_field_w + scf(10)
             pass_btn_y = row_y
-            pass_btn_w = 116
+            pass_btn_w = scf(116)
             pass_btn_h = row_h
             local btn_hovered = (cursor_x >= pass_btn_x and cursor_x <= pass_btn_x + pass_btn_w and cursor_y >= pass_btn_y and cursor_y <= pass_btn_y + pass_btn_h)
             renderDrawBox(pass_btn_x, pass_btn_y, pass_btn_w, pass_btn_h, btn_hovered and 0xFF5B8DEF or 0xFF3D6FF2)
             renderDrawBox(pass_btn_x, pass_btn_y, pass_btn_w, 2, 0x66FFFFFF)
             renderDrawBox(pass_btn_x, pass_btn_y, pass_btn_w, pass_btn_h, 0x14FFFFFF)
             local accept_label = "Подтвердить"
-            local alw = renderGetFontDrawTextLength(r_font, accept_label)
-            renderFontDrawText(r_font, accept_label, pass_btn_x + (pass_btn_w - alw) / 2, pass_btn_y + 11, 0xFFFFFFFF)
+            local alw = renderGetFontDrawTextLength(r_font_l, accept_label)
+            renderFontDrawText(r_font_l, accept_label, pass_btn_x + (pass_btn_w - alw) / 2, pass_btn_y + scf(11), 0xFFFFFFFF)
 
-            eye_btn_x = pass_btn_x + pass_btn_w + 10
+            eye_btn_x = pass_btn_x + pass_btn_w + scf(10)
             eye_btn_y = row_y
-            eye_btn_w = 84
+            eye_btn_w = scf(84)
             eye_btn_h = row_h
             local eye_hovered = (cursor_x >= eye_btn_x and cursor_x <= eye_btn_x + eye_btn_w and cursor_y >= eye_btn_y and cursor_y <= eye_btn_y + eye_btn_h)
             renderDrawBox(eye_btn_x, eye_btn_y, eye_btn_w, eye_btn_h, eye_hovered and 0xFF1E2B52 or 0xFF131A30)
             renderDrawBox(eye_btn_x, eye_btn_y, eye_btn_w, eye_btn_h, 0x12FFFFFF)
             local eye_text = show_password_chars and "Скрыть" or "Показ."
-            local elw = renderGetFontDrawTextLength(r_font, eye_text)
-            renderFontDrawText(r_font, eye_text, eye_btn_x + (eye_btn_w - elw) / 2, eye_btn_y + 11, 0xFF9FB3E8)
+            local elw = renderGetFontDrawTextLength(r_font_l, eye_text)
+            renderFontDrawText(r_font_l, eye_text, eye_btn_x + (eye_btn_w - elw) / 2, eye_btn_y + scf(11), 0xFF9FB3E8)
 
-            local hint_y = row_y + row_h + 12
+            local hint_y = row_y + row_h + scf(12)
             local shift_active = is_shift_pressed()
-            renderDrawBox(form_x + pad, hint_y, 48, 22, shift_active and 0xFF2E5ECF or 0xFF131A30)
-            local sl = renderGetFontDrawTextLength(r_font, "SHIFT")
-            renderFontDrawText(r_font, "SHIFT", form_x + pad + (48 - sl) / 2, hint_y + 4, shift_active and 0xFFCFE2FF or 0xFF8494BD)
-            renderFontDrawText(r_font, "Enter подтвердить    Esc закрыть", form_x + pad + 56, hint_y + 4, 0xFF8494BD)
-            renderFontDrawText(r_font, "Ctrl+V вставить    Ctrl+C копировать", form_x + pad, hint_y + 24, 0xFF6E86C2)
+            renderDrawBox(form_x + pad, hint_y, scf(48), scf(22), shift_active and 0xFF2E5ECF or 0xFF131A30)
+            local sl = renderGetFontDrawTextLength(r_font_l, "SHIFT")
+            renderFontDrawText(r_font_l, "SHIFT", form_x + pad + (scf(48) - sl) / 2, hint_y + scf(4), shift_active and 0xFFCFE2FF or 0xFF8494BD)
+            renderFontDrawText(r_font_l, "Enter подтвердить    Esc закрыть", form_x + pad + scf(56), hint_y + scf(4), 0xFF8494BD)
+            renderFontDrawText(r_font_l, "Ctrl+V вставить    Ctrl+C копировать", form_x + pad, hint_y + scf(24), 0xFF6E86C2)
 
-            renderDrawBox(form_x, form_y + form_h - 32, form_w, 32, 0xEF070C1B)
-            renderDrawBox(form_x, form_y + form_h - 33, form_w, 1, 0xFF1F2E55)
-            renderFontDrawText(r_font, "Пароль хранится локально в config/AutoLogin", form_x + pad, form_y + form_h - 24, 0xFF56658C)
+            renderDrawBox(form_x, form_y + form_h - scf(32), form_w, scf(32), 0xEF070C1B)
+            renderDrawBox(form_x, form_y + form_h - scf(33), form_w, 1, 0xFF1F2E55)
+            renderFontDrawText(r_font_l, "Пароль хранится локально в config/AutoLogin", form_x + pad, form_y + form_h - scf(24), 0xFF56658C)
 
             local current_pass_lbutton_state = (user32.GetAsyncKeyState(0x01) < 0)
             if last_pass_lbutton_state and not current_pass_lbutton_state then
@@ -1604,6 +1633,7 @@ local function timer_render_thread()
                     chat_msg("{FF3333}Пароль не может быть пустым!")
                 end
             end
+        end
         end
     end
 end

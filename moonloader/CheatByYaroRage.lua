@@ -3,7 +3,7 @@ local password = '74108520'
 script_name("UltraHack")
 script_author("YaroRage")
 script_version("1.0")
---==================================[Библиотеки]==============================================
+--==================================[пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
 
@@ -18,6 +18,7 @@ local vector 		= require 'vector3d'
 local memory 		= require 'memory'
 local mem 			= require 'memory'
 local imgui 		= require('imgui')
+local fsc = 1
 local encoding      = require("encoding")
 encoding.default = 'CP1251'
 local u8 = encoding.UTF8
@@ -44,12 +45,12 @@ function GetBodyPartCoordinates(id, handle)
     return vec[0], vec[1], vec[2]
 end
 
---> Имгуи.
+--> пїЅпїЅпїЅпїЅпїЅ.
 
 local mcheat = imgui.ImBool(false)
 local autorem = false -- AutoRem
 
---> Конфиг.
+--> пїЅпїЅпїЅпїЅпїЅпїЅ.
 
 local clickwarp = imgui.ImBool(false)
 local sbivx = imgui.ImBool(false)
@@ -226,7 +227,7 @@ ini = {
         x = 300,
         y = 300,
         color = "FFFFFF",
-        msColor = "С3С3С3",
+        msColor = "пїЅ3пїЅ3пїЅ3",
         fontsize = 12
     }
 }
@@ -236,7 +237,7 @@ local config = inicfg.load(nil, f_ini)
 function main()
     repeat wait(0) until isSampAvailable()
 
-	ywelcome("UltraHack", "Активация N (держите клавишу 1 секунду)")
+	ywelcome("UltraHack", "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ N (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1 пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)")
 
 	clearAnim()
 	lua_thread.create(ClickWP)
@@ -304,7 +305,7 @@ function main()
 	end)
 
 	sampRegisterChatCommand('mhelp', function()
-		sampShowDialog(9999, "{FFFFFF}Команды мульти-чита by YaroRage.", '/mcheat - открыть меню мулти-чита\n/mhelp - открыть это меню\n/fake - фейк чатик для подделки скринов\n/rec - реконнект, перезайти в игру\n/ctime - время на экране в миллисекундах\n/skin - скинченжер(визуал)\n/slp - слапнуть самого себя\n/sc - каптилка по времени\n/autorem - включить/выключить автоматический ремень\n/wolic - езда без прав\n/pcol - пока не работает\n/st /sw - смена времени и погоды\n/fakepl - изменить ник, клист игроку (id, ник, id игрока у которого нужно взять цвет, id скина)\n/clan - кланчекер\n/fix - починить авто\n/breakecar - сломать авто или заспавнить его\nAlt + 1 - открыть личный авто\nAlt + 2 - открыть банды авто', "Я гей", "", 0)
+		sampShowDialog(9999, "{FFFFFF}пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅ by YaroRage.", '/mcheat - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅ\n/mhelp - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ\n/fake - пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ\n/rec - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ\n/ctime - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ\n/skin - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ(пїЅпїЅпїЅпїЅпїЅпїЅ)\n/slp - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ\n/sc - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ\n/autorem - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ\n/wolic - пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ\n/pcol - пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ\n/st /sw - пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ\n/fakepl - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (id, пїЅпїЅпїЅ, id пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ, id пїЅпїЅпїЅпїЅпїЅ)\n/clan - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ\n/fix - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ\n/breakecar - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ\nAlt + 1 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ\nAlt + 2 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ', "пїЅ пїЅпїЅпїЅ", "", 0)
 	end)
 
 	sampRegisterChatCommand('slp', function()
@@ -318,7 +319,7 @@ function main()
             hour, minute, second, ms = tonumber(hour), tonumber(minute), tonumber(second), tonumber(ms)
             active = true
         else
-            ywelcome("UltraHack", 'час:минута:секунда:милисекунда')
+            ywelcome("UltraHack", 'пїЅпїЅпїЅ:пїЅпїЅпїЅпїЅпїЅпїЅ:пїЅпїЅпїЅпїЅпїЅпїЅпїЅ:пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ')
         end
     end)
     time = ffi.new('SYSTEMTIME')
@@ -326,18 +327,18 @@ function main()
 	sampRegisterChatCommand('autorem', function()
 		autorem = not autorem
 		if autorem then
-			ywelcome("UltraHack", 'Autorem - Включён.')
+			ywelcome("UltraHack", 'Autorem - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.')
 		else
-			ywelcome("UltraHack", 'autorem - Выключен.')
+			ywelcome("UltraHack", 'autorem - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.')
 		end
 	end)
 
 	sampRegisterChatCommand("wolic", function()
 		wolic = not wolic
 		if wolic then
-			ywelcome("UltraHack", 'WOLIC - Включён.')
+			ywelcome("UltraHack", 'WOLIC - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.')
 		else
-			ywelcome("UltraHack", 'WOLIC - Выключен.')
+			ywelcome("UltraHack", 'WOLIC - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.')
 		end
 	end)
 
@@ -358,10 +359,10 @@ function main()
                 sampSetPlayerSkin(tonumber(playerId), tonumber(skinId))
                 sampSetPlayerColor(tonumber(playerId), getPlayerColor(tonumber(playercolor)))
             else
-                sampAddChatMessage('Игрок с айди "'..tonumber(playerId)..'" не найден!', -1)
+                sampAddChatMessage('пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ "'..tonumber(playerId)..'" пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ!', -1)
             end
         else
-            sampAddChatMessage('Команда введена неверно! /fakepl id, ник, id игрока у которого нужно взять цвет, id скина', -1)
+            sampAddChatMessage('пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ! /fakepl id, пїЅпїЅпїЅ, id пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ, id пїЅпїЅпїЅпїЅпїЅ', -1)
         end
     end)
 
@@ -376,11 +377,11 @@ function main()
 						ClanPlayer = ClanPlayer + 1
 					end
 				end
-				ywelcome("UltraHack", 'Игроков с указанным клистом - '..ClanPlayer)
+				ywelcome("UltraHack", 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ - '..ClanPlayer)
 				ClanPlayer = 0
 			end)
 		else
-			ywelcome("UltraHack", 'Ошибка! Укажите ID игрока.')
+			ywelcome("UltraHack", 'пїЅпїЅпїЅпїЅпїЅпїЅ! пїЅпїЅпїЅпїЅпїЅпїЅпїЅ ID пїЅпїЅпїЅпїЅпїЅпїЅ.')
 		end
 	end)
 
@@ -493,7 +494,7 @@ function main()
 					wait(0)
 				end
 				if not opened and not mcheat.v then
-					-- Если удерживали меньше секунды, но меню было закрыто — можно оставить пустым или добавить другое действие
+					-- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 				end
 			end
 		end
@@ -531,7 +532,7 @@ function main()
 
 		if NoAnimationMoney.v then
 			mem.setuint8(5701879, 184, true)
-			mem.copy(5701883, mem.strptr("‰–ј   "), 6, true)
+			mem.copy(5701883, mem.strptr("пїЅпїЅпїЅ   "), 6, true)
 			mem.setuint8(5701891, 235, true)
 		end
 
@@ -711,12 +712,12 @@ end
 
 function cmd_stime()
     lua_thread.create(function()
-        local dtext = "Отображать время на экране\t" .. (config.settings.activate and "{45d900}ON\n" or "{ff0000}OFF\n")
-        local dtext = dtext .. "Размер шрифта:\t" .. config.settings.fontsize .. "\n"
-        local dtext = dtext .. "Цвет времени:\t{" .. config.settings.color .. "}||||||||||\n"
-        local dtext = dtext .. "Цвет миллисекунд:\t{" .. config.settings.msColor .. "}||||||||||\n"
-        local dtext = dtext .. "Изменить положение"
-        sampShowDialog(10, "{A77BCA}Time On Screen", dtext, "OK", "Отмена", DIALOG_STYLE_TABLIST)
+        local dtext = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ\t" .. (config.settings.activate and "{45d900}ON\n" or "{ff0000}OFF\n")
+        local dtext = dtext .. "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ:\t" .. config.settings.fontsize .. "\n"
+        local dtext = dtext .. "пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ:\t{" .. config.settings.color .. "}||||||||||\n"
+        local dtext = dtext .. "пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ:\t{" .. config.settings.msColor .. "}||||||||||\n"
+        local dtext = dtext .. "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ"
+        sampShowDialog(10, "{A77BCA}Time On Screen", dtext, "OK", "пїЅпїЅпїЅпїЅпїЅпїЅ", DIALOG_STYLE_TABLIST)
         while sampIsDialogActive(10) do wait(0) end
         local result, button, list, input = sampHasDialogRespond(10)
 
@@ -728,7 +729,7 @@ function cmd_stime()
             end
 
             if list == 1 then
-                sampShowDialog(11, "{A77BCA}Time On Screen", "{FFFFFF}Введите новое значение шрифта:", "OK", "Отмена", DIALOG_STYLE_INPUT)
+                sampShowDialog(11, "{A77BCA}Time On Screen", "{FFFFFF}пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ:", "OK", "пїЅпїЅпїЅпїЅпїЅпїЅ", DIALOG_STYLE_INPUT)
                 while sampIsDialogActive(11) do wait(0) end
                 local result, button, list, input = sampHasDialogRespond(11)
                 if result then
@@ -738,7 +739,7 @@ function cmd_stime()
                         inicfg.save(config, f_ini)
                         return true
                     else
-                        ywelcome("UltraHack", "Значение должно быть числом!")
+                        ywelcome("UltraHack", "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ!")
                         return true
                     end
                 else
@@ -747,16 +748,16 @@ function cmd_stime()
             end
 
             if list == 2 then
-                sampShowDialog(11, "{A77BCA}Time On Screen", "{FFFFFF}Введите новое значение цвета:\n{c3c3c3}Например: AE433D или A77BCA (по умолчанию FFFFFF)", "OK", "Отмена", DIALOG_STYLE_INPUT)
+                sampShowDialog(11, "{A77BCA}Time On Screen", "{FFFFFF}пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ:\n{c3c3c3}пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: AE433D пїЅпїЅпїЅ A77BCA (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ FFFFFF)", "OK", "пїЅпїЅпїЅпїЅпїЅпїЅ", DIALOG_STYLE_INPUT)
                 while sampIsDialogActive(11) do wait(0) end
                 local result, button, list, input = sampHasDialogRespond(11)
                 if result then
-                    if not input:match("[а-яА-ЯЁё]+") then
+                    if not input:match("[пїЅ-пїЅпїЅ-ЯЁпїЅ]+") then
                         config.settings.color = input
                         inicfg.save(config, f_ini)
                         return true
                     else
-                        ywelcome("UltraHack", "Неправильный ввод.")
+                        ywelcome("UltraHack", "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ.")
                         return true
                     end
                 else
@@ -765,16 +766,16 @@ function cmd_stime()
             end
 
             if list == 3 then
-                sampShowDialog(11, "{A77BCA}Time On Screen", "{FFFFFF}Введите новое значение цвета:\n{c3c3c3}Например: AE433D или A77BCA (по умолчанию 858585)", "OK", "Отмена", DIALOG_STYLE_INPUT)
+                sampShowDialog(11, "{A77BCA}Time On Screen", "{FFFFFF}пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ:\n{c3c3c3}пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: AE433D пїЅпїЅпїЅ A77BCA (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 858585)", "OK", "пїЅпїЅпїЅпїЅпїЅпїЅ", DIALOG_STYLE_INPUT)
                 while sampIsDialogActive(11) do wait(0) end
                 local result, button, list, input = sampHasDialogRespond(11)
                 if result then
-                    if not input:match("[а-яА-ЯЁё]+") then
+                    if not input:match("[пїЅ-пїЅпїЅ-ЯЁпїЅ]+") then
                         config.settings.msColor = input
                         inicfg.save(config, f_ini)
                         return true
                     else
-                        ywelcome("UltraHack", "Неправильный ввод.")
+                        ywelcome("UltraHack", "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ.")
                         return true
                     end
                 else
@@ -784,7 +785,7 @@ function cmd_stime()
 
             if list == 4 then
                 moving = true
-                ywelcome("UltraHack", "Нажмите ЛКМ для сохранения положения.")
+                ywelcome("UltraHack", "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.")
             end
         end
     end)
@@ -1034,7 +1035,7 @@ function ev.onSendGiveDamage(id, data, data1, data2, data3)
 			else ox, oy, oz = 0, 0, 0 end
 
 			x, y, z = getOffsetFromCharInWorldCoords(ch, ox, oy, oz)
-			printStringNow('~g~ Урон по - '..nick..'['..playerid..'] ~y~[+] ~r~-'..math.floor(data)..'HP', 1500)
+			printStringNow('~g~ пїЅпїЅпїЅпїЅ пїЅпїЅ - '..nick..'['..playerid..'] ~y~[+] ~r~-'..math.floor(data)..'HP', 1500)
 			sampCreate3dTextEx('1', math.floor(data), 0xFFFFFFFF, x, y, z, 100, 1, -1, -1)
 			wait(3000)
 			sampDestroy3dText(1)
@@ -1047,7 +1048,7 @@ function ev.onSendTakeDamage(id, data, data1, data2, data3)
 		_, ch = sampGetCharHandleBySampPlayerId(id)
 		local nick = sampGetPlayerNickname(id)
 		local _, playerid = sampGetPlayerIdByCharHandle(playerPed)
-		printStringNow('~g~ Получен урон от - '..nick..'['..playerid..'] ~y~[-] ~r~-'..math.floor(data)..'HP', 1500)
+		printStringNow('~g~ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ - '..nick..'['..playerid..'] ~y~[-] ~r~-'..math.floor(data)..'HP', 1500)
 	end
 end
 
@@ -1095,20 +1096,24 @@ function ev.onSendEnterVehicle(vehId, pass)
 	end
 end
 
---> Имгуи
+--> пїЅпїЅпїЅпїЅпїЅ
 function imgui.OnDrawFrame()
 	resX, resY = getScreenResolution()
+	-- РђРІС‚РѕРјР°СЃС€С‚Р°Р± РїРѕРґ РІС‹СЃРѕРєРѕРµ СЂР°Р·СЂРµС€РµРЅРёРµ (4K/2K): РІСЃС‘ СѓРјРЅРѕР¶Р°РµРј РЅР° РґРѕР»СЋ РѕС‚ 1080p
+	fsc = resY / 1080
+	imgui.GetIO().FontGlobalScale = fsc
+	local winW, winH = 475 * fsc, 670 * fsc
 	if mcheat.v then
-		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - 475 / 2, resY / 2 - 412 / 2), imgui.Cond.FirstUseEver)
-		imgui.SetNextWindowSize(imgui.ImVec2(475, 670), imgui.Cond.FirstUseEver)
+		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - winW / 2, resY / 2 - winH / 2), imgui.Cond.FirstUseEver)
+		imgui.SetNextWindowSize(imgui.ImVec2(winW, winH), imgui.Cond.FirstUseEver)
 		imgui.Begin('', mcheat, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoScrollbar)
 
-		imgui.BeginChild("##MainGroup", imgui.ImVec2(475, 670), true, imgui.WindowFlags.NoScrollbar)
+		imgui.BeginChild("##MainGroup", imgui.ImVec2(winW, winH), true, imgui.WindowFlags.NoScrollbar)
 			imgui.BeginGroup()
-				sbox(u8'Авто кик при ноке', autokick)
-				imgui.TextQuestion(u8'Будет кикать при ноке')
+				sbox(u8'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ', autokick)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ')
 				sbox('ClickWarp', clickwarp)
-				imgui.TextQuestion(u8'Активация на колёсико мышки.')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ.')
 				imgui.NewLine()
 				if imgui.RadioButton('Trigger 1', triggermode, 1) then
 					triggermode.v = 1
@@ -1119,7 +1124,7 @@ function imgui.OnDrawFrame()
 					triggermode.v = 2
 					save()
 				end
-				if imgui.RadioButton(u8'Выключить Trigger', triggermode, 3) then
+				if imgui.RadioButton(u8'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Trigger', triggermode, 3) then
 					triggermode.v = 3
 					save()
 				end
@@ -1132,31 +1137,31 @@ function imgui.OnDrawFrame()
 					silentmode.v = 2
 					save()
 				end
-				if imgui.RadioButton(u8'Выключить Silent Aim', silentmode, 3) then
+				if imgui.RadioButton(u8'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Silent Aim', silentmode, 3) then
 					silentmode.v = 3
 					save()
 				end
 				imgui.NewLine()
-				sbox(u8'Сбив на [B].', sbivx)
-				imgui.TextQuestion(u8'Нажимая на кнопку [B] вы будете снимать фриз сервера и сбивать анимацию.')
+				sbox(u8'пїЅпїЅпїЅпїЅ пїЅпїЅ [B].', sbivx)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ [B] пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.')
 				sbox(u8'FullSkillGun', fullskillgun)
-				imgui.TextQuestion(u8'Клео скиллы.')
-				sbox(u8'Полуслайд', pslide)
-				imgui.TextQuestion(u8'Автоматический полуслайд при выстреле.')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.')
+				sbox(u8'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ', pslide)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.')
 				sbox(u8'AirBrake', airbrake)
-				imgui.TextQuestion(u8'Аирбрейк.')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.')
 				sbox(u8'SpeedHack', SpeedHack)
-				imgui.TextQuestion(u8'Ускорение на авто.')
-				imgui.PushItemWidth(90)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ.')
+				imgui.PushItemWidth(90 * fsc)
 				if imgui.SliderInt('Smooth', SpeedSmooth, 0, 80) then
 					save()
 				end
 				sbox('NoDamage', nodamage)
-				imgui.TextQuestion(u8'Урон не будет проходить.')
-				sbox(u8'Каптур БЗ по таблу/payday', capturebiz)
-				imgui.TextQuestion(u8'При появлении в чате надписи о завершении капта - флудит /capture_biz.')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.')
+				sbox(u8'пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ/payday', capturebiz)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅ /capture_biz.')
 				sbox(u8'Damage Informer', damageinf)
-				imgui.TextQuestion(u8'Дамаг информер на экране.')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.')
 				sbox('LegitAimBot', cbz5)
 				if imgui.SliderFloat("SpeedAim", Speed, 0.0, 50.0, '%.1f') then
 					save()
@@ -1173,7 +1178,7 @@ function imgui.OnDrawFrame()
 			imgui.SameLine(230)
 
 			imgui.BeginGroup()
-				imgui.PushItemWidth(120)
+				imgui.PushItemWidth(120 * fsc)
 				if imgui.SliderInt('NAMETAGS', nametags_dist_slider, 0, nametags_allowed_dist) then
 					set_dist(0, nametags_dist_slider.v)
 					save()
@@ -1191,26 +1196,26 @@ function imgui.OnDrawFrame()
 					save()
 				end
 				sbox(u8'NoReload.', noReload)
-				imgui.TextQuestion(u8'Стрельба без перезарядки.')
-				sbox(u8'Ездить с выкл. двигателем.', enginecar)
-				imgui.TextQuestion(u8'Езда без бензина.')
-				sbox(u8"Увел. урон с дробовика.", shotmax)
-				sbox(u8"Анти-Стан.", antistun)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.')
+				sbox(u8'пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.', enginecar)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.')
+				sbox(u8"пїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.", shotmax)
+				sbox(u8"пїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅ.", antistun)
 				sbox(u8"AntiBunnyhop", allowBunnyhop)
-				sbox(u8"Рыбий глаз.", eyefish)
+				sbox(u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ.", eyefish)
 				sbox("FastConnect", ifastconnect)
 				sbox(u8'GMCar', godcar)
 				sbox(u8'NoAnimationMoney', NoAnimationMoney)
-				imgui.TextQuestion(u8'Деньги капают на счет без анимации (т.е. капают сразу).')
-				if imgui.Button('FIX', imgui.ImVec2(70, 35)) then
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅ.пїЅ. пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ).')
+				if imgui.Button('FIX', imgui.ImVec2(70 * fsc, 35 * fsc)) then
 					sampProcessChatInput('/fix')
 				end
 				imgui.SameLine()
-				if imgui.Button('BREAK', imgui.ImVec2(70, 35)) then
+				if imgui.Button('BREAK', imgui.ImVec2(70 * fsc, 35 * fsc)) then
 					sampProcessChatInput('/breakecar')
 				end
 				imgui.SameLine()
-				if imgui.Button('FAKE CHAT', imgui.ImVec2(70, 35)) then
+				if imgui.Button('FAKE CHAT', imgui.ImVec2(70 * fsc, 35 * fsc)) then
 					sampProcessChatInput('/fake')
 					mcheat.v = false
 				end
@@ -1221,11 +1226,12 @@ function imgui.OnDrawFrame()
 
 	if window.v then
         local resX, resY = getScreenResolution()
-        local sizeX, sizeY = 300, 150
+        local fsc = resY / 1080
+        local sizeX, sizeY = 300 * fsc, 150 * fsc
         imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - sizeX / 2, resY / 2 - sizeY / 2), imgui.Cond.FirstUseEver)
         imgui.SetNextWindowSize(imgui.ImVec2(sizeX, sizeY), imgui.Cond.FirstUseEver)
         imgui.Begin('Fake', window)
-        imgui.PushItemWidth(255)
+        imgui.PushItemWidth(255 * fsc)
         if imgui.InputText("##inp1", str) then
             for k, v in ipairs(messages) do
                 if rlower(v[2]):find(rlower(u8:decode(str.v))) then
@@ -1245,12 +1251,12 @@ function imgui.OnDrawFrame()
     end
 end
 
---> Подсказка
+--> пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 function imgui.TextQuestion(text)
-	local war = (fa.ICON_FA_INFO_CIRCLE.. u8(' Подсказка:'))
+	local war = (fa.ICON_FA_INFO_CIRCLE.. u8(' пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ:'))
 	if imgui.IsItemHovered() then
 		imgui.BeginTooltip()
-		imgui.PushTextWrapPos(450)
+		imgui.PushTextWrapPos(450 * fsc)
 		imgui.TextColored(imgui.ImVec4(1.15, 0.18, 0.22, 1), war)
 		imgui.TextUnformatted(text)
 		imgui.PopTextWrapPos()
@@ -1258,7 +1264,7 @@ function imgui.TextQuestion(text)
 	end
 end
 
---> Централизация текста.
+--> пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.
 function imgui.CenterText(text)
     local width = imgui.GetWindowWidth()
     local calc = imgui.CalcTextSize(text)
@@ -1273,7 +1279,7 @@ function sbox(name, imguiname)
 	end
 end
 
---> Имгуи тема.
+--> пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ.
 function apply_custom_style()
 	local style = imgui.GetStyle()
 	local colors = style.Colors
@@ -1345,7 +1351,7 @@ function clearAnim()
 end
 
 local russian_characters = {
-    [168] = 'Ё', [184] = 'ё', [192] = 'А', [193] = 'Б', [194] = 'В', [195] = 'Г', [196] = 'Д', [197] = 'Е', [198] = 'Ж', [199] = 'З', [200] = 'И', [201] = 'Й', [202] = 'К', [203] = 'Л', [204] = 'М', [205] = 'Н', [206] = 'О', [207] = 'П', [208] = 'Р', [209] = 'С', [210] = 'Т', [211] = 'У', [212] = 'Ф', [213] = 'Х', [214] = 'Ц', [215] = 'Ч', [216] = 'Ш', [217] = 'Щ', [218] = 'Ъ', [219] = 'Ы', [220] = 'Ь', [221] = 'Э', [222] = 'Ю', [223] = 'Я', [224] = 'а', [225] = 'б', [226] = 'в', [227] = 'г', [228] = 'д', [229] = 'е', [230] = 'ж', [231] = 'з', [232] = 'и', [233] = 'й', [234] = 'к', [235] = 'л', [236] = 'м', [237] = 'н', [238] = 'о', [239] = 'п', [240] = 'р', [241] = 'с', [242] = 'т', [243] = 'у', [244] = 'ф', [245] = 'х', [246] = 'ц', [247] = 'ч', [248] = 'ш', [249] = 'щ', [250] = 'ъ', [251] = 'ы', [252] = 'ь', [253] = 'э', [254] = 'ю', [255] = 'я',
+    [168] = 'пїЅ', [184] = 'пїЅ', [192] = 'пїЅ', [193] = 'пїЅ', [194] = 'пїЅ', [195] = 'пїЅ', [196] = 'пїЅ', [197] = 'пїЅ', [198] = 'пїЅ', [199] = 'пїЅ', [200] = 'пїЅ', [201] = 'пїЅ', [202] = 'пїЅ', [203] = 'пїЅ', [204] = 'пїЅ', [205] = 'пїЅ', [206] = 'пїЅ', [207] = 'пїЅ', [208] = 'пїЅ', [209] = 'пїЅ', [210] = 'пїЅ', [211] = 'пїЅ', [212] = 'пїЅ', [213] = 'пїЅ', [214] = 'пїЅ', [215] = 'пїЅ', [216] = 'пїЅ', [217] = 'пїЅ', [218] = 'пїЅ', [219] = 'пїЅ', [220] = 'пїЅ', [221] = 'пїЅ', [222] = 'пїЅ', [223] = 'пїЅ', [224] = 'пїЅ', [225] = 'пїЅ', [226] = 'пїЅ', [227] = 'пїЅ', [228] = 'пїЅ', [229] = 'пїЅ', [230] = 'пїЅ', [231] = 'пїЅ', [232] = 'пїЅ', [233] = 'пїЅ', [234] = 'пїЅ', [235] = 'пїЅ', [236] = 'пїЅ', [237] = 'пїЅ', [238] = 'пїЅ', [239] = 'пїЅ', [240] = 'пїЅ', [241] = 'пїЅ', [242] = 'пїЅ', [243] = 'пїЅ', [244] = 'пїЅ', [245] = 'пїЅ', [246] = 'пїЅ', [247] = 'пїЅ', [248] = 'пїЅ', [249] = 'пїЅ', [250] = 'пїЅ', [251] = 'пїЅ', [252] = 'пїЅ', [253] = 'пїЅ', [254] = 'пїЅ', [255] = 'пїЅ',
 }
 
 function rlower(s)
@@ -1371,7 +1377,7 @@ function find(s, p)
     return string.rlower(s):find(string.rlower(p))
 end
 
---> КликВарп.
+--> пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 
 function ClickWP()
 	Matrix3X3 = require "matrix3x3"
@@ -1464,7 +1470,7 @@ function ClickWP()
 									tpIntoCar = car
 									color = 0xFFFFFFFF
 								end
-								renderFontDrawText(font2, "Зажми правую кнопку мыши для того чтоб сесть в машину.", sx, sy - hoffs * 3, color)
+								renderFontDrawText(font2, "пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.", sx, sy - hoffs * 3, color)
 							end
 						end
 						createPointMarker(pos.x, pos.y, pos.z)
@@ -1548,7 +1554,7 @@ end
 
 function ev.onServerMessage(color, text)
 	lua_thread.create(function()
-		if capturebiz.v and (text:find('Текущее время:') or text:find('(.+) захватили бизнес (.+)') or text:find('Попытка (.+) захватить бизнес (.+) провалилась') or text:find('(.+) захватили территорию (.+)') or text:find('Попытка (.+) захватить территорию (.+) провалилась')) then
+		if capturebiz.v and (text:find('пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ:') or text:find('(.+) пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (.+)') or text:find('пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (.+) пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (.+) пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ') or text:find('(.+) пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (.+)') or text:find('пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (.+) пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (.+) пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ')) then
 			for i = 1, 4 do
 				sampSendChat('/capture_biz')
 				for a = 1, 5 do
@@ -1722,7 +1728,7 @@ function showCursor(toggle)
 	cursorEnabled = toggle
 end
 
---> Если скрипт крашнется.
+--> пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 function onScriptTerminate(script, quit)
 	if script == thisScript() then
 		imgui.Process = false
@@ -1731,7 +1737,7 @@ function onScriptTerminate(script, quit)
 	end
 end
 
---> Быстрое сохранение в ini
+--> пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ ini
 function save()
     inicfg.save({
         MultiCheat =
