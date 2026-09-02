@@ -90,6 +90,7 @@ local force_password_form = false
 local password_form_error = ""
 local password_form_closed = false
 local render_disabled = false
+local render_disabled_until = 0
 local reconnect_watch_active = false
 local reconnect_watch_until = 0
 local saw_loading_after_rec = false
@@ -211,8 +212,13 @@ end
 local encoding = require 'encoding'
 encoding.default = 'CP1251'
 
+local debug_step = 0
 local function log(msg)
     print(string.format("[%s] %s", script_name, msg))
+end
+local function dlog(msg)
+    debug_step = debug_step + 1
+    log(string.format("STEP#%03d (%.2fs) %s", debug_step, os.clock(), msg))
 end
 
 in_close_menu_emul_window = function()
@@ -555,8 +561,10 @@ wait_for_game_focus = function()
 end
 
 local function clear_input_field()
+    dlog("clear_input_field: клик по полю парол€")
     click_password_field()
     wait(200)
+    dlog("clear_input_field: Ctrl+A")
     user32.keybd_event(0x11, 0, KEYEVENTF_KEYDOWN, 0)
     wait(50)
     user32.keybd_event(0x41, 0, KEYEVENTF_KEYDOWN, 0)
@@ -564,14 +572,17 @@ local function clear_input_field()
     user32.keybd_event(0x41, 0, KEYEVENTF_KEYUP, 0)
     user32.keybd_event(0x11, 0, KEYEVENTF_KEYUP, 0)
     wait(100)
+    dlog("clear_input_field: Backspace")
     user32.keybd_event(0x08, 0, KEYEVENTF_KEYDOWN, 0)
     wait(50)
     user32.keybd_event(0x08, 0, KEYEVENTF_KEYUP, 0)
     wait(200)
+    dlog("clear_input_field: готово")
 end
 
 local function type_password()
     local caps_was_on = (user32.GetAsyncKeyState(0x14) % 2 == 1)
+    dlog("type_password: начало, caps=" .. tostring(caps_was_on) .. ", len=" .. #password)
     if caps_was_on then
         user32.keybd_event(0x14, 0, KEYEVENTF_KEYDOWN, 0)
         wait(50)
@@ -629,6 +640,7 @@ local function type_password()
         user32.keybd_event(0x14, 0, KEYEVENTF_KEYUP, 0)
         wait(50)
     end
+    dlog("type_password: ввод завершЄн")
 end
 
 emulate_loading_close_auth = function()
@@ -809,9 +821,11 @@ on_password_saved = function()
     password_form_error = ""
     password_form_closed = true
     render_disabled = true
+    dlog("on_password_saved: пароль установлен (len=" .. #password .. ")")
     log("ѕароль сохранЄн Ч пробуем автовход в открытую CEF-форму")
     lua_thread.create(function()
         wait(300)
+        dlog("on_password_saved-thread: +300ms, вызываем perform_login")
         if not is_spawned and password ~= "" and script_active then
             perform_login()
         end
@@ -819,7 +833,7 @@ on_password_saved = function()
             wait(2000)
             if is_spawned or password == "" or not script_active then return end
             if not is_logging_in then
-                log("ѕовтор автовхода после установки парол€ #" .. tostring(i))
+                dlog("on_password_saved-thread: повтор автовхода #" .. i)
                 perform_login()
             end
         end
@@ -875,33 +889,40 @@ perform_login = function()
     close_menu_emul_until = 0
     reconnect_watch_active = false
     render_disabled = true
-    log("¬вод парол€ (render отключЄн)...")
+    dlog("perform_login: старт ввода парол€ (len=" .. #password .. ")")
 
     lua_thread.create(function()
+        dlog("perform_login-thread: начало, ждЄм фокус")
         pcall(wait_for_game_focus)
         wait(1200)
         if is_spawned then
             is_logging_in = false
+            dlog("perform_login-thread: is_spawned уже true, выход")
             return
         end
+        dlog("perform_login-thread: переключение раскладки EN")
         local hkl = user32.LoadKeyboardLayoutA("00000409", 1)
         if hkl ~= nil then
             user32.ActivateKeyboardLayout(hkl, 0)
         end
         wait(300)
+        dlog("perform_login-thread: clear_input_field")
         clear_input_field()
         wait(200)
+        dlog("perform_login-thread: type_password")
         type_password()
         wait(200)
+        dlog("perform_login-thread: отправка Enter (0x0D)")
         user32.keybd_event(0x0D, 0, KEYEVENTF_KEYDOWN, 0)
         wait(30)
         user32.keybd_event(0x0D, 0, KEYEVENTF_KEYUP, 0)
         login_submitted = true
         close_menu_emul_until = 0
         reconnect_watch_active = false
-        log("ѕароль введен. CEF-пакет 215 ждЄм дл€ входа в игру")
+        dlog("perform_login-thread: Enter отправлен, ждЄм CEF-пакет 215")
         wait(600)
         is_logging_in = false
+        dlog("perform_login-thread: завершено")
     end)
 end
 
@@ -1046,7 +1067,7 @@ function onReceivePacket(id, bs)
         saw_loading_after_rec = true
         reconnect_watch_active = false
         is_logging_in = false
-        log("Loading[3000] (UI/загрузка) Ч is_spawned не мен€ем")
+        dlog("Loading[3000] (UI/загрузка) Ч переход в мир")
         post_loading_login_watch()
     end
 
@@ -1077,6 +1098,9 @@ function onReceivePacket(id, bs)
             finish_reconnect("login ok")
             reconnect_attempt_count = 0
             reconnect_pause_until = 0
+            render_disabled = true
+            render_disabled_until = os.clock() + 8
+            dlog("ј¬“ќ–»«ј÷»я ѕ–ќ…ƒ≈Ќј: is_spawned=true (рендер ещЄ 8с выключен)")
             log("јвторизаци€ пройдена (успешный вход в мир)")
             return
         end
@@ -1422,8 +1446,8 @@ local function timer_render_thread()
     local r_font = renderCreateFont("Arial", 14, 13)
     while true do
         wait(0)
-        if render_disabled then
-            if is_spawned then render_disabled = false end
+        if render_disabled or os.clock() < render_disabled_until then
+            if is_spawned and os.clock() >= render_disabled_until then render_disabled = false end
         else
         if os.clock() < mafk_notify_until then
             local sw, sh = getScreenResolution()
