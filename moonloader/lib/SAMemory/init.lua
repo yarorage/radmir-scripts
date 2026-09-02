@@ -13,20 +13,24 @@ local shared = require 'SAMemory.shared'
 local ffi = shared.ffi
 local cast = ffi.cast
 
+ffi.cdef[[
+	typedef struct CWeaponEffects CWeaponEffects;
+	typedef struct CVehicle CVehicle;
+	typedef struct CCamera CCamera;
+	typedef struct CPool CPool;
+	typedef struct CPed CPed;
+]]
+
 local function PBOOL(x)
 	return cast('bool *', x)
 end
 
-local function PVOID(x)
-	return cast('void *', x)
-end
-
-local function PPVOID(x)
-	return cast('void **', x)
+local function PPOOL(x)
+	return cast('CPool **', x)
 end
 
 return {
-	_ver 								= '1.0.4';
+	_ver 								= '1.0.4.2';
 
 	cast 								= cast;
 	require 						= shared.require;
@@ -34,26 +38,22 @@ return {
 	code_pause					= PBOOL(0x00B7CB48);
 	user_pause 					= PBOOL(0x00B7CB49);
 
-	nullptr 						= PVOID(0x00000000);
-	-- player camera (CCamera)
-	camera 							= PVOID(0x00B6F028);
-	-- weapon crosshairs (CWeaponEffects)
-	crosshairs 					= PVOID(0x00C8A838); -- array[2]
-
-	-- player ped (CPed)
-	player_ped 				  = PPVOID(0x00B6F5F0);
-	-- player vehicle (CVehicle)
-	player_vehicle  		= PPVOID(0x00BA18FC);
+	nullptr 						= cast('void *', 0x00000000);
+	camera 							= cast('CCamera *', 0x00B6F028);
+	-- array[2]
+	crosshairs 					= cast('CWeaponEffects *', 0x00C8A838);
+	player_ped 				  = cast('CPed **', 0x00B6F5F0);
+	player_vehicle  		= cast('CVehicle **', 0x00BA18FC);
 
 	-- pools (CPool)
-	ptrNodeSinglePool   = PPVOID(0x00B74484);
-	ptrNodeDoublePool   = PPVOID(0x00B74488);
-	ped_pool 						= PPVOID(0x00B74490);
-	vehicle_pool 				= PPVOID(0x00B74494);
-	building_pool 			= PPVOID(0x00B74498);
-	object_pool 				= PPVOID(0x00B7449C);
-	dummy_pool 					= PPVOID(0x00B744A0);
-	colModelPool 			 	= PPVOID(0x00B744A4);
-	task_pool 					= PPVOID(0x00B744A8);
-	pedIntelligencePool = PPVOID(0x00B744C0);
+	ptrNodeSinglePool   = PPOOL(0x00B74484);
+	ptrNodeDoublePool   = PPOOL(0x00B74488);
+	ped_pool 						= PPOOL(0x00B74490);
+	vehicle_pool 				= PPOOL(0x00B74494);
+	building_pool 			= PPOOL(0x00B74498);
+	object_pool 				= PPOOL(0x00B7449C);
+	dummy_pool 					= PPOOL(0x00B744A0);
+	colModelPool 			 	= PPOOL(0x00B744A4);
+	task_pool 					= PPOOL(0x00B744A8);
+	pedIntelligencePool = PPOOL(0x00B744C0);
 }

@@ -149,6 +149,7 @@ local mark_queue_seen
 local start_reconnect_watch
 local mark_manual_reconnect
 local emulate_loading_close_auth
+local post_loading_login_watch
 local emulate_close_menu_pause
 local emulate_reconnect_ui_cleanup
 local finish_reconnect
@@ -678,6 +679,25 @@ mark_manual_reconnect = function(reason)
     end)
 end
 
+post_loading_login_watch = function()
+    if reconnect_watch_active then return end
+    if is_spawned or login_submitted then return end
+    log("Watchdog: Загрузка поймана — контроль входа 30 сек")
+    lua_thread.create(function()
+        local deadline = os.clock() + 30
+        while os.clock() < deadline do
+            wait(500)
+            if is_spawned or login_submitted then
+                log("Watchdog: вход/спавн за 30с — контроль отменён")
+                return
+            end
+        end
+        if is_spawned or login_submitted or not script_active then return end
+        log("Watchdog: 30с после Загрузки без входа — следим заново")
+        start_reconnect_watch()
+    end)
+end
+
 on_password_saved = function()
     is_spawned = false
     is_logging_in = false
@@ -897,12 +917,14 @@ function onReceivePacket(id, bs)
             saw_loading_after_rec = true
             reconnect_watch_active = false
             log("Пакет Загрузка/GameText — watchdog снят")
+            post_loading_login_watch()
         end
     end
     if text:find('~y~Загрузка') or (text:find('Загрузка') and text:find('10000')) then
         saw_loading_after_rec = true
         reconnect_watch_active = false
         log("Пакет Загрузка — watchdog снят")
+        post_loading_login_watch()
     end
 
     if text:find('Loading') and text:find('3000') then
@@ -910,6 +932,7 @@ function onReceivePacket(id, bs)
         reconnect_watch_active = false
         is_logging_in = false
         log("Loading[3000] (UI/загрузка) — is_spawned не меняем")
+        post_loading_login_watch()
     end
 
     if not script_active or password == "" then return end

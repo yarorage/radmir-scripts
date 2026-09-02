@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.0.2",
     "launcherVersion":  "1.0.2",
-    "updatedAt":  "2026-09-02 03:32",
+    "updatedAt":  "2026-09-02 15:07",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -77,6 +77,12 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "skygfx.asi",
+                      "sha256":  "c9fe5abc33b5e4548756ea4014b1323245bc7cdf1e018390154679681c342daa",
+                      "size":  303616,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "VehicleAudioLoader.asi",
                       "sha256":  "4be8081e507d5a49ecd41e22f5c64a3e311c188b64653e9ee822771321d38ddd",
                       "size":  10240,
@@ -114,8 +120,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLogin_2.0.lua",
-                      "sha256":  "ef210ad986fec9349f1a5810f24cbbd9bee7e97201fb98a0a96082594f320087",
-                      "size":  63707,
+                      "sha256":  "a2f90248e933e96a9f9c067acef8db9529b8e51cbfa5e643df06d0b31f2efd8f",
+                      "size":  66249,
                       "dest":  "gameRoot"
                   },
                   {
@@ -138,14 +144,14 @@
                   },
                   {
                       "path":  "moonloader/Les.lua",
-                      "sha256":  "3a5118f979225204e80dca0987825c7cd7c1e93b47bb4be21090d906b2e01577",
-                      "size":  59121,
+                      "sha256":  "ae5207a68f95eff8cf62c0bf5cd10ead0f5a39b2108dabda62465b5d406ecb01",
+                      "size":  53967,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/les_dbg.txt",
-                      "sha256":  "fc7ce6c875ac921ced55f6ef4216aafd5a16f0af33c41c84b43f4fdfc27bfc3c",
-                      "size":  148244,
+                      "sha256":  "55ae911d58f698a52edec1f70bc665aa4a067300551109ec6145e3556e759540",
+                      "size":  1399833,
                       "dest":  "gameRoot"
                   },
                   {
@@ -173,9 +179,21 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/.travis.yml",
+                      "sha256":  "79405f3375f28deae773c8af3a692e522660c12145ca17ff1a8ffef98dc195a2",
+                      "size":  359,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/aeslua.lua",
                       "sha256":  "3fcd6f07c6dc0ed83825ed4967c2ab67de20f6a65f71d798190b9a109c550e96",
                       "size":  3461,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/asyncoperations.lua",
+                      "sha256":  "dab4b5fd669386de357abfbd7f4440dc1fc3774b3bf7bd1ab00a556290596a6f",
+                      "size":  1883,
                       "dest":  "gameRoot"
                   },
                   {
@@ -194,6 +212,12 @@
                       "path":  "moonloader/lib/bass.lua",
                       "sha256":  "21cb70ed0168f8b5d2b3b7e543156d8b98d5678db7b5e5154c8c898ef6d5bb69",
                       "size":  33569,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/binaryheap.lua",
+                      "sha256":  "9a724b61252a5eaaeba3e01eef10ef3317583abe3989ffc7166bd0c8f8f5b700",
+                      "size":  12069,
                       "dest":  "gameRoot"
                   },
                   {
@@ -233,6 +257,12 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/coxpcall.lua",
+                      "sha256":  "c53063d1e36e0eed0b02c482caa5b7482320a21180911843b88f6cd84b0faa82",
+                      "size":  3534,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/crc32ffi.lua",
                       "sha256":  "ba889b07449c1def26eb6b8863e63c1fabf3364822fb19bb1e5fa211764e5ad8",
                       "size":  896,
@@ -254,6 +284,12 @@
                       "path":  "moonloader/lib/del1_fontawesome-webfont.ttf",
                       "sha256":  "aa58f33f239a0fb02f5c7a6c45c043d7a9ac9a093335806694ecd6d4edc0d6a8",
                       "size":  165548,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/del1_Trebucbd.ttf",
+                      "sha256":  "73150ef5306b3651eac743ad570bc956c2ca41f5564e8700c8ae83928827441e",
+                      "size":  123096,
                       "dest":  "gameRoot"
                   },
                   {
@@ -281,6 +317,12 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/events.lua",
+                      "sha256":  "6dc758e5dde13c5d9013e883c1bfb203309cfaa21f58d5c67591977bb46e89dd",
+                      "size":  21676,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/fa-solid-900.ttf",
                       "sha256":  "5c13caa17dbfce55cd0afe4b4dcf7fbe26ab783fce15f17dde44fa6b52bcb36c",
                       "size":  202616,
@@ -299,6 +341,12 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/fAwesome6.lua",
+                      "sha256":  "e0a3bcd5d0dab0aec5ea843a58bae05148caf44f64aa83c55153c239175fcd48",
+                      "size":  3839469,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/fAwesome6_solid.lua",
                       "sha256":  "d654f487401d697b5e6d2e58ff6de7f9ae1913f44200de5a6299f8a5d94d55f8",
                       "size":  342546,
@@ -311,9 +359,21 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/handlers.lua",
+                      "sha256":  "c50798b346de259ca606d38472dd7550517194ed234722bce1c9f3475bf7bcfd",
+                      "size":  4325,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/hashmd5.lua",
                       "sha256":  "5330d3aedcae971ee6192ae12c2a8755f6fdbb3aa97cc358f4dd39a2f79e34e3",
                       "size":  10935,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/htmlparser.lua",
+                      "sha256":  "303b1427d7e418870f390c1b2458b3ba229126d8b865c387c2e6794b4ff2b985",
+                      "size":  4098,
                       "dest":  "gameRoot"
                   },
                   {
@@ -335,6 +395,12 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/imgui_notf.lua",
+                      "sha256":  "d30a6edffb75227212d1f0034d3caf89ff3e2336b030669a515873c54b747cdb",
+                      "size":  9460,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/imgui_piemenu.lua",
                       "sha256":  "c59049a7927e873a376a9ebd9b6d8e63a39ab5ff8d22ff5137f4dce05835af89",
                       "size":  13275,
@@ -347,6 +413,12 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/init.lua",
+                      "sha256":  "054002e74215ee087808917f23ab37672efbbe959bb572ce19ae01d9f7e8a66c",
+                      "size":  12846,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/inspect.lua",
                       "sha256":  "cbe437fe32d0cb895bd0123f07b866aac433e32c874adda441c9896e1f6ad7e7",
                       "size":  9749,
@@ -356,6 +428,12 @@
                       "path":  "moonloader/lib/json2lua.lua",
                       "sha256":  "0a7830dca64d95336c0c4e06865ddad412517c3d685f30265b075941d65aa591",
                       "size":  304,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/kernel.lua",
+                      "sha256":  "600fda29595684183303194d51172d19d1613f9d2f4693d08fa71a495a20dee6",
+                      "size":  404,
                       "dest":  "gameRoot"
                   },
                   {
@@ -374,6 +452,12 @@
                       "path":  "moonloader/lib/libeffil.dll",
                       "sha256":  "8ac736f5d9116fda2682909477bb7da83e53fbc1eaaeb2826aec35dbd6da874c",
                       "size":  594432,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/libmcrypt.dll",
+                      "sha256":  "18d4ce3b8e317c6c14b73e0849232577f81ddec230c8a14d8821e5260b2009fd",
+                      "size":  166912,
                       "dest":  "gameRoot"
                   },
                   {
@@ -413,6 +497,18 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/luairc.lua",
+                      "sha256":  "586c9a5da4b623d1cf10b11aea622196d6294ca4fda710fe5a67d208d3e2c713",
+                      "size":  4488,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/lualzw.lua",
+                      "sha256":  "a3f925c36e07b40af14df369efaf5d741da80d142793802b1f93086b40eebc8c",
+                      "size":  4497,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/matrix3x3.lua",
                       "sha256":  "eac61fc4e6512cfdfd5ec515d72a42b2f2957d0fd9a03e9978c2dae39b975f78",
                       "size":  2000,
@@ -422,6 +518,12 @@
                       "path":  "moonloader/lib/md5.lua",
                       "sha256":  "921f2e4d48d8987be0eb96a93762a918bbdd825b7c506ef68aedf1b217ae6355",
                       "size":  836,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/mdx-scripts.lua",
+                      "sha256":  "9a9c2729d3ed3a64cdc1a23d5fab6a82f3b7b356f08ccb82661bbe0273ea66d0",
+                      "size":  2432,
                       "dest":  "gameRoot"
                   },
                   {
@@ -437,6 +539,18 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/mimetypes.lua",
+                      "sha256":  "f8dd80fbdc86a9f08ba2555a4ff6371cdf4de21badb802f7a60af0696b923188",
+                      "size":  11616,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/mimgui_addons.lua",
+                      "sha256":  "250714283c4b9d8a9e80b661712a2577cb70726716fd622180fdd52302127f72",
+                      "size":  14406,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/mimgui_piemenu.lua",
                       "sha256":  "8f92166e957a25d6330494fe37d843ddade85e744ca8db27d18349ca72d5bb0c",
                       "size":  13063,
@@ -449,9 +563,39 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/mimtoasts.lua",
+                      "sha256":  "d74d8e4e49e5993d3ab8530be76e169ca765dc5ec56f63c0e53520f8d5f51983",
+                      "size":  6591,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/MoonAdditions.dll",
                       "sha256":  "a91b2e74c99633788b669a55ffccefa6d40980b816054d86d9cda208df37d3fa",
                       "size":  765440,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/MoonBot.dll",
+                      "sha256":  "ad585a1c3f458345fc2213d77537c8650b0d05f8459618ca23da5d87dadee1ed",
+                      "size":  1956864,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/MoonBot.lua",
+                      "sha256":  "76663ba007c3ce3e04f09b72e5e03fc57752249335fa810f9c7b70905f621c2d",
+                      "size":  504,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/moonbot_core.dll",
+                      "sha256":  "e582101813ab131f29bf6e3e9245e5f8e77dc828d17ced580ac8352ff3f38d86",
+                      "size":  861696,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/MoonBot_DEMO.dll",
+                      "sha256":  "3f10d026a9a4fa04a2a293c957965c16eaf4653fa74f2cae62f3cd76c1b35612",
+                      "size":  653824,
                       "dest":  "gameRoot"
                   },
                   {
@@ -467,6 +611,42 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/moonmonet_rs.dll",
+                      "sha256":  "524e087a1d13f205c9e3cea79fb881d4da6b5f981f965f6aa5f4c06938b3bee8",
+                      "size":  146432,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/neatjson.lua",
+                      "sha256":  "5fe95aa2bf790190cd9e0ecf9c178a9dfb92dcbf197ff276b04fcb0a2a297b04",
+                      "size":  7670,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/notifications.lua",
+                      "sha256":  "a53664db10d3487a788bd81a8f32b3aa4343d958efeee3d4abaf82b9e1ac8246",
+                      "size":  7849,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/notifications_edit.lua",
+                      "sha256":  "eb8b06eeab4d73f518f136a64729d5e8902f2f7b118f9251cf1c6932a0056e9a",
+                      "size":  8455,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path.lua",
+                      "sha256":  "10a575c669b90ad28899c04bfd8afc0341779782f574e1b4c8cb60aa2f480e6b",
+                      "size":  13557,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/profiling.lua",
+                      "sha256":  "b269b7761f357bb114733b2b640957b759cfd515cfd2b197d1a6b2f5fc4c6231",
+                      "size":  1738,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/RakLua.lua",
                       "sha256":  "9fecd838269bca25095354efdbabe18861da0df618a603ffd4c2c75e35f73575",
                       "size":  892,
@@ -476,6 +656,12 @@
                       "path":  "moonloader/lib/RakLuaDll.dll",
                       "sha256":  "7fc5e0dda295fd8141f665c2df07d3237b7d4af53fe71f36afe9c1696671ea1a",
                       "size":  363008,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/raknet.lua",
+                      "sha256":  "488a60296bb5c41f5a2a4007308bfbe33e78f512bbb60fafc978437d0f7bf7b0",
+                      "size":  11365,
                       "dest":  "gameRoot"
                   },
                   {
@@ -497,15 +683,39 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/screenshot.lua",
+                      "sha256":  "cd89c568e1806a90ee989adef810153c8498f2108f10e4ae2b59b13be4d1d4b3",
+                      "size":  740,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/set.lua",
+                      "sha256":  "1903527f8a9ee0ac050d7439b7183e6a1bc8968965ce9a5af93db190b4b74b7a",
+                      "size":  1113,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/sha1.lua",
                       "sha256":  "996821d518b3daa4be434653fdc36a01ec5cb41fc7c638372b888e4ea680f506",
                       "size":  9644,
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/socket.html",
+                      "sha256":  "c1db42381acf960bb46d101945eeb047f38ee10b905b55580f635b808db77a5d",
+                      "size":  13866,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/socket.lua",
                       "sha256":  "332871e3beeaccf8bff18cde1509e81c2bd16beb511b1fe586c12862dc7667b2",
                       "size":  4451,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/sphere.lua",
+                      "sha256":  "6d8d26d8a11dfe6e4c8d8416c97a5a559cd4aeb932b2e6348d76977c57eae147",
+                      "size":  2033,
                       "dest":  "gameRoot"
                   },
                   {
@@ -521,9 +731,51 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/synchronization.lua",
+                      "sha256":  "5e2e5ad3bfba848b20b8035f1b7a0ad997c958b924f231931c5a95b619a34ac7",
+                      "size":  3463,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/tabcfg.lua",
                       "sha256":  "1486f14c5c76637038778828a673ccd85dcc331d911a5c85ca96bca19f0af671",
                       "size":  1676,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/test_socket_error.lua",
+                      "sha256":  "f24edf4d2dc1bf3dc8704faf36165e87936ff92f60977294dc9e2f8500b62356",
+                      "size":  700,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/timerwheel.lua",
+                      "sha256":  "c1d8c7352e5e437c638cf5de56baa357c3834f1c4d9ecf0a2826cc667144ee2d",
+                      "size":  9422,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/Trebucbd.ttf",
+                      "sha256":  "73150ef5306b3651eac743ad570bc956c2ca41f5564e8700c8ae83928827441e",
+                      "size":  123096,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/utf8.lua",
+                      "sha256":  "2e7cff7896fc3eaf9ec5061d427fb612c7e14af490e656b66519e76f6a1abb33",
+                      "size":  12213,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/utf8data.lua",
+                      "sha256":  "0c1c8c4c294c661c385c620666f4488e3cdbca40de70eedc931814b82c5f7cb8",
+                      "size":  31622,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/util.lua",
+                      "sha256":  "2077cf101ba62d9cbbe99e6bbabef1fcc4debd2997e28354ee425cf16597d0b3",
+                      "size":  3065,
                       "dest":  "gameRoot"
                   },
                   {
@@ -542,6 +794,12 @@
                       "path":  "moonloader/lib/websocket.lua",
                       "sha256":  "a96f417d4654f3397b17f613f82bf1d709419c5a879fc501188ea827051d5c40",
                       "size":  274,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/ziplib.dll",
+                      "sha256":  "12f5043c0f651b996c1a605de3b09796e5aa060cede6ec29d52c14b0cbb98da7",
+                      "size":  134787,
                       "dest":  "gameRoot"
                   },
                   {
@@ -653,9 +911,87 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/copas/lock.lua",
+                      "sha256":  "0597dee33d497dd7ca630d6c9a51a69615bbb693023ae3c7e24ac68f1a412ab0",
+                      "size":  4984,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/copas/semaphore.lua",
+                      "sha256":  "a8cfc2834f363c74646454235c2d67d8a8e7e3dbb8145ede97130a94cadc2182",
+                      "size":  4387,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/copas/smtp.lua",
                       "sha256":  "0ee9256203ab42bc742fec699b2d3805d8138d7f749bba6dbeffaee60717cd48",
                       "size":  956,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/copas/timer.lua",
+                      "sha256":  "9ae0751940b2ceb884d36ae3597969fda5ea8c42ed6680eece8a2506571ee730",
+                      "size":  2237,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/decorator/592b0b272697615c502390f6.png",
+                      "sha256":  "84ea7ea49a8a6b35198a3b52e41d01ad615c5ae601c4f7111c1711572066c7cd",
+                      "size":  4202180,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/decorator/config.json",
+                      "sha256":  "ddd37eabc5c3b4fd6a3072045dd472992af8486a8b6ae04a20681330c87f0bce",
+                      "size":  30,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/decorator/decent memes PNG.png",
+                      "sha256":  "8be51449422d8327b05ae5bf06543d62e33391fac962a7aed94fb4e2e519d9cb",
+                      "size":  285842,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/decorator/iSU9eNJb.png",
+                      "sha256":  "a17995ae8feae4aa5e756550e18940d4433d0a4d4b47ebb93b16d76c6cbf6c50",
+                      "size":  359520,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/decorator/unnamed.png",
+                      "sha256":  "28e49ec34db21d3b1e79f1a2be0cea56f456bd8b74ad7bd49ee400ed86140e1c",
+                      "size":  717135,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/events/bitstream_io.lua",
+                      "sha256":  "00e85ade0fc4ea4c868bb42b27c3b93cc12f5c8feee7c2528454c5ea87e03dfa",
+                      "size":  6145,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/events/core.lua",
+                      "sha256":  "2f5e563aed6f558fa94134b83a36868abe6a68b8270bf5d975eecbe146adb615",
+                      "size":  3817,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/events/extra_types.lua",
+                      "sha256":  "431b95a4bc9c51f15178418e6c302c9450380530fe82eb31fbe2f24983dc2228",
+                      "size":  2114,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/events/handlers.lua",
+                      "sha256":  "30b14884dc2cf357fc6a8a18ab3dc87cfedf3dde23348e1d4d699c123e24192c",
+                      "size":  16882,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/events/utils.lua",
+                      "sha256":  "a2398822d9a10fc6bd5cf459b6b3b9e0f42721b9629b22b74ae16c2e1932cebb",
+                      "size":  1550,
                       "dest":  "gameRoot"
                   },
                   {
@@ -746,6 +1082,12 @@
                       "path":  "moonloader/lib/lanes/core.dll",
                       "sha256":  "aaf492a38689d1b2c24dbc966b3c23727e6d1d961ddd513a5b4942283fd95559",
                       "size":  174592,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/lanes/index.html",
+                      "sha256":  "37c98aa68055f8b4b70157f36c36790931f15da03c49e25d70849a70f2e3deb9",
+                      "size":  27975,
                       "dest":  "gameRoot"
                   },
                   {
@@ -1061,6 +1403,18 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/luasql/myqql.lua",
+                      "sha256":  "a05a790ecceea815360b02ec171ca762e1e08ebc8db8b841647037686cc7af7c",
+                      "size":  542,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/luasql/mysql.dll",
+                      "sha256":  "61d0a19f3cd0f0985726540d5ad06f72e808500f72d9ff27cc400a98c60efc95",
+                      "size":  3886592,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/luasql-mysql/luasql/mysql.dll",
                       "sha256":  "61d0a19f3cd0f0985726540d5ad06f72e808500f72d9ff27cc400a98c60efc95",
                       "size":  3886592,
@@ -1146,8 +1500,14 @@
                   },
                   {
                       "path":  "moonloader/lib/mimgui/cdefs.lua",
-                      "sha256":  "55b10a5b13590a076ffaf3a109f4748be305a76943313ddf22c9d9a5761bcaad",
-                      "size":  116058,
+                      "sha256":  "8e5d3488f23c446a6a8a61b6b0ecc25cc38f326257b14801023bfad3bf650a7e",
+                      "size":  118018,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/mimgui/cdefs.lua~",
+                      "sha256":  "8e5d3488f23c446a6a8a61b6b0ecc25cc38f326257b14801023bfad3bf650a7e",
+                      "size":  118018,
                       "dest":  "gameRoot"
                   },
                   {
@@ -1157,21 +1517,141 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/mimgui/cimguidx9.dll~",
+                      "sha256":  "1a7a059974c33095edc2f2da880d7c79c99d7e3b3c189e2f51036bb7e519d88b",
+                      "size":  543744,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/mimgui/dx9.lua",
-                      "sha256":  "94522c3ea629b7e1daf92ce64376097ad222a62b67f5ed1adf7f8879f1b46f2f",
-                      "size":  6734,
+                      "sha256":  "617029534c747c9ef91cdf9674e1d399cda3cca719e9aa91240b423ad4e2624f",
+                      "size":  6717,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/mimgui/dx9.lua~",
+                      "sha256":  "32904fdf0d1c8ecf6842df2c6feac94545cdf1c98631e174f0ccd50f37185f38",
+                      "size":  6905,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/mimgui/imgui.lua",
-                      "sha256":  "a55619546334392b1c654c9c0d9034dd971049906f277a60f27dd77bf7ae2cc6",
-                      "size":  101558,
+                      "sha256":  "dac0e8cad50f766f8284a6bfeccb9ce275aa809d842e90ce81de52991cd87e9a",
+                      "size":  103788,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/mimgui/imgui.lua~",
+                      "sha256":  "dac0e8cad50f766f8284a6bfeccb9ce275aa809d842e90ce81de52991cd87e9a",
+                      "size":  103788,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/mimgui/init.lua",
-                      "sha256":  "01b6eeed97631c7a350b7f8b23b924432d5b78116a0e426fe70ab6f8b7421f73",
-                      "size":  11674,
+                      "sha256":  "8a1187a313da1b4eade4dcb9e959e770af99163c2c965d37b46c88aef892a182",
+                      "size":  14627,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/mimgui/init.lua~",
+                      "sha256":  "9df73262d77abce0970d409f599e1bd02cecbeb8bd1629027796d74454ed3efd",
+                      "size":  12042,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/mimgui/win32.lua",
+                      "sha256":  "90a3e731b1df60d2022c6935631553b2424aa28ae45b84797c62d5119df95bee",
+                      "size":  2276,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/findfile.lua",
+                      "sha256":  "734b9d88b8354273a6118899505df56eeef11fa62cc9915e920edc153a26e166",
+                      "size":  2396,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/fs.lua",
+                      "sha256":  "5f7b9b904a4aaa39c85c3bf429e3346a7131b035130e5bde0dd400e779c1954a",
+                      "size":  997,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/module.lua",
+                      "sha256":  "04ccd013076537c259461b3b574fae36a1173b5ee96de7a0439379548c87877c",
+                      "size":  524,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/lfs/fs.lua",
+                      "sha256":  "efd297e2489e6aecefaacad3cbdf60dad878ee22a8e9790453f1ab28020b3549",
+                      "size":  446,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/lfs/impl/fs.lua",
+                      "sha256":  "0b7552ad1ec3fa785a8728c5cb748eed89c7659a405e40cc9f338aa750a9eed8",
+                      "size":  9996,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/syscall/fs.lua",
+                      "sha256":  "8e5b1da8ed753972907d90af0e82f85ce7a67d188534c53a7d2742f7c94d4548",
+                      "size":  454,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/win32/fs.lua",
+                      "sha256":  "8a684221da0b42b5b363797d8abb9c4079e9737b0514777ec5363efed9e7cbe0",
+                      "size":  36080,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/win32/wcs.lua",
+                      "sha256":  "a2940f65596e7c63feba9ddc2bdcc5c6af15deb2fe27da3bab4a4c9126d6a4d9",
+                      "size":  2136,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/win32/alien/fs.lua",
+                      "sha256":  "f8e8b96c6417ecec875e96ecd0884b9393a064ab7bdc298a3e861a617b239bbe",
+                      "size":  14764,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/win32/alien/types.lua",
+                      "sha256":  "f073c4eaf38eb34b28c933c69f8a051f215786fb2398f091af4389312acfef36",
+                      "size":  3393,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/win32/alien/utils.lua",
+                      "sha256":  "3024c0292e529aea784b88908c1c141ff822c3aad39e75ee503cebeed5e6870c",
+                      "size":  4216,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/win32/alien/wcs.lua",
+                      "sha256":  "d3eeb7128c4b83d873c30579c8147c342473d1076e2f021f00dc2b44561c4b25",
+                      "size":  3603,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/win32/ffi/fs.lua",
+                      "sha256":  "178f7b6503a51955fce4b255067f2092ea7756a321a86d455e61fa9b2c9d5ecd",
+                      "size":  13383,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/win32/ffi/types.lua",
+                      "sha256":  "fc63a77cf3363200d2b8a4da25956860dddba42a26310faa3ff911be3052e172",
+                      "size":  4449,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/path/win32/ffi/wcs.lua",
+                      "sha256":  "201328cc3a45f941fc769371c621acc65b010dc31746c875b14db3e6460646d5",
+                      "size":  3512,
                       "dest":  "gameRoot"
                   },
                   {
@@ -1409,585 +1889,1035 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/init.lua",
-                      "sha256":  "2d04599b089d9eda9874c55819158f0b46593a9a9ae165e6d049cc0d0181bb84",
-                      "size":  1397,
+                      "path":  "moonloader/lib/SA-MP API/init.lua",
+                      "sha256":  "054002e74215ee087808917f23ab37672efbbe959bb572ce19ae01d9f7e8a66c",
+                      "size":  12846,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/metatype.lua",
-                      "sha256":  "5bde92a9be243af04d06ae3c4f78fcb57f60fae936e6ca5f76010291fa4206a9",
-                      "size":  1845,
+                      "path":  "moonloader/lib/SA-MP API/kernel.lua",
+                      "sha256":  "600fda29595684183303194d51172d19d1613f9d2f4693d08fa71a495a20dee6",
+                      "size":  404,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/shared.lua",
-                      "sha256":  "af9828123453fe0f72700673efb7f684945ff05f9f5e118951a99a0c6ff96110",
-                      "size":  1410,
+                      "path":  "moonloader/lib/SA-MP API/samp/definitions.lua",
+                      "sha256":  "5cc3d032035eec371b6d73424f8c8f7049fbec2ee93088b827321f37364293e0",
+                      "size":  3157,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/AnimBlendFrameData.lua",
-                      "sha256":  "68634cd2167ebc76b1d1d535da683dec41d54ec50bd9fb809db3182b4813f5a7",
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/enums.lua",
+                      "sha256":  "80d4a2e85a42b880fa446a4b40916b26c50a17dcb05316c47de91a9b230bfab3",
+                      "size":  1502,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stActorPool.lua",
+                      "sha256":  "f34bdbe0e80bfc89a4b7b89cbdf7701e3c7f20b94d6add34ebe5f8a5d4d69695",
                       "size":  528,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/C2dEffect.lua",
-                      "sha256":  "e0c6e12662393e5a512d626d3ee80615446b94020b806ba42e7fca16cfed252e",
-                      "size":  3008,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stChatEntry.lua",
+                      "sha256":  "940db0e7384869c64f2146c207b2595399521b7234e4d0aa7789d5ab7a558a57",
+                      "size":  500,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CAEAudioEntity.lua",
-                      "sha256":  "f5af7ef5eb8f66f4a855d8f6dc87eb74b92c74d7402ad0d1af986f1d5a051859",
-                      "size":  504,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stChatInfo.lua",
+                      "sha256":  "c472062a643ffc2c1403870ede3bcb891f582494057e15e19d5d0b420cc7c45a",
+                      "size":  1259,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CAEPedAudioEntity.lua",
-                      "sha256":  "3158f3a78155b29963897c21182773238fd2c6618591f9e977c3efee436a1e33",
-                      "size":  1001,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stDialogInfo.lua",
+                      "sha256":  "7225e0a4026cf97fd781d0d0c1952d1342d724cb2effca00bf151f8ea8bcbb90",
+                      "size":  710,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CAEPedSpeechAudioEntity.lua",
-                      "sha256":  "9e43e7781967ac05c023c5865ed0586d1f085727f1ac379988c97c6064d60d53",
-                      "size":  1235,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stFontRenderer.lua",
+                      "sha256":  "7259c3fc9261c8898521e6e180106fec7a76b9369c7e6c201683b83928cbbf8d",
+                      "size":  518,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CAEPoliceScannerAudioEntity.lua",
-                      "sha256":  "028c6703dd1d3a28d6142aad19469adfe23ba09947c16c074c78b6af4b1d5d87",
-                      "size":  479,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stGameInfo.lua",
+                      "sha256":  "5fa736ab2085c86c703cffa0b290e8670e5e5575491e27dee9425a60206092ae",
+                      "size":  1284,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CAESound.lua",
-                      "sha256":  "320d3b7901fa6af4a4c2b70240c96379a3ce8292a0c8ef8a47e78d0bee575c80",
-                      "size":  2607,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CAETwinLoopSoundEntity.lua",
-                      "sha256":  "90787013a35422dbdcf1f9a4205afcb3e13c0831ca68f49b8131a8772e20e703",
-                      "size":  990,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CAEVehicleAudioEntity.lua",
-                      "sha256":  "b2d4b42e5c3de08b33525b0240b05668a36ddc406a457c9b5735605ed89e6a75",
-                      "size":  3693,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CAEWeaponAudioEntity.lua",
-                      "sha256":  "47a191dbc4bcb0bb33adfe218aa3015d12ee7cadc72a5fe9e1dca2fedd9afa73",
-                      "size":  892,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CAttractorScanner.lua",
-                      "sha256":  "0eea590e18ae743f0b52c404f53e5b259f31ed1d92dae18baab0d8d02892c924",
-                      "size":  611,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CAutomobile.lua",
-                      "sha256":  "b89fa9040687d9cb24d9205c5672115c061e530d8bb19c9990bb8aed785374cc",
-                      "size":  3786,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CAutoPilot.lua",
-                      "sha256":  "63e5d6659e41fb1ab93fc74215891d17a6cc5fe9282e6ecab355771c060e6ca5",
-                      "size":  2096,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CBike.lua",
-                      "sha256":  "ddd7c29850913159b9b5ba21854d887680102fd7bda05d37ab1254b1180f294e",
-                      "size":  2487,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CBmx.lua",
-                      "sha256":  "432e4f16eb54f19b21c89b8b566699605dcb03b1d548b74e7038a1625d5e818e",
-                      "size":  637,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CBoat.lua",
-                      "sha256":  "0bc8defed317a138f3fb5666d488abf1055acb96b52502757d84614a49376efa",
-                      "size":  1975,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CBouncingPanel.lua",
-                      "sha256":  "05a02a7dcfd758c160998d9d6bcf13ef59a4ac832b8bc02ff3d0c96d46171392",
-                      "size":  553,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CCam.lua",
-                      "sha256":  "1dd0a5a2094d359b8f62ddac93b422ff95b096a220f02611d1a0383521b224ec",
-                      "size":  4313,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CCamera.lua",
-                      "sha256":  "b16e15aafb24855352a9a3639bacaa43e0252be3b353cf9b5175877bdc35c5d2",
-                      "size":  10274,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CCamPathSplines.lua",
-                      "sha256":  "710f2b8b9d412cc3ec8d174294b62b3e3644004d1ae7c368955fee3679e0eb41",
-                      "size":  414,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CColBox.lua",
-                      "sha256":  "e0cdeac08c4fc3da6f86aa64ec4bef036b57db6ebdc72e1fb9d2a4ced813f5d3",
-                      "size":  508,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CColDisk.lua",
-                      "sha256":  "f9dcd955a9d5247a4d980880ee8c91528c3928bba4c9d7dee017c5b6862d4fd1",
-                      "size":  573,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CColLine.lua",
-                      "sha256":  "340a0e3120bacaaee20bcac3992df6a1ea557e1a513e53d2e0b24f1a6893b4bd",
-                      "size":  473,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CCollisionData.lua",
-                      "sha256":  "dc671232a02af774a1f1641ad737ddc22860c14e5956f724a67dc7d6c6bda47a",
-                      "size":  1384,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CColModel.lua",
-                      "sha256":  "76c2c0a18d45f734394c9fc81fb32e0b9f2c4cbe9d04581001c3fb354e3bd393",
-                      "size":  538,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CColourSet.lua",
-                      "sha256":  "c10b949d9ffe7fd892ea926c33e488234f601f789bd5fa5dcfd8b85428000710",
-                      "size":  2123,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CColPoint.lua",
-                      "sha256":  "6eef5e740d7b05063e079c20887d2f48967f1f8b73c1a7236b676a28acdfa7b0",
-                      "size":  855,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CColSphere.lua",
-                      "sha256":  "64cf590ac5d6bc447ea15e33917a72e7a6a8dda17b34e600c743ed12dba23f04",
-                      "size":  519,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CColTriangle.lua",
-                      "sha256":  "bd66df15e26f304f4a2f59115d20057f66eafd5f3475284959ec4a4ab6723ac9",
-                      "size":  508,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CColTrianglePlane.lua",
-                      "sha256":  "ad7f7caf492fed90d8ee6931e1da762ed4f402e9b9079788ebba53c65b7b6fb1",
-                      "size":  521,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CCopPed.lua",
-                      "sha256":  "0fd85499b25bfba437bd2b1072da43d46b89fb9ea83c67e06bd4860eae50be58",
-                      "size":  749,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CCrimeBeingQd.lua",
-                      "sha256":  "1045544a5a6fc2e8ccbb55453a81576dbf3f7cd7372d48acc45a16837cfa744b",
-                      "size":  612,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CCutsceneObject.lua",
-                      "sha256":  "2c9cda830b57bf4f1658f7bb8fc6eb80785d79a653ddc635156dbec848e587b1",
-                      "size":  641,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CDamageManager.lua",
-                      "sha256":  "ef85cdd87945bf6125f11a295687412e188229051d94bc26db5eae2a7da4ea6f",
-                      "size":  2687,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CDoor.lua",
-                      "sha256":  "c460232e788c12056221b22111a2df8d60a0c9a562c527c9f804da4d5014ec1b",
-                      "size":  572,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CDummy.lua",
-                      "sha256":  "6f58a7a1dcec6e54eec7dcd11f7a428b05dd48d3647116ca46ac188625971ae9",
-                      "size":  365,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CEntity.lua",
-                      "sha256":  "ee606a7f169a258db3b21a42327d78efa6659ab624005a265c385496e33b43a8",
-                      "size":  2073,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CEntityScanner.lua",
-                      "sha256":  "3245a3102e4cc3344c1f93c4091dd2cb37ac6ce3c5b9d8b6a97bdf66f220cd5c",
-                      "size":  536,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CEventGroup.lua",
-                      "sha256":  "18fcf98fa67e954142fdd0e989497ef2aa75d9cd9e15b2c261d0b8607145d5d9",
-                      "size":  504,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CEventHandler.lua",
-                      "sha256":  "94fa46e43313301a51b1a3d3474165ad38bae8901e65164aed0949ecf529ee22",
-                      "size":  648,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CEventScanner.lua",
-                      "sha256":  "a2a450810ae2953a49eb17ac4e18a7fb7b201a88cb68a7046cc7880391f6b1fe",
-                      "size":  687,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CFire.lua",
-                      "sha256":  "1450dce1b164d68d6b4aa4c8de043a6bb79264aec687aa790f5c9ef54bd90487",
-                      "size":  922,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CHeli.lua",
-                      "sha256":  "6f471b8bd69912555d7e69f5664d29eea402f4ec87fee8192f1edcbd0f90f415",
-                      "size":  1473,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CMatrixLink.lua",
-                      "sha256":  "30df3bb29f6ff82c192a2038792d32b9f261516929b99cb6e1a12f88b315a88d",
-                      "size":  539,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CObject.lua",
-                      "sha256":  "00c6bd01ae45ff68c22ef6b11b2f566958245a8433af5b24b3a07a707a48b487",
-                      "size":  2447,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CObjectInfo.lua",
-                      "sha256":  "a2124c846eb3fc6a1d6d87e01b7d64a184cb8e3bffabf5fd5208c73ce735acd4",
-                      "size":  1061,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CompressedVector.lua",
-                      "sha256":  "6ea7d8a06a02fb3436cebae8a7433e81d42f25020b50bf461a0da5eea181867d",
-                      "size":  446,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPed.lua",
-                      "sha256":  "6c50ee953db662824cdba96facc7367bc9aba3420aa9de777b1f0cf127d7f091",
-                      "size":  8311,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPedAcquaintance.lua",
-                      "sha256":  "1cc897c0106638dfc6cf4fea25776171c1983039fa8684ba19c5037f83a1bd26",
-                      "size":  513,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPedClothesDesc.lua",
-                      "sha256":  "fe49f568f72e8d5b8ec64aeff0933f96b46c12c6ebf5fae3faa63f8f1953bad9",
-                      "size":  496,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPedIK.lua",
-                      "sha256":  "05d0b66ad1d95a16257298a0759b3eae1c0e7234bcf12b4db3641cf241b51fbc",
-                      "size":  550,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPedIntelligence.lua",
-                      "sha256":  "59943536b364e698a1381467ca3fc98357c4e863127547565819f7dd032accc1",
-                      "size":  1442,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPhysical.lua",
-                      "sha256":  "11bc9bfdb6990fd835bf8fb136e2e776a68c9d214fffe4bd6083cb18f4a340c3",
-                      "size":  3022,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPlaceable.lua",
-                      "sha256":  "d3949384b3b02d3aa887d0b7bbf6d24b1f2155b598f27bf3b31b29d8b2fecf02",
-                      "size":  522,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPlane.lua",
-                      "sha256":  "05b188ec854ae814b44111dda6ac0da53dc288bd03628ac3c5069247f6e7d8d4",
-                      "size":  1203,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPlayerData.lua",
-                      "sha256":  "7ed7181f6e7bb44567648814673f52b915726b07991455c3f179c8ae2029d764",
-                      "size":  2635,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPlayerInfo.lua",
-                      "sha256":  "56c17f1b3b4e0d37e32c2a27c744d6ee64bc0001ab5c9cef041a436a8f58150a",
-                      "size":  2825,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPlayerPed.lua",
-                      "sha256":  "6849389e88095dbd2007b473618d220267e4200e641d29c9c6736fc9aa2c8790",
-                      "size":  458,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CPool.lua",
-                      "sha256":  "627d1714872583ed3048964f527037e9919bdeab387f7446eb18baf1fb60874d",
-                      "size":  3214,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CQueuedMode.lua",
-                      "sha256":  "3787a27f753d9ffde2a0ec5238b23b960bd17bcc3b83955c557dad327e9e7649",
-                      "size":  481,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CRealTimeShadow.lua",
-                      "sha256":  "b53b8af75284e2a833446da69c042864da48a6a83d09c1af95b095c64d7d9e66",
-                      "size":  827,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CReference.lua",
-                      "sha256":  "f9b98dd9c264559dc0e934a7cbe6015d3a49e8f8941cd1f77119cd4a8f242af9",
-                      "size":  476,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/SAMemory/game/CReferences.lua",
-                      "sha256":  "70604992f40fcef386d9ede561171db2f8cf9c9cd899b3f78d64aff6474822d2",
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stGangzone.lua",
+                      "sha256":  "8b3ac1d23db00222ae08d689f9de29de7a2aac1e830b9dc43b230483356a1616",
                       "size":  394,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CRideAnimData.lua",
-                      "sha256":  "5d7662423a00177c52cf69241cc2717a2f1b58a493b95dce57f65b0757808c1a",
-                      "size":  568,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stGangzonePool.lua",
+                      "sha256":  "50bacad26e5ba8ca588579778982b303b6cae5a5f28d8005251f18997a87a440",
+                      "size":  439,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CShadowCamera.lua",
-                      "sha256":  "97f332aa6b10f6024bf527aa2170cba34a87e5e5456f468259ad578f4f52d048",
-                      "size":  467,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stInputInfo.lua",
+                      "sha256":  "ad6db3482261bd31ac6d5b74d1d530617cde8527d24b61a0a067bc5de6a5b984",
+                      "size":  1122,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CSimpleTransform.lua",
-                      "sha256":  "049a9fb3510f2e77c4fb1bbcd12e708cab40860212f803b7b32edb5c981bd3c4",
-                      "size":  465,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stKillEntry.lua",
+                      "sha256":  "883abe6696dbe5f8f3ab8238ad0d68af08f34303890663383e345a7770d07b19",
+                      "size":  462,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CStoredCollPoly.lua",
-                      "sha256":  "a5455508de47490bd53e46dd3c3f392c34498edb5473dea901943c226825743c",
-                      "size":  504,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stKillInfo.lua",
+                      "sha256":  "39e898e7c359e842520698dd0d2430811f7126f9d8248ec7438c4087120924b1",
+                      "size":  680,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CTask.lua",
-                      "sha256":  "a6b991c214e8fc895e65231d50fd4c9b81cecee007c7efd0aea40904149d21d1",
-                      "size":  420,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stLocalPlayer.lua",
+                      "sha256":  "74c927b46f775dfe0c74cc7c4ed80916ec1349327c2c02f6cc5dc64e0550612b",
+                      "size":  2394,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CTaskManager.lua",
-                      "sha256":  "0cde116a622bf49fa49a221e77f56092ff8572a10f5c0a4d74d8afdc6f3cbf79",
-                      "size":  504,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stObject.lua",
+                      "sha256":  "d729fe4ca495767f1539062db810d5f5502bf72bbbe9956cd6b5c47ff4f029d7",
+                      "size":  610,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CTaskTimer.lua",
-                      "sha256":  "9017984f3783540709f2d4bc567eaf63918187c5565aee2090704ef94ac39071",
-                      "size":  468,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stObjectPool.lua",
+                      "sha256":  "af1fbe33793569211985bd64f75bc331ad0b7bfeec0c8c65b942ff598c1dc84d",
+                      "size":  456,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CTrain.lua",
-                      "sha256":  "a26b1604976c6e243ffb4127e6668e8998947620c134d632a2110523826223fe",
-                      "size":  2562,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stPickup.lua",
+                      "sha256":  "cbdc25817d5330e0145f98b95854e630c209a54491054ee71d739ff05adff040",
+                      "size":  370,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CTransmission.lua",
-                      "sha256":  "1026cb91d58b2134d175acfbccecb31d74af9fa3e92ab4ea19d255855fcfb935",
-                      "size":  775,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stPickupPool.lua",
+                      "sha256":  "d17f9740fe9ba5df6145b06146d5146dd198c16b41f544fefa0569b8396c7da7",
+                      "size":  561,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CVehicle.lua",
-                      "sha256":  "79ff94955cf4681e9f6a5c823a86b369ed0161d8b4c0f48524323fa4a4fde750",
-                      "size":  8840,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stPlayerPool.lua",
+                      "sha256":  "485890e7604f656dfe34e482ee5cb218e5ba9e1531355f6822da67913a06acec",
+                      "size":  794,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CWanted.lua",
-                      "sha256":  "d3443e74605e61acf5faec327248069973e6c43d46cdd66215f82aaeda371fe9",
-                      "size":  1524,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stRemotePlayer.lua",
+                      "sha256":  "266ec5f95ad994ea84e5a1e0a43c8a0967b7992b1e6ca5a8b9ba462f887d6930",
+                      "size":  1832,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CWeapon.lua",
-                      "sha256":  "338244b15efb974c988c382e78c7d1070bce4ec60eb3285091005cd79687cc56",
-                      "size":  838,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stSAMP.lua",
+                      "sha256":  "8ba030f129f102f6a4a32e95624526ca65120c3bb3be15f818c32d771f81b2e2",
+                      "size":  921,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CWeaponEffects.lua",
-                      "sha256":  "128cc4142ceaf83e1eaf6f9553ab5dc4ce1b585c3d0fd0d76bfd9c7c8628d8e5",
-                      "size":  674,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stSAMPEntity.lua",
+                      "sha256":  "c4a7cb5ab7717e6be38d964666809866efc4409a4c2c0b5f2322cfd3eaecb830",
+                      "size":  425,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/CWeaponInfo.lua",
-                      "sha256":  "5680b2e026d491f87028b6b0f2afcf88fdae4ecf4031abae5a1f78a0a51a35d6",
-                      "size":  1898,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stSAMPPed.lua",
+                      "sha256":  "f2a323b24007025e0ed286215372241cc27af92d1530ccbad0204c9de9002c12",
+                      "size":  847,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/eCamMode.lua",
-                      "sha256":  "af020765cf851509bc8095c22c2c0ea7335f1413ff0bccfee52894168ce43728",
-                      "size":  2228,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stSAMPPools.lua",
+                      "sha256":  "ee68049ade444951ba4740661848c362e827f98ec25e5782418e724616c605fc",
+                      "size":  1061,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/ePedState.lua",
-                      "sha256":  "765d1c31bb20de043c16ecaa2d3fb7e033fb3b565e46e978724a9b16cef02d4a",
-                      "size":  1774,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stSAMPVehicle.lua",
+                      "sha256":  "ca665320f4fdd68c667e473b1939fd21e9c0ff0d0c851c1dfd51649c474222b2",
+                      "size":  707,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/ePedType.lua",
-                      "sha256":  "3ae1a16162abc420b12af31347a79f2e1ce731b20d4d1de4c065bc87c5ea3942",
-                      "size":  965,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stScoreboardInfo.lua",
+                      "sha256":  "6872d2d2554637f3ca6990a3833a83aa35418d47e3ac10cd6ebeec5c13e1d771",
+                      "size":  575,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/eVehicleHandlingFlags.lua",
-                      "sha256":  "097d956f22ff237253593a80be00c359b5fd560b2ea53312a43b59292eb47ea8",
-                      "size":  1573,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stServerInfo.lua",
+                      "sha256":  "28be60d41410cb1b859122657ddfd009807282ab1663b9b02aa61cc68f7480dd",
+                      "size":  373,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/eVehicleHandlingModelFlags.lua",
-                      "sha256":  "1ecf1e3e28d6ee4ab7d528ecfa6ad8185c64464c9d9c681028a9f0187f65823c",
-                      "size":  1907,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stServerPresets.lua",
+                      "sha256":  "6b60f9a41c3ee2adf648cec87bf89a9800967afc221e0584f671faadd1e6e96f",
+                      "size":  1011,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/eWeaponType.lua",
-                      "sha256":  "af7284152c3fde8040930777f2244c53c3eabb95fdf743c7d31b9cb8600efcc6",
-                      "size":  1585,
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stTextdraw.lua",
+                      "sha256":  "6779aba2266e9a524531c1d82a9a54e037d1129e15c942b058b889ff1c647dd3",
+                      "size":  1343,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/SAMemory/game/FxSystem_c.lua",
-                      "sha256":  "00b11956a0d14bc2bed09526c02020b362b9a85e2cd38f0d05e7da3a6225a55c",
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stTextdrawPool.lua",
+                      "sha256":  "ca73c86d5133a1c31c3e933c9aef29f969d94217d6e8c457ce977042f8eedfcb",
+                      "size":  508,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stTextLabel.lua",
+                      "sha256":  "1c0c13380bb781cdb45707cbdd5d3f9ea93833829372ee50281892eb6c0c1665",
+                      "size":  537,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stTextLabelPool.lua",
+                      "sha256":  "5326113f0bc8f5102909be680876f0f57388c8e4dc4e2a87a781e65dec6e1e4b",
+                      "size":  441,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/stVehiclePool.lua",
+                      "sha256":  "a66bf02b177c1f70bcd62b48a04d52a6321f85e0a8e3c97aa82e85ef74f488dc",
+                      "size":  786,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_7-R1/sync.lua",
+                      "sha256":  "c5d01fb380d6bc93a481ad7e656ec2198741fa8d0d34d5c3e60b3b525e07c0be",
+                      "size":  4264,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/enums.lua",
+                      "sha256":  "23212743356ca7db8b6d12bfd0406dda54810827dcf41fa1cc5e30bd994c0091",
+                      "size":  1502,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stActorPool.lua",
+                      "sha256":  "7a75f5488782de4d703b5386fe715be211bb806dff0a71ab9f69e71d2d047318",
+                      "size":  502,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stChatEntry.lua",
+                      "sha256":  "21b36b9c5e5eeb922ae7570902a226de2f8b8a37461cfe70335edc22241245be",
+                      "size":  510,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stChatInfo.lua",
+                      "sha256":  "6866a35e00863680ff635be0c6c1773cb91cf0015f094dca9b23d18eae6d23f9",
                       "size":  1344,
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stDialogInfo.lua",
+                      "sha256":  "7da68c394d7d4e51b1d05272db8a738900a1c8cb20f639b7919fac3ac98a0927",
+                      "size":  742,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stFontRenderer.lua",
+                      "sha256":  "c878a8aee9c957177917e886d1081be0ca103c29b7f85b6f4d1772f29dc3841a",
+                      "size":  525,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stGameInfo.lua",
+                      "sha256":  "6afa4a17ccca168b5f7bbdc9840547b0631b3735700479e6499621eb3786b830",
+                      "size":  1312,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stGangzone.lua",
+                      "sha256":  "8b3ac1d23db00222ae08d689f9de29de7a2aac1e830b9dc43b230483356a1616",
+                      "size":  394,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stGangzonePool.lua",
+                      "sha256":  "c7816722ef79ed7218d14675ba897f44cab33c281860082ba4ca78d5d8f48ac2",
+                      "size":  440,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stInputInfo.lua",
+                      "sha256":  "d3a93db3c02d0464fd3d0f51a2a4aa8431433a0ce4621411123565ea6be59d38",
+                      "size":  1171,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stKillEntry.lua",
+                      "sha256":  "373a9ad77c6b699b6d2e4c5b9af4957c4f3ac1cd7a3c6714c41fe03bd7766f6d",
+                      "size":  455,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stKillInfo.lua",
+                      "sha256":  "f9d0ce6cc3a78e22b4c8a516e8cf91bb44c9bc4ef76d5ff7f41bc98052b84b4d",
+                      "size":  694,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stLocalPlayer.lua",
+                      "sha256":  "6c819de28593cc93a96e3219e95fe24fb3993c09a97fe376b9ce0d98842f597e",
+                      "size":  2206,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stObject.lua",
+                      "sha256":  "495a6f8d2a45b1010d597182b34006a045dbb4ff2f43d1c58891e072dcaff262",
+                      "size":  607,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stObjectPool.lua",
+                      "sha256":  "a52b0b5257053acf553a0409abbd496ab866780f6d96483a30583c8c1a949cf3",
+                      "size":  458,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stPickup.lua",
+                      "sha256":  "cbdc25817d5330e0145f98b95854e630c209a54491054ee71d739ff05adff040",
+                      "size":  370,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stPickupPool.lua",
+                      "sha256":  "8582d1cfdcf41036c8ff730a1e1754d86adb9e0401c51f4e6247e34e91b98ce7",
+                      "size":  559,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stPlayerPool.lua",
+                      "sha256":  "6c94e206721567d279d3e0a8e463ae4deb643aef6cec906adb508fd33830c437",
+                      "size":  800,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stRemotePlayer.lua",
+                      "sha256":  "a15a3df316f4fdd3e8f978321bca7a328d40c0dd60eb9ede95b09e0ea8def97f",
+                      "size":  1957,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stSAMP.lua",
+                      "sha256":  "82a246ce8158f3c7e4d7f471e5ab7df8ce1f195b94147e33c3e73aef72362c3f",
+                      "size":  1144,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stSAMPEntity.lua",
+                      "sha256":  "eeb469f28c87b93c809daa93d8ee0c5c6f30b5ae07817f1eecae30970ca91ff0",
+                      "size":  432,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stSAMPPed.lua",
+                      "sha256":  "f5d683dc85ad60a8695055757aa163563e0ee5e7b414d6eac8dfa864c7fad0c3",
+                      "size":  816,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stSAMPPools.lua",
+                      "sha256":  "578893213ae1e42e6e3734b3af9abb7eb6668cade4e1adef130acf4ac5437d08",
+                      "size":  1136,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stSAMPVehicle.lua",
+                      "sha256":  "be8fa32aab6a400c36ef8433c3cdbe1c450acce36a7f8dcc51d81f0808794097",
+                      "size":  707,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stScoreboardInfo.lua",
+                      "sha256":  "39194c863a949f9fc8cd1ed47917a8cde982c5dd7dfc59114eb2953c62231cd6",
+                      "size":  574,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stServerInfo.lua",
+                      "sha256":  "a6d1a627f9eae2633c4e26033f018bbd319ab95bbb4d72e6c5415ba0eda01770",
+                      "size":  371,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stServerPresets.lua",
+                      "sha256":  "08a369d5e3da75623299c0f8468d9a7475c087aa63109f1eadb3ddf8761e1958",
+                      "size":  1006,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stSpawnInfo.lua",
+                      "sha256":  "cfc06e0717342914b98821bcee7ef06670b26be3a5a552a65c18d1627c22b6a5",
+                      "size":  477,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stTargetInfo.lua",
+                      "sha256":  "c54d20594252eb4ea78412ccc96f9318af06883203f0eade43d43eca83b8a148",
+                      "size":  429,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stTextdraw.lua",
+                      "sha256":  "d37ca284d8f1dc5edd6f36edcc95ab16ceb35e8cca05482cc3f52fa0b5896234",
+                      "size":  1294,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stTextdrawPool.lua",
+                      "sha256":  "af341d5e10e403d3b53e7bdee2ccb63478d14911db49a60b93553ccf16eb999f",
+                      "size":  509,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stTextLabel.lua",
+                      "sha256":  "1c0c13380bb781cdb45707cbdd5d3f9ea93833829372ee50281892eb6c0c1665",
+                      "size":  537,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stTextLabelPool.lua",
+                      "sha256":  "f43f707229965501a1a9c569e04df8b2de6003db001651ef9b70893fe09ba744",
+                      "size":  442,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/stVehiclePool.lua",
+                      "sha256":  "d7e2bdfec5789761c1ae997eeb45bb8df1ce9f31d27c4337359593f494816531",
+                      "size":  789,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SA-MP API/samp/0_3_DL-R1/sync.lua",
+                      "sha256":  "68ac35972d98210e66b69e150969733c070f436f89bda051fe127624a375694a",
+                      "size":  4003,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/init.lua",
+                      "sha256":  "75ee5f46e4a8c6ecfe2859c48648955b4653a2990e40ca5050bbcdd312378550",
+                      "size":  1522,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/Kernel.lua",
+                      "sha256":  "7df1e5a0256520e504a6b1d60c076ce538113b6c02000d462e7dd67f0a5b17c3",
+                      "size":  902,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/metatype.lua",
+                      "sha256":  "b13a4f7032f132b57f621999fb82587d6f46b6879cc2d91902c575d3336f1801",
+                      "size":  1947,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/shared.lua",
+                      "sha256":  "327a798d6c80bc5eeebf9284da04e13ce273f603bb9f4c2374e3b8a780244c76",
+                      "size":  1421,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/AnimBlendFrameData.lua",
+                      "sha256":  "4ce8a5e1b4c787e8ef6063cb4fd692be2a2d07a53c67ca7937573ee27f09da92",
+                      "size":  553,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/C2dEffect.lua",
+                      "sha256":  "c01515d5d00084e00c8628b4ffbab1f0d250c6a5f10000d21494c0fe92e66a6f",
+                      "size":  3152,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CAEAudioEntity.lua",
+                      "sha256":  "b7c1850fed4fc3911c72dfd991e91b20c55ed2192d7a1ce203936cd218de2ead",
+                      "size":  529,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CAEPedAudioEntity.lua",
+                      "sha256":  "55ac69014783c7360be03516c70f31849d9db113e2b5181ccfba7558b4347c83",
+                      "size":  1043,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CAEPedSpeechAudioEntity.lua",
+                      "sha256":  "910f7a6ad58fbf9fd09c0c5cc1164cd4cf75d68df62e169b1468ce12408a1464",
+                      "size":  1290,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CAEPoliceScannerAudioEntity.lua",
+                      "sha256":  "edf19900f1dd49ab7d00d5f4a0f0fe5606498f56aedb37ab24c4fd9945ab6008",
+                      "size":  501,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CAESound.lua",
+                      "sha256":  "49805b33f70c773dda3a94e2bd9103aa1cf84cc6dab1465d03ae770a585dbea7",
+                      "size":  2699,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CAETwinLoopSoundEntity.lua",
+                      "sha256":  "2b3a01a8b31cdb92bd2fd9fd94ac1366bb8d53fa5edf71cb2bc593308dee55db",
+                      "size":  1028,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CAEVehicleAudioEntity.lua",
+                      "sha256":  "9a4e862c2e3d37918a22874bac9426b63b99d9f9c5ffb76a7eafe9650a100242",
+                      "size":  3812,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CAEWeaponAudioEntity.lua",
+                      "sha256":  "83a7ed4fd5a0f66ec45b207542cdd19532750450a215494f1c12fe2bd5cf1ed2",
+                      "size":  931,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CAttractorScanner.lua",
+                      "sha256":  "d42cef4acf5207d75a1aad8f76d1c229babb61e50e2fdd067fbce25fd37afcc4",
+                      "size":  641,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CAutomobile.lua",
+                      "sha256":  "ae2b8324a7a3e0ebca93bd294ad8395e9aba864ff483f877adf8af4d3d51f01b",
+                      "size":  3930,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CAutoPilot.lua",
+                      "sha256":  "300afc45977dad474c1aa2c66c40953d524d70054e0dc9dd872ec89406a54fd6",
+                      "size":  2181,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CBike.lua",
+                      "sha256":  "c016f6489776c8987680988c214557228398462396a5fa3ae3b76add9501fca2",
+                      "size":  2581,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CBmx.lua",
+                      "sha256":  "ccf47ecce3056bbca38b70dc0fcc17b391206c960e48a14f90c4334c5a71079a",
+                      "size":  668,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CBoat.lua",
+                      "sha256":  "162de69d671729ddc3372c3944c7b8a384108ab783a5ed2f89415e6d1c90b1d9",
+                      "size":  2051,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CBouncingPanel.lua",
+                      "sha256":  "1bfaa3a732ae02488b83a8baafc82eaa30334a4178ed777c3ad247bfe5932737",
+                      "size":  579,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CCam.lua",
+                      "sha256":  "1d07d12bc6b357948c7c8c31a0e0a91a8423010e579d62264bd98536d43936f7",
+                      "size":  4443,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CCamera.lua",
+                      "sha256":  "cd1b110675cd02dd8383a5e0af6bd10790a860cc6dd91f65858dfe3eb2e4ada3",
+                      "size":  10581,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CCamPathSplines.lua",
+                      "sha256":  "83ed02e9cf0e681f6c5f1c3d57edc87fc895af8f535a4a6d4ba4fac53849acf6",
+                      "size":  434,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CColBox.lua",
+                      "sha256":  "40ad30608dc03befeb8e6f513d022a6217375f311d2ce5a9b1174a238706815b",
+                      "size":  534,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CColDisk.lua",
+                      "sha256":  "1ba2171efcd83100a776cc3ef2f3929858ebb94c069bcd7f2c9e325798ff1e27",
+                      "size":  602,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CColLine.lua",
+                      "sha256":  "5f7da564030be06124ec8defde098c54bf9583c9466e4c6b10f46e4eab6fc7cc",
+                      "size":  498,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CCollisionData.lua",
+                      "sha256":  "965cdad3afffd5e102492555118c50f1e5862e7a1fd5e248f9eea2ad98bcc3b5",
+                      "size":  1437,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CColModel.lua",
+                      "sha256":  "aa74ce98eaa0146edd050cf80f45eb9c74aeec0ff58adf2448758c0dcfa3c33d",
+                      "size":  564,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CColourSet.lua",
+                      "sha256":  "70efe984d8a71305032fe81619251867f4731481a3e7bf02e10b30f4fa22fbf3",
+                      "size":  2195,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CColPoint.lua",
+                      "sha256":  "15e626ecf13994578af7dd4153cb7b6ed2b348022904d7283ee63ee528b84c66",
+                      "size":  895,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CColSphere.lua",
+                      "sha256":  "99c56a1e1227c1a818c490f5ec8ae197c3bcab1f0ae9b78b93488967cab5e2a5",
+                      "size":  544,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CColTriangle.lua",
+                      "sha256":  "075ae0607ef69178bdb76469bc5fc971e9d765e55872317d3efa40027b5f6071",
+                      "size":  532,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CColTrianglePlane.lua",
+                      "sha256":  "5cb3fb760cbd6182cb447f628d384c96501d39294d4b3efdc20b05cbf6436c3e",
+                      "size":  545,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CCopPed.lua",
+                      "sha256":  "28392131acb40cd51948cade066499340c1f3d7080ff298dfa65cd7f357cad94",
+                      "size":  789,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CCrimeBeingQd.lua",
+                      "sha256":  "e8d3a72d170b9cb71a15bc8a953763ad1329d863b2e01330c00e50c5960a9090",
+                      "size":  640,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CCutsceneObject.lua",
+                      "sha256":  "bea8076b6446246eedad5648fceca2701ec2364bc4e07cd870425e4b0f10a523",
+                      "size":  671,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CDamageManager.lua",
+                      "sha256":  "e6d7aa3b53e257925948915a9f74c8cdc89cfcffd902aa2009037b254be6dc1f",
+                      "size":  2820,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CDoor.lua",
+                      "sha256":  "7e90384e0d0ed1d7b09a3234dfa12553aaee04fc509402e308ae4d4c76727b45",
+                      "size":  600,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CDummy.lua",
+                      "sha256":  "5cc657da3346baf77f27c6ed0ae919617124fda62909485a19632589d43df190",
+                      "size":  385,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CEntity.lua",
+                      "sha256":  "fdfd8c7833f3aded1cca3a684745fce5d566e2006b40e431c9942430d8cdd785",
+                      "size":  2154,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CEntityScanner.lua",
+                      "sha256":  "2fb22b008a3b765f81b9c38bdd8e5faf8f8a8ba315ec8ab403415d2dee91209e",
+                      "size":  562,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CEventGroup.lua",
+                      "sha256":  "14e99cca3afc398033aa76be9cde32db892f91894e552e6316d8c9b64d6bdaf8",
+                      "size":  529,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CEventHandler.lua",
+                      "sha256":  "31ea8edd4177057a77ab0632ead3936d9fd786b4e60ad036dd6cdde67cfb43be",
+                      "size":  684,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CEventScanner.lua",
+                      "sha256":  "15250ecdeaa18702dcf51c43a284e82401e1a7f3e739fae7bbdfd0a2de5245cd",
+                      "size":  720,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CFire.lua",
+                      "sha256":  "fb68dba8f4a967c125cf930c10e687fba1c933ccd41e598b72507870b5e7e9ec",
+                      "size":  964,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CHeli.lua",
+                      "sha256":  "1e7a03e023d9058395ef997da4665c0df7f7959cd2d5157cc25be99edec00c54",
+                      "size":  1527,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CMatrix.lua",
+                      "sha256":  "b071e3bb1c86bfdf81fd5608abc8dff6f550719122f6a65b9388687610f946d8",
+                      "size":  587,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CMatrixLink.lua",
+                      "sha256":  "75f7e2303900f94634baac4dfb47dfaff0d1cdffe7f4b072190c4a7e4dd28ae0",
+                      "size":  565,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CObject.lua",
+                      "sha256":  "25b1de2821caf54902e5d6f25ca2a625fea9c387e814e8bae6e926755a8171da",
+                      "size":  2540,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CObjectInfo.lua",
+                      "sha256":  "c066e0bea5dda7637a75d3461522be8523dfbb723ee5340dddf2d1f91bb20ae2",
+                      "size":  1102,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CompressedVector.lua",
+                      "sha256":  "b8cbdda2dad37b7adf9d2c17b01d79993b20eb0cda791ae12b30d2e7a707142c",
+                      "size":  468,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPed.lua",
+                      "sha256":  "1087527fee7dc9d45c19b6dc95036a74c6be944233449536cf39aea980266dd6",
+                      "size":  8575,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPedAcquaintance.lua",
+                      "sha256":  "dccbc1e1bd323a2f9c174a871105f2dd7b825c3cb0fcc802f35843d56707bf84",
+                      "size":  537,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPedClothesDesc.lua",
+                      "sha256":  "c0aa0e3d16958c037468c75bc3e6b81c792c11c63c14b950bc580efdcc40d2bb",
+                      "size":  518,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPedIK.lua",
+                      "sha256":  "eba9a3dce844e6bb02b86b773355eca940f7398a2c4a12b784819753928aeefc",
+                      "size":  578,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPedIntelligence.lua",
+                      "sha256":  "089847326b70cb7f0713adcbe4067d58065ab53a362e82c3bd03bb2b7f8d1fe8",
+                      "size":  1500,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPhysical.lua",
+                      "sha256":  "aedcb2cf66596e33fc95295bdf53a32a9b58e774209171e69c41235bedcef988",
+                      "size":  3120,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPlaceable.lua",
+                      "sha256":  "1293eabf676282d22632841cb8f3d5d517d4901cd27cbaa3f91a3370a60dddf2",
+                      "size":  546,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPlane.lua",
+                      "sha256":  "33c4e08d069f926e7bebced2782c1305b0304de4128392a403547b8acfc14dde",
+                      "size":  1255,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPlayerData.lua",
+                      "sha256":  "8e5aaa4db3e4bf515da3ae697e2f0736ed660c414ee50a94d619757d3be28f62",
+                      "size":  2727,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPlayerInfo.lua",
+                      "sha256":  "f483f007cae34719d3dab3b20574de34b42fbf94f9555edc0753d022310559b7",
+                      "size":  2915,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPlayerPed.lua",
+                      "sha256":  "f11b3adfee588db0bbba02f819f0862824f913375e0e916938e71b6044414016",
+                      "size":  481,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CPool.lua",
+                      "sha256":  "e17dd71fdf3381318fc0fcfbd35aa76888e5793a3acb1ef7372ea64eaaabdf21",
+                      "size":  3379,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CQueuedMode.lua",
+                      "sha256":  "8663c61dcf59b24ebf6e744a097a3b6f3c90eef20f752067ca310fbc9d446230",
+                      "size":  504,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CRealTimeShadow.lua",
+                      "sha256":  "e85fd1c5c4d87e4065adc7db9daad92e1263cabbe3b96a630c4aecaa8d49cd22",
+                      "size":  862,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CReference.lua",
+                      "sha256":  "19a5fb4b49616c0ebec8b13e95e45298df03b6f3211e38a869de3f5670b10077",
+                      "size":  500,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CReferences.lua",
+                      "sha256":  "40822e6426b5971a9e0a9db024c46c5694c8bf049ad33ce9846581363ae68659",
+                      "size":  415,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CRideAnimData.lua",
+                      "sha256":  "2ab96a0b6c765df2b7b710239e56d4aed65dc4d03310e0ee738347b70117bb33",
+                      "size":  594,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CShadowCamera.lua",
+                      "sha256":  "ceecaf391f4d9ac0e4a11944b961cd517d7ad26bc92571f61ad1a40c0bf80f6e",
+                      "size":  490,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CSimpleTransform.lua",
+                      "sha256":  "7cf43b9e5ea87913f476a338c7ab7dc6bf939df1e4fe5daba443b7f671a1ad31",
+                      "size":  488,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CStoredCollPoly.lua",
+                      "sha256":  "e3e0c957eb72e3de66249d33e4947e2bf9e78ef7f3cc57c7bb1a1aa646a838d7",
+                      "size":  528,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CTask.lua",
+                      "sha256":  "fb8f82a6f7f0c3c52086a0d9a7b29e3e9badd98e313ca876a2f0d54805c6e4ca",
+                      "size":  443,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CTaskManager.lua",
+                      "sha256":  "069beb5c1274405a72a3c8ea8055cc1d34802b6d44576163ab6955dad89b5aa3",
+                      "size":  529,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CTaskTimer.lua",
+                      "sha256":  "17c2be501bdaa3799f9db6720faf13d3b0dbe1f3b0e9e180e80248e8e83272fc",
+                      "size":  492,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CTrain.lua",
+                      "sha256":  "cd74a4e1c7e5cb4156e0dd161fe4c869d60223b6b1fc31d805e54a38492a7fe9",
+                      "size":  2654,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CTransmission.lua",
+                      "sha256":  "6674a59d721000882fae19e40340cd7033d2f4f2d07add1b1cb2186e80378cc7",
+                      "size":  808,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CVehicle.lua",
+                      "sha256":  "393cc6c2284e2c137505eca00cb61b74b596ddebf4b257c6489078965e51b90e",
+                      "size":  9150,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CWanted.lua",
+                      "sha256":  "2df30e484985f25efec5cf4138e404d842c1b112fce6ced60785e5be9cc155cc",
+                      "size":  1576,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CWeapon.lua",
+                      "sha256":  "e8bc8f6d723181be9b3b4f217415e9ad2c0373dc1a4406b03a67f8fe421dece2",
+                      "size":  878,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CWeaponEffects.lua",
+                      "sha256":  "64cd46a1b163f8cc46f270025b5690f3b9dcd30ee7d749516af82b8a25a86ac3",
+                      "size":  706,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/CWeaponInfo.lua",
+                      "sha256":  "1ac7f41f1dc3db03d13233bb0a26fd5e35a6646d0825225e739785b6299e390d",
+                      "size":  1969,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/definitions.lua",
+                      "sha256":  "dfaf59a27fb1c667ae2b909ff81732238ed1a62c30646b65edb07715f2d58352",
+                      "size":  6937,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/eCamMode.lua",
+                      "sha256":  "f9925b12a499867ad2856e60de765ba18d4f21531deafd1bc1491a4708f1d7fd",
+                      "size":  2311,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/ePedState.lua",
+                      "sha256":  "e0dd6424b303f1514b434e20171bc72c342653c086f89693822ba2a41510003e",
+                      "size":  1856,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/ePedType.lua",
+                      "sha256":  "faa62c29fffd6804d09eb28c0da107e4febcce64ad62cab9c3bd7ed1f3c9f7e6",
+                      "size":  1014,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/eVehicleHandlingFlags.lua",
+                      "sha256":  "df50da2c521aa585ac18841b69df50f43bec896867e9b2d2944bc31c92a5882b",
+                      "size":  1618,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/eVehicleHandlingModelFlags.lua",
+                      "sha256":  "0b71a9f14e745ca13bda28cbbfc9bbd9d63249521c8308126ab3f7af8baaa218",
+                      "size":  1956,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/eWeaponType.lua",
+                      "sha256":  "460932b6e7eb54c2d3815fb3713fc8f673c7917d0fe2fd177187a5671075d785",
+                      "size":  1651,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SAMemory/game/FxSystem_c.lua",
+                      "sha256":  "9e5b2baa2b1d0154939bb07dcf6f6f685af4ff4132f8b57e5078496e72758e0d",
+                      "size":  1404,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/SAMemory/game/matrix.lua",
-                      "sha256":  "28857498168fd596dbc1c35f81bf16c15d4ea0226908288b489798a60a56700d",
-                      "size":  2060,
+                      "sha256":  "198d4e1e0aa59c0407d079e84d375d8e83b636a7921e87ed7ed28d62911b9ffb",
+                      "size":  2112,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/SAMemory/game/quaternion.lua",
-                      "sha256":  "5ec1554428cf8b4197c88c13a008d1aced649f9c48a45d0df88fc78705d04936",
-                      "size":  1385,
+                      "sha256":  "3510837e046429c1c76530101c072de6b44be9de03a7fe48c0bca4ccc9e2ec9c",
+                      "size":  1437,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/SAMemory/game/RenderWare.lua",
-                      "sha256":  "02e6474c04b8a0c998fe728a2b61b54b9ba258396130fea0baa1f885d0c237a6",
-                      "size":  9223,
+                      "sha256":  "526a455cd28f2f0b5b0bb8ebacc8f2d8ec85f279be8b4fd4dfa520a386916c79",
+                      "size":  9647,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/SAMemory/game/tBoatHandlingData.lua",
-                      "sha256":  "c34aacd80112624b51c2718967f4fcd7e3593d872898e75fee6b44e72d7637d4",
-                      "size":  693,
+                      "sha256":  "fd8ad2ed91f06f9fe9d669ae6135d7ec4977e8264ecc41e7c6c54548989bae6c",
+                      "size":  725,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/SAMemory/game/tFlyingHandlingData.lua",
-                      "sha256":  "6800f384bbefc74d0c7dbb670ffe07dc4996b8009765a365483f7d858165a74c",
-                      "size":  826,
+                      "sha256":  "17e13a0e37efbf56b813f72104c6015ef4bd8efbed5f1b636327512275adc070",
+                      "size":  865,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/SAMemory/game/tHandlingData.lua",
-                      "sha256":  "d3c0878eefc6137a474a9825afc87925301603280e4cae107146928918ee2f7b",
-                      "size":  4010,
+                      "sha256":  "ed41ddb3163317858dca947a68bb47aa33734fde8b294f12b8415f77cf2113d9",
+                      "size":  4148,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/SAMemory/game/tTransmissionGear.lua",
-                      "sha256":  "98a8800a1ae1dd648ee972e5ac35349ed2b5c73c0b9fce1c449c84cb193e163f",
-                      "size":  475,
+                      "sha256":  "d8149bcef2ba58e93f1cde80b0a7a515f8f097ed24c5c335353cabb40e393081",
+                      "size":  497,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/SAMemory/game/vector2d.lua",
-                      "sha256":  "cf82c2c48871ce1d29ba1ea3a04c05aa33d40f265e2bfa67a18520428a1a1be2",
-                      "size":  1074,
+                      "sha256":  "2a96277c0ed006efaa634915d642ad2509369b8de8852c1e8a385f5673676cf7",
+                      "size":  1186,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/SAMemory/game/vector3d.lua",
-                      "sha256":  "82f58c93eccd759f2563e7e885bd0dd6d3fad40b67d70a305184dfdc943f9cec",
-                      "size":  2068,
+                      "sha256":  "9ba5fe9cd86138ba7eab72577ca819d68b387a67c724826e362bd41c3ecf6d75",
+                      "size":  2224,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/definitions.lua",
+                      "sha256":  "5cc3d032035eec371b6d73424f8c8f7049fbec2ee93088b827321f37364293e0",
+                      "size":  3157,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/samp/events.lua",
-                      "sha256":  "4b2336ae037e366b47247ff3cd5573f1ba95c0abae70f98225cd57829e241fb3",
-                      "size":  21385,
+                      "sha256":  "af575f181035ffec76424b3feb2554662e81289c85e9a305637aba9445b7d440",
+                      "size":  26829,
                       "dest":  "gameRoot"
                   },
                   {
@@ -1998,44 +2928,542 @@
                   },
                   {
                       "path":  "moonloader/lib/samp/raknet.lua",
-                      "sha256":  "a214be8b562c7916d0114c6e52e0b90b57fc9faecfb87654db35f04c4592d771",
-                      "size":  11399,
+                      "sha256":  "d0c47eefefe87387d00e806274d69a0dd2a22e885aa934fe08ec82b89cd1a3a1",
+                      "size":  12181,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/samp/synchronization.lua",
-                      "sha256":  "f0b629d6dec53d3aa8149169ba8d99037f463e36d77a1e7338e317dadfa56eae",
-                      "size":  3960,
+                      "sha256":  "1609e479684198d343cac5c8f4f5a521ba631eb80f7231ef4a103c3315d9b6fc",
+                      "size":  4296,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/enums.lua",
+                      "sha256":  "80d4a2e85a42b880fa446a4b40916b26c50a17dcb05316c47de91a9b230bfab3",
+                      "size":  1502,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stActorPool.lua",
+                      "sha256":  "f34bdbe0e80bfc89a4b7b89cbdf7701e3c7f20b94d6add34ebe5f8a5d4d69695",
+                      "size":  528,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stChatEntry.lua",
+                      "sha256":  "940db0e7384869c64f2146c207b2595399521b7234e4d0aa7789d5ab7a558a57",
+                      "size":  500,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stChatInfo.lua",
+                      "sha256":  "c472062a643ffc2c1403870ede3bcb891f582494057e15e19d5d0b420cc7c45a",
+                      "size":  1259,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stDialogInfo.lua",
+                      "sha256":  "7225e0a4026cf97fd781d0d0c1952d1342d724cb2effca00bf151f8ea8bcbb90",
+                      "size":  710,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stFontRenderer.lua",
+                      "sha256":  "7259c3fc9261c8898521e6e180106fec7a76b9369c7e6c201683b83928cbbf8d",
+                      "size":  518,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stGameInfo.lua",
+                      "sha256":  "5fa736ab2085c86c703cffa0b290e8670e5e5575491e27dee9425a60206092ae",
+                      "size":  1284,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stGangzone.lua",
+                      "sha256":  "8b3ac1d23db00222ae08d689f9de29de7a2aac1e830b9dc43b230483356a1616",
+                      "size":  394,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stGangzonePool.lua",
+                      "sha256":  "50bacad26e5ba8ca588579778982b303b6cae5a5f28d8005251f18997a87a440",
+                      "size":  439,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stInputInfo.lua",
+                      "sha256":  "ad6db3482261bd31ac6d5b74d1d530617cde8527d24b61a0a067bc5de6a5b984",
+                      "size":  1122,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stKillEntry.lua",
+                      "sha256":  "883abe6696dbe5f8f3ab8238ad0d68af08f34303890663383e345a7770d07b19",
+                      "size":  462,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stKillInfo.lua",
+                      "sha256":  "39e898e7c359e842520698dd0d2430811f7126f9d8248ec7438c4087120924b1",
+                      "size":  680,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stLocalPlayer.lua",
+                      "sha256":  "74c927b46f775dfe0c74cc7c4ed80916ec1349327c2c02f6cc5dc64e0550612b",
+                      "size":  2394,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stObject.lua",
+                      "sha256":  "d729fe4ca495767f1539062db810d5f5502bf72bbbe9956cd6b5c47ff4f029d7",
+                      "size":  610,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stObjectPool.lua",
+                      "sha256":  "af1fbe33793569211985bd64f75bc331ad0b7bfeec0c8c65b942ff598c1dc84d",
+                      "size":  456,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stPickup.lua",
+                      "sha256":  "cbdc25817d5330e0145f98b95854e630c209a54491054ee71d739ff05adff040",
+                      "size":  370,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stPickupPool.lua",
+                      "sha256":  "d17f9740fe9ba5df6145b06146d5146dd198c16b41f544fefa0569b8396c7da7",
+                      "size":  561,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stPlayerPool.lua",
+                      "sha256":  "485890e7604f656dfe34e482ee5cb218e5ba9e1531355f6822da67913a06acec",
+                      "size":  794,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stRemotePlayer.lua",
+                      "sha256":  "266ec5f95ad994ea84e5a1e0a43c8a0967b7992b1e6ca5a8b9ba462f887d6930",
+                      "size":  1832,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stSAMP.lua",
+                      "sha256":  "8ba030f129f102f6a4a32e95624526ca65120c3bb3be15f818c32d771f81b2e2",
+                      "size":  921,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stSAMPEntity.lua",
+                      "sha256":  "c4a7cb5ab7717e6be38d964666809866efc4409a4c2c0b5f2322cfd3eaecb830",
+                      "size":  425,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stSAMPPed.lua",
+                      "sha256":  "f2a323b24007025e0ed286215372241cc27af92d1530ccbad0204c9de9002c12",
+                      "size":  847,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stSAMPPools.lua",
+                      "sha256":  "ee68049ade444951ba4740661848c362e827f98ec25e5782418e724616c605fc",
+                      "size":  1061,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stSAMPVehicle.lua",
+                      "sha256":  "ca665320f4fdd68c667e473b1939fd21e9c0ff0d0c851c1dfd51649c474222b2",
+                      "size":  707,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stScoreboardInfo.lua",
+                      "sha256":  "6872d2d2554637f3ca6990a3833a83aa35418d47e3ac10cd6ebeec5c13e1d771",
+                      "size":  575,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stServerInfo.lua",
+                      "sha256":  "28be60d41410cb1b859122657ddfd009807282ab1663b9b02aa61cc68f7480dd",
+                      "size":  373,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stServerPresets.lua",
+                      "sha256":  "6b60f9a41c3ee2adf648cec87bf89a9800967afc221e0584f671faadd1e6e96f",
+                      "size":  1011,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stTextdraw.lua",
+                      "sha256":  "6779aba2266e9a524531c1d82a9a54e037d1129e15c942b058b889ff1c647dd3",
+                      "size":  1343,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stTextdrawPool.lua",
+                      "sha256":  "ca73c86d5133a1c31c3e933c9aef29f969d94217d6e8c457ce977042f8eedfcb",
+                      "size":  508,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stTextLabel.lua",
+                      "sha256":  "1c0c13380bb781cdb45707cbdd5d3f9ea93833829372ee50281892eb6c0c1665",
+                      "size":  537,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stTextLabelPool.lua",
+                      "sha256":  "5326113f0bc8f5102909be680876f0f57388c8e4dc4e2a87a781e65dec6e1e4b",
+                      "size":  441,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/stVehiclePool.lua",
+                      "sha256":  "a66bf02b177c1f70bcd62b48a04d52a6321f85e0a8e3c97aa82e85ef74f488dc",
+                      "size":  786,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_7-R1/sync.lua",
+                      "sha256":  "c5d01fb380d6bc93a481ad7e656ec2198741fa8d0d34d5c3e60b3b525e07c0be",
+                      "size":  4264,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/enums.lua",
+                      "sha256":  "23212743356ca7db8b6d12bfd0406dda54810827dcf41fa1cc5e30bd994c0091",
+                      "size":  1502,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stActorPool.lua",
+                      "sha256":  "7a75f5488782de4d703b5386fe715be211bb806dff0a71ab9f69e71d2d047318",
+                      "size":  502,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stChatEntry.lua",
+                      "sha256":  "21b36b9c5e5eeb922ae7570902a226de2f8b8a37461cfe70335edc22241245be",
+                      "size":  510,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stChatInfo.lua",
+                      "sha256":  "6866a35e00863680ff635be0c6c1773cb91cf0015f094dca9b23d18eae6d23f9",
+                      "size":  1344,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stDialogInfo.lua",
+                      "sha256":  "7da68c394d7d4e51b1d05272db8a738900a1c8cb20f639b7919fac3ac98a0927",
+                      "size":  742,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stFontRenderer.lua",
+                      "sha256":  "c878a8aee9c957177917e886d1081be0ca103c29b7f85b6f4d1772f29dc3841a",
+                      "size":  525,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stGameInfo.lua",
+                      "sha256":  "6afa4a17ccca168b5f7bbdc9840547b0631b3735700479e6499621eb3786b830",
+                      "size":  1312,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stGangzone.lua",
+                      "sha256":  "8b3ac1d23db00222ae08d689f9de29de7a2aac1e830b9dc43b230483356a1616",
+                      "size":  394,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stGangzonePool.lua",
+                      "sha256":  "c7816722ef79ed7218d14675ba897f44cab33c281860082ba4ca78d5d8f48ac2",
+                      "size":  440,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stInputInfo.lua",
+                      "sha256":  "d3a93db3c02d0464fd3d0f51a2a4aa8431433a0ce4621411123565ea6be59d38",
+                      "size":  1171,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stKillEntry.lua",
+                      "sha256":  "373a9ad77c6b699b6d2e4c5b9af4957c4f3ac1cd7a3c6714c41fe03bd7766f6d",
+                      "size":  455,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stKillInfo.lua",
+                      "sha256":  "f9d0ce6cc3a78e22b4c8a516e8cf91bb44c9bc4ef76d5ff7f41bc98052b84b4d",
+                      "size":  694,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stLocalPlayer.lua",
+                      "sha256":  "6c819de28593cc93a96e3219e95fe24fb3993c09a97fe376b9ce0d98842f597e",
+                      "size":  2206,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stObject.lua",
+                      "sha256":  "495a6f8d2a45b1010d597182b34006a045dbb4ff2f43d1c58891e072dcaff262",
+                      "size":  607,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stObjectPool.lua",
+                      "sha256":  "a52b0b5257053acf553a0409abbd496ab866780f6d96483a30583c8c1a949cf3",
+                      "size":  458,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stPickup.lua",
+                      "sha256":  "cbdc25817d5330e0145f98b95854e630c209a54491054ee71d739ff05adff040",
+                      "size":  370,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stPickupPool.lua",
+                      "sha256":  "8582d1cfdcf41036c8ff730a1e1754d86adb9e0401c51f4e6247e34e91b98ce7",
+                      "size":  559,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stPlayerPool.lua",
+                      "sha256":  "6c94e206721567d279d3e0a8e463ae4deb643aef6cec906adb508fd33830c437",
+                      "size":  800,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stRemotePlayer.lua",
+                      "sha256":  "a15a3df316f4fdd3e8f978321bca7a328d40c0dd60eb9ede95b09e0ea8def97f",
+                      "size":  1957,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stSAMP.lua",
+                      "sha256":  "82a246ce8158f3c7e4d7f471e5ab7df8ce1f195b94147e33c3e73aef72362c3f",
+                      "size":  1144,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stSAMPEntity.lua",
+                      "sha256":  "eeb469f28c87b93c809daa93d8ee0c5c6f30b5ae07817f1eecae30970ca91ff0",
+                      "size":  432,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stSAMPPed.lua",
+                      "sha256":  "f5d683dc85ad60a8695055757aa163563e0ee5e7b414d6eac8dfa864c7fad0c3",
+                      "size":  816,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stSAMPPools.lua",
+                      "sha256":  "578893213ae1e42e6e3734b3af9abb7eb6668cade4e1adef130acf4ac5437d08",
+                      "size":  1136,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stSAMPVehicle.lua",
+                      "sha256":  "be8fa32aab6a400c36ef8433c3cdbe1c450acce36a7f8dcc51d81f0808794097",
+                      "size":  707,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stScoreboardInfo.lua",
+                      "sha256":  "39194c863a949f9fc8cd1ed47917a8cde982c5dd7dfc59114eb2953c62231cd6",
+                      "size":  574,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stServerInfo.lua",
+                      "sha256":  "a6d1a627f9eae2633c4e26033f018bbd319ab95bbb4d72e6c5415ba0eda01770",
+                      "size":  371,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stServerPresets.lua",
+                      "sha256":  "08a369d5e3da75623299c0f8468d9a7475c087aa63109f1eadb3ddf8761e1958",
+                      "size":  1006,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stSpawnInfo.lua",
+                      "sha256":  "cfc06e0717342914b98821bcee7ef06670b26be3a5a552a65c18d1627c22b6a5",
+                      "size":  477,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stTargetInfo.lua",
+                      "sha256":  "c54d20594252eb4ea78412ccc96f9318af06883203f0eade43d43eca83b8a148",
+                      "size":  429,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stTextdraw.lua",
+                      "sha256":  "d37ca284d8f1dc5edd6f36edcc95ab16ceb35e8cca05482cc3f52fa0b5896234",
+                      "size":  1294,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stTextdrawPool.lua",
+                      "sha256":  "af341d5e10e403d3b53e7bdee2ccb63478d14911db49a60b93553ccf16eb999f",
+                      "size":  509,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stTextLabel.lua",
+                      "sha256":  "1c0c13380bb781cdb45707cbdd5d3f9ea93833829372ee50281892eb6c0c1665",
+                      "size":  537,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stTextLabelPool.lua",
+                      "sha256":  "f43f707229965501a1a9c569e04df8b2de6003db001651ef9b70893fe09ba744",
+                      "size":  442,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/stVehiclePool.lua",
+                      "sha256":  "d7e2bdfec5789761c1ae997eeb45bb8df1ce9f31d27c4337359593f494816531",
+                      "size":  789,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/samp/0_3_DL-R1/sync.lua",
+                      "sha256":  "68ac35972d98210e66b69e150969733c070f436f89bda051fe127624a375694a",
+                      "size":  4003,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/samp/events/bitstream_io.lua",
-                      "sha256":  "9faae796f015133fffb77f742560af85762ae7c2e2498dbfe63f6df94ee24425",
-                      "size":  6140,
+                      "sha256":  "7f62d7dffa26d0f723a1a307eb04b022fcafb79959e1ed4fa3c348a52bcb1ec9",
+                      "size":  7155,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/samp/events/core.lua",
-                      "sha256":  "287f7156f54cb4a18345e5295836f4d914f7bf1817f54fe5ac2b3396eb4a3ae8",
-                      "size":  3739,
+                      "sha256":  "54a16caa6c9d073031d2c3706c34e4f83f7736b202a7efc804fd50708c6c2f75",
+                      "size":  3880,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/samp/events/extra_types.lua",
-                      "sha256":  "a9cb8e853d9f8dde3e69d65013ebf4871ba618336426176e7f2d746fc5726b02",
-                      "size":  2105,
+                      "sha256":  "89cf1988d8fd450f67ad4778aecc63e36ec353419cb8e31342ee7083e7cc4783",
+                      "size":  1573,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/samp/events/handlers.lua",
-                      "sha256":  "5eb07e0e9ef904bce2b84685a206f8deb53a09be1164fdb2884864f8c6992a34",
-                      "size":  17328,
+                      "sha256":  "1d6d2498fa90cf692809f6cd4ba3e3d30615c3b8f7764bfdfbe863ee244a81c8",
+                      "size":  17405,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/lib/samp/events/utils.lua",
-                      "sha256":  "2192147243ad9c63ffbb6e834d362c8192f4d03355a9f998e114c9ac2765aa1d",
-                      "size":  1412,
+                      "sha256":  "0585c8ee8d65ac0b389c320baa9d0c7a17393640b1e13ddd3cc1ff0ec93e381f",
+                      "size":  1385,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/sfAddon/R1/engine.lua",
+                      "sha256":  "2e77d3c88bf9d578237bf9adb8f905f416a7db1080ef6cd9c9364a9fa35420a5",
+                      "size":  12552,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/sfAddon/R3/engine.lua",
+                      "sha256":  "da45f2e6896a6b08eca29cdc51223b4301958cbbe8f62514fc1d14f36d13b064",
+                      "size":  10963,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/sfAddon/R4/engine.lua",
+                      "sha256":  "140c477951313590050d1ec7d38b4933ebba0a89d1c0141121261220480918d1",
+                      "size":  4119,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SFlua/addition.lua",
+                      "sha256":  "81b0b14e18b648f3ab0c164c94fee470e846f23bcc0b35d3300786dd7729e053",
+                      "size":  1626,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SFlua/bitstream.lua",
+                      "sha256":  "1254d8c08785aae72ee6ff58f009a2a5de6c0bb6b7bcbe4f79fae0b5c7ed6ab9",
+                      "size":  14543,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SFlua/cdef.lua",
+                      "sha256":  "02ae5ceecb3976701f2db4ea3c2e39c7dfe175db715e41f7dd4888585f57e555",
+                      "size":  3249,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SFlua/const.lua",
+                      "sha256":  "97614b0a48334cebe85f8b46754be6527cc505b94a7a34321a6939789642dd15",
+                      "size":  15565,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SFlua/init.lua",
+                      "sha256":  "d3d2d707a8bd99b8e36e2c275981f75174a19ebcdc25858f702fae16c6b24b20",
+                      "size":  1247,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SFlua/037-r1/cdef.lua",
+                      "sha256":  "4a29c51ab9153ad999e999e4f5dd5e111a3336c20cfef7d40924ddf0b49e1e4e",
+                      "size":  27209,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/SFlua/037-r1/init.lua",
+                      "sha256":  "30ab64366c6fc7afad056573fdf1438c4d7fa57fb27210ee2ddf2e0226e85654",
+                      "size":  54961,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/snet/bstream.lua",
+                      "sha256":  "1355ddf914a3ba64e9e3baa62b2a4f923805184594c063084a331b369e5cdf57",
+                      "size":  1450,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/snet/client.lua",
+                      "sha256":  "b8bfad2e2f15756822de2b29e14f5c254b4c721d7e57fb874f2f851e33df898e",
+                      "size":  3333,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/snet/init.lua",
+                      "sha256":  "7ad32fff9ea5c78803b53617b68de6d2fe6a0a60cae1e155dc6447b635b76649",
+                      "size":  1405,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/snet/server.lua",
+                      "sha256":  "ceeb848c3ff047a73b4f9e1bb23a87ee8072d56362ada08d253781f862267492",
+                      "size":  5403,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/snet/utilities/bcoder.lua",
+                      "sha256":  "d0e56af26a870ea32a388954c644c5ecb1ca2fbd99fb241a4525a87030b956f5",
+                      "size":  898,
                       "dest":  "gameRoot"
                   },
                   {
@@ -2081,9 +3509,213 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/socket/xml/win32/911.png",
+                      "sha256":  "a72b79f0da720906aa029220096675d87cd54b06dbf19b799e6ceb0ce533a5e7",
+                      "size":  20020,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/police1.png",
+                      "sha256":  "bfb70c26685c9631f0b24484e47450415b37b6bc9c566fee59752636595e354e",
+                      "size":  31,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x012048.mp3",
+                      "sha256":  "7eb32f4cf7a3bffcb2bf9831a3b8f2339d65c28370828a7db7747c6f4186fa9e",
+                      "size":  89862,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x014638.mp3",
+                      "sha256":  "54699e4fcb4838ca974cffab9ea5274183e849ba75b465a826d02a1316d822a3",
+                      "size":  104802,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x014937.mp3",
+                      "sha256":  "7b1c650c2831f06fda52d2ea1fdbd58d33e3991e09fa24f4921f3b4a6220bc24",
+                      "size":  89610,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x014952.mp3",
+                      "sha256":  "275a82974ca316c7261ccba69a373f9c47df46cbf8aff7df9604bdd215296fb4",
+                      "size":  84504,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x017491.mp3",
+                      "sha256":  "44ca69dab2bf9d194f46a40500d624f8623b995dd34bde44d07cb97cd7d0eb12",
+                      "size":  94938,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x017492.mp3",
+                      "sha256":  "dc3d23e9630f96079c07f29f88252caa295a7d185e5599811f6e079ddec7de49",
+                      "size":  102606,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x018343.mp3",
+                      "sha256":  "e8d6f4e8c817ff4e37228e482f3d0a1d5dcb875b261793af2ef824a9dd730960",
+                      "size":  97458,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x018390.mp3",
+                      "sha256":  "4f83cef40b03296beee59f0d82ded3f7b420798a42e355553550648a935af002",
+                      "size":  102210,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x018462.mp3",
+                      "sha256":  "1c9b27b6ca9ad770a9364fbeece5f71b86aad7c0932467b9139c6f124dabf798",
+                      "size":  92310,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x018471.mp3",
+                      "sha256":  "ea8c7a56f7bdd49cdfaa67abb5bc22f742de1c74798ab5011081ac89a1b9313e",
+                      "size":  102282,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x018472.mp3",
+                      "sha256":  "9d429856706d6ee1645768df665a75923706f3807cf261efd140542810905422",
+                      "size":  94758,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x019299.mp3",
+                      "sha256":  "91278c0c9741ec82e6ce35d76c3b6c0c5410ff7bc7c77c4411ea982366edcf39",
+                      "size":  85790,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/010x102817.mp3",
+                      "sha256":  "53811ed453a443ecd82753df6fa230ab595ae213b3b653d2a843fb0cf270bcf3",
+                      "size":  80004,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/025x458331.mp3",
+                      "sha256":  "db1c7a828d5fc608cd7c0e73e01ccc399cfeacdbe1e399e6d8fa35ec5d9e28c5",
+                      "size":  165959,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/042x947232.mp3",
+                      "sha256":  "7f372b9e080b8cd77f9b7930c23557ebfa978b0e9381b3b976b1d768a757e420",
+                      "size":  7230,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/045x019582.mp3",
+                      "sha256":  "244f3325e2d08d21dd4c712507703e886be91796e354f6022a9b4195fa218472",
+                      "size":  66616,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/053x184622.mp3",
+                      "sha256":  "dc53ea585832702b2819c1d06c43b3624194e74d7a5c64fca95e519c78213960",
+                      "size":  7974510,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/062x285743.mp3",
+                      "sha256":  "d1a34b1dbd876b71ffd9219edaecfbb1f5829c0a6b109ba58643b6ba4e79f9db",
+                      "size":  67038,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/062x682364.mp3",
+                      "sha256":  "4d08b1b645701058b8b2222e59f289bc148531b39de922b8b74e18e2cdd33fa2",
+                      "size":  79602,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/062x847382.mp3",
+                      "sha256":  "a9ff1b084cc305a05bf55dcdf12ecffdbeb6b44d0ada0bde1219e5c190144f53",
+                      "size":  80934,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/062x957239.mp3",
+                      "sha256":  "78098a91b434eb8728b3c2158041a656eefa4f2b11645e2f3945ec1da51965ac",
+                      "size":  67398,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/socket/xml/win32/web/http/091x028472.mp3",
+                      "sha256":  "983dd34090926fcbaa5788b0ce4436ee7975fcb93a81622a3fbae0559775a5c6",
+                      "size":  18942,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/ssl/https.lua",
                       "sha256":  "aa10898dd60781500f30cd0f425eea0ca8e9632b7067d56d26a5d4341055d239",
                       "size":  4033,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/UTF8/utf8.lua",
+                      "sha256":  "ae4244062e63d99a513a22e86c56249b92bb3011dffc5f3f1e248507192518b8",
+                      "size":  8252,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/UTF8/utf8data.lua",
+                      "sha256":  "0c1c8c4c294c661c385c620666f4488e3cdbca40de70eedc931814b82c5f7cb8",
+                      "size":  31622,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/UTF8/.svn/all-wcprops",
+                      "sha256":  "fb768d936ec766132334678bbec11c332d66a9fd3dd71d99327f747167e5eafd",
+                      "size":  338,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/UTF8/.svn/entries",
+                      "sha256":  "e1c85707a0f28de5690150340bf0e236fddc5693a6762c54cd9d42cca59da8bc",
+                      "size":  599,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/UTF8/.svn/format",
+                      "sha256":  "aa67a169b0bba217aa0aa88a65346920c84c42447c36ba5f7ea65f422c1fe5d8",
+                      "size":  2,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/UTF8/.svn/prop-base/utf8.lua.svn-base",
+                      "sha256":  "1004841a895e80141ab9c3889df17c21cab26218a5ae9b031fc729d2d0823cbd",
+                      "size":  69,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/UTF8/.svn/prop-base/utf8data.lua.svn-base",
+                      "sha256":  "58375ba3ea2bda92adbfcf2cf2e7b5a49bb080782372e92706296f3c494fe42d",
+                      "size":  34,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/UTF8/.svn/text-base/utf8.lua.svn-base",
+                      "sha256":  "ef78b7b26714fa31ba7f240a59fca4590774bfcdafa49e713169a74e5d7f838a",
+                      "size":  8210,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/UTF8/.svn/text-base/UTF8.toc.svn-base",
+                      "sha256":  "f263e235e8a13a7ef5b0928ed3b22e3fc100a7d8aad483b72ea9c522f6ca2893",
+                      "size":  132,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/UTF8/.svn/text-base/utf8data.lua.svn-base",
+                      "sha256":  "0c1c8c4c294c661c385c620666f4488e3cdbca40de70eedc931814b82c5f7cb8",
+                      "size":  31622,
                       "dest":  "gameRoot"
                   },
                   {
@@ -2204,6 +3836,180 @@
                       "path":  "moonloader/resource/fonts/fontawesome-webfont.ttf",
                       "sha256":  "aa58f33f239a0fb02f5c7a6c45c043d7a9ac9a093335806694ecd6d4edc0d6a8",
                       "size":  165548,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/libs.lua",
+                      "sha256":  "a7c007f52a9c9648fcc156ae2ebf85c6ebd47b143ac785b281e8175fa5cfc7d8",
+                      "size":  26458,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/ultrabots.lua",
+                      "sha256":  "2437a1d73ee9eaf4a3ecc43e3aee4fdd847b6810e3fc38c28e3f4d8358b703c8",
+                      "size":  14069827,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/ultragui.lua",
+                      "sha256":  "666e6f220aae161a5b02b96c5578319bebba01e485b300095732d73f04593ca1",
+                      "size":  454048,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/ultrapackets.lua",
+                      "sha256":  "30ec40953b0359bafdd7706be5e2baee3ad7e7d8db5cb3c9b0cdffeae65fd75c",
+                      "size":  66950739,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/ultrapolez.lua",
+                      "sha256":  "d56f527d8e7deb09497f90a8d1b66f0105495f87076749ee7077a73359a6b9fe",
+                      "size":  69110667,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/ultrarecord.lua",
+                      "sha256":  "ee6d57830860e859b4c2af8b10b25447245fce59758f86fe73b41188e1b957a5",
+                      "size":  5145,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/ultrautils.lua",
+                      "sha256":  "5375116da79c4d4fbddc5d99430f8924dc245e3b6a5fe29acaed889c2e267725",
+                      "size":  575669,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/other/anims.lua",
+                      "sha256":  "75babc01d375cda229569ba515c51162226b9e16fbf9730b7e88e90e4a0bcee9",
+                      "size":  5995,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/other/buy_virt.png",
+                      "sha256":  "6a545a6b1389254a902492b507b61ab581bb21cc62316eb26b49e659cac97aa8",
+                      "size":  30601,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/other/del1_fa-solid-900.ttf",
+                      "sha256":  "5c13caa17dbfce55cd0afe4b4dcf7fbe26ab783fce15f17dde44fa6b52bcb36c",
+                      "size":  202616,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/other/fa-solid-900.ttf",
+                      "sha256":  "5c13caa17dbfce55cd0afe4b4dcf7fbe26ab783fce15f17dde44fa6b52bcb36c",
+                      "size":  202616,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/other/hwids.lua",
+                      "sha256":  "e8b087c67bf4e8e7393979385146684042b386f942801effd1c1fec67f12d462",
+                      "size":  3750,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/other/icon.png",
+                      "sha256":  "6fb8b34ab6cec16974316845baa0614bb8c89d858bcc2eff6d93712bed00e71c",
+                      "size":  288133,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/other/lebarov.png",
+                      "sha256":  "6028c13e8d23ada12a6af60334cbaab77ea2c15fc15e124b23c03da43d3eb2b9",
+                      "size":  2880680,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/other/simlist.lua",
+                      "sha256":  "0864f90a572b38be72447cd4b7f2d5268e6201c922c030478158dcba62c23e83",
+                      "size":  6792,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/other/svalka.lua",
+                      "sha256":  "c2331a49140a4a086625de99dcf5253649869b27fad5b7a7286d2b6829d49e7f",
+                      "size":  6167,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/other/ҐЇ45Ї4.jpg",
+                      "sha256":  "4bf9c718d258d72b126b6fdbb6edf81e46d648591af0a1f2aef5c5b6c7e36893",
+                      "size":  1131866,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/sounds/chat_notify.mp3",
+                      "sha256":  "853bc412d6d1223887e204972750ce56b3d88d46d15fa78927601ea6fefef299",
+                      "size":  26583,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/sounds/click.mp3",
+                      "sha256":  "d09a68b3384d9a516a0d9e54298bbb62174e1601e27a0d959a29790e9366f65b",
+                      "size":  8829,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/sounds/error_key.mp3",
+                      "sha256":  "92d5359a8b592cab30d92de786a39dfa3a1da2a5a63dfa1f3c2a3fd3e38be1a7",
+                      "size":  43023,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/sounds/kakaet.mp3",
+                      "sha256":  "9721df3f3065233f23b2216e341a98562ec8121d75e78a3467215103c48d099f",
+                      "size":  37241,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/sounds/menu_button1.mp3",
+                      "sha256":  "b0f3aa6e1825dd16fce52f6afd5a2391c17447eeac78f23b7ee130e3a9a20764",
+                      "size":  12999,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/sounds/menu_button2.mp3",
+                      "sha256":  "57c4e7f753ca1733b221dad1e4178d19be034914480f9966455f79a422efee6e",
+                      "size":  8412,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/sounds/menu_button3.mp3",
+                      "sha256":  "daa84f748d89404a06e1fb023006f0720d62d3cf91d082d33cf6f012d40b207d",
+                      "size":  7578,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/sounds/menu_button4.mp3",
+                      "sha256":  "605965e2cdc38b42cb56aa683053a9091e126ec0b9e1fedd3d803c0b4a54b049",
+                      "size":  8829,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/sounds/menu_button5.mp3",
+                      "sha256":  "5a9ec845a3bcec547ac3bad19b13c24f2651bb38d91b2fd3147e820bf5834a31",
+                      "size":  12999,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/sounds/menu_button6.mp3",
+                      "sha256":  "03cedce37197da9d4b6c26e229c017bdcdae834529ceb444b37079b3264a6a54",
+                      "size":  5493,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/sounds/menu_button7.mp3",
+                      "sha256":  "12899f88ac43230ff871f7383adfd31ca04e7b691f2d8e4d2adbfc78affc2871",
+                      "size":  14250,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/ultrabot_res/ultracoords/coords.lua",
+                      "sha256":  "885cd17cc539660b26d55ef8814e17eccd9c057c40d716fb0aaefd4a87b83ff0",
+                      "size":  3264,
                       "dest":  "gameRoot"
                   }
               ],

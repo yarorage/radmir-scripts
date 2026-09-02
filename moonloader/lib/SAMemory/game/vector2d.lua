@@ -54,6 +54,10 @@ function meta:__unm() -- unary minus
 	return vector2d(-self.x, -self.y)
 end
 
+function meta:__len()
+	return self:len()
+end
+
 ffi.metatype('vector2d', meta)
 mt.provide_access('vector2d', vec2d, true, false)
 
