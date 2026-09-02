@@ -60,6 +60,9 @@ local is_logging_in = false
 local is_spawned = false
 local player_in_world = false
 local player_nick = ""
+local my_nick = ""
+local reconnect_attempt_count = 0
+local reconnect_pause_until = 0
 local chatlog_path = nil
 
 local waiting_for_spawn_choice = false
@@ -100,7 +103,49 @@ local last_pass_lbutton_state = false
 local mafk_active = false
 local mafk_hold_start = 0
 local mafk_notify_until = 0
+local afk_mode = 0
 local auto_restart = true
+
+local afk_templates = {
+    { {'x',1}, {'y',1}, {'x',-1}, {'y',-1} },
+    { {'x',1}, {'y',1}, {'x',1}, {'y',-1}, {'x',-1}, {'y',-1}, {'x',-1}, {'y',1} },
+    { {'x',1}, {'y',1}, {'x',-1}, {'y',1}, {'x',-1}, {'y',-1}, {'x',1}, {'y',-1} },
+    { {'x',1}, {'y',1}, {'x',-1}, {'y',1}, {'x',1}, {'y',-1}, {'x',-1}, {'y',-1} },
+    { {'x',1}, {'y',1}, {'x',-1}, {'y',-1}, {'x',-1}, {'y',1}, {'x',1}, {'y',-1} },
+    { {'x',1}, {'y',1}, {'x',-1}, {'y',-1}, {'x',1}, {'y',1}, {'x',-1}, {'y',-1} },
+    { {'x',1}, {'y',1}, {'x',1}, {'y',-1}, {'x',-1}, {'y',1}, {'x',-1}, {'y',-1} },
+    { {'x',1}, {'y',1}, {'x',-1}, {'y',-1}, {'x',1}, {'y',-1}, {'x',-1}, {'y',1} },
+    { {'x',1}, {'y',1}, {'x',1}, {'y',-1}, {'x',-1}, {'y',-1}, {'x',-1}, {'y',1} },
+    { {'x',1}, {'y',-1}, {'x',-1}, {'y',1}, {'x',1}, {'y',1}, {'x',-1}, {'y',-1} },
+    { {'x',1}, {'y',1}, {'x',-1}, {'y',-1}, {'x',1}, {'y',-1}, {'x',-1}, {'y',1} },
+}
+
+local function generate_afk_route(template)
+    local result = {}
+    local x_fwd, x_bwd, y_fwd, y_bwd = {}, {}, {}, {}
+    for _, t in ipairs(template) do
+        local entry = {axis=t[1], dir=t[2], time=2.0}
+        table.insert(result, entry)
+        if t[1] == 'x' then
+            if t[2] == 1 then table.insert(x_fwd, entry) else table.insert(x_bwd, entry) end
+        else
+            if t[2] == 1 then table.insert(y_fwd, entry) else table.insert(y_bwd, entry) end
+        end
+    end
+    local cx = math.min(#x_fwd, #x_bwd)
+    for i = 1, cx do
+        local t = math.random(1000, 3000) / 1000.0
+        x_fwd[i].time = t
+        x_bwd[i].time = t
+    end
+    local cy = math.min(#y_fwd, #y_bwd)
+    for i = 1, cy do
+        local t = math.random(1000, 3000) / 1000.0
+        y_fwd[i].time = t
+        y_bwd[i].time = t
+    end
+    return result
+end
 local function mafk_flag_path()
     local folder = (thisScript and thisScript().folder) or getWorkingDirectory()
     return folder .. "\\..\\mafk_on.flag"
@@ -352,6 +397,16 @@ local function trigger_reconnect()
         log("–еконнект пропущен (cooldown)")
         return
     end
+    if now < reconnect_pause_until then
+        log("–еконнект пропущен (пауза после безуспешных попыток)")
+        return
+    end
+    reconnect_attempt_count = reconnect_attempt_count + 1
+    if reconnect_attempt_count >= 3 then
+        reconnect_attempt_count = 0
+        reconnect_pause_until = now + 300
+        log("–еконнект: 3 безуспешные попытки подр€д Ч пауза 5 минут")
+    end
     reconnect_cooldown_until = now + 25
     is_reconnecting = true
     is_spawned = false
@@ -438,6 +493,19 @@ local function register_commands()
         sync_mafk_flag()
     end)
 
+    sampRegisterChatCommand("afk", function(arg)
+        local n = tonumber(arg)
+        if arg == "" or arg == "mix" then
+            afk_mode = 0
+            chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} ћаршрут: random mix")
+        elseif n and n >= 1 and n <= 11 then
+            afk_mode = math.floor(n)
+            chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} ћаршрут: " .. afk_mode)
+        else
+            chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} »спользование: /afk [mix/1-11]")
+        end
+    end)
+
     sampRegisterChatCommand("autostart", function()
         auto_restart = not auto_restart
         save_config()
@@ -452,6 +520,7 @@ local function register_commands()
         chat_msg("/alogin Ч включить или выключить автологин")
         chat_msg("/mspawn Ч переключить спавн на точке выхода")
         chat_msg("/mafk Ч включить/выключить анти-AFK (или удержание прав. Ctrl 1.5с)")
+        chat_msg("/afk [mix/1-11] Ч выбрать маршрут анти-AFK (mix=random)")
         chat_msg("/autostart Ч включить/выключить автозапуск игры при активном mafk")
         chat_msg("/alhelp Ч показать эту справку")
     end)
@@ -698,6 +767,23 @@ post_loading_login_watch = function()
     end)
 end
 
+admin_kicked_our_player = function(source_text)
+    local nick = my_nick
+    if #nick == 0 then return false end
+    if not source_text:find('кикнул игрока') then return false end
+    return source_text:find(nick, 1, true) ~= nil
+end
+
+handle_admin_kick = function(source_text, where)
+    if is_reconnecting then
+        log(where .. ": кик замечен, но реконнект уже идЄт Ч пропуск")
+        return
+    end
+    if not admin_kicked_our_player(source_text) then return end
+    log(where .. ": јдминистратор кикнул нас Ч реконнект")
+    trigger_reconnect()
+end
+
 on_password_saved = function()
     is_spawned = false
     is_logging_in = false
@@ -839,6 +925,7 @@ function sampevents.onServerMessage(color, text)
         spawn_timer_seconds = 0
         pending_autologin = true
     end
+    handle_admin_kick(text, "чат")
     if is_reconnecting then return end
     if lower_text:find("вы отключены от сервера")
         or lower_text:find("соединение потер€но")
@@ -892,6 +979,16 @@ function onReceivePacket(id, bs)
         end
     end
     raknetBitStreamResetReadPointer(bs)
+
+    if #my_nick == 0 and text:find('Authorization') and text:find('"auth"') then
+        local parsed = text:match('"auth"%s*,"%s*"([^"]+)')
+        if parsed then
+            my_nick = parsed
+            log("Ќик персонажа из AuthorizationT: " .. my_nick)
+        end
+    end
+
+    handle_admin_kick(text, "пакет")
 
     if text:find('OnPlayerOpenMenuPause', 1, true) then
         if login_submitted or is_spawned or is_logging_in then
@@ -960,6 +1057,8 @@ function onReceivePacket(id, bs)
             is_spawned = true
             player_in_world = true
             finish_reconnect("login ok")
+            reconnect_attempt_count = 0
+            reconnect_pause_until = 0
             log("јвторизаци€ пройдена (успешный вход в мир)")
             return
         end
@@ -983,13 +1082,11 @@ function onReceivePacket(id, bs)
     local is_kick_dialog =
         text:find("¬ы ввели неправильный пароль")
         or text:find("¬ы ввели неправильный пароль 3 раза")
-        or text:find("вы были кикнуты")
         or text:find("заблокирован")
         or (lower_err:find("подозрительн") and lower_err:find("программ"))
         or lower_err:find("сторонн€€ программа")
         or (lower_err:find("заблокир") and (lower_err:find("античит") or lower_err:find("чит")))
         or (lower_err:find("подозрительн") and lower_err:find("действи"))
-        or lower_err:find("вы были кикнуты")
         or lower_err:find("you have been kicked")
 
     if lower_err:find("the server is restarting")
@@ -1517,10 +1614,14 @@ local function chatlog_parser_thread()
     while true do
         wait(2000)
         if script_active and chatlog_path and doesFileExist(chatlog_path) then
-            local file = io.open(chatlog_path, "r")
-            if file then
-                local content = file:read("*all") or ""
-                file:close()
+            local ok_read, content = pcall(function()
+                local f = io.open(chatlog_path, "r")
+                if not f then return nil end
+                local c = f:read("*all") or ""
+                f:close()
+                return c
+            end)
+            if ok_read and content then
                 local size = #content
                 if not initialized then
                     last_size = size
@@ -1530,20 +1631,27 @@ local function chatlog_parser_thread()
                     if size < last_size then
                         last_size = size
                     elseif size > last_size then
-                        local new_part = content:sub(last_size + 1)
-                        last_size = size
-                        local low = new_part:lower()
-                        if not is_reconnecting
-                            and low:find("вы отключены от сервера")
-                            and not low:find("восстановление позиции")
-                            and not low:find("ƒисконнект по Ќќ¬ќ… строке chatlog.txt") then
-                            log("ƒисконнект по Ќќ¬ќ… строке chatlog.txt")
-                            is_spawned = false
-                            player_in_world = false
-                            is_logging_in = false
-                            waiting_for_spawn_choice = false
-                            spawn_timer_seconds = 0
-                            trigger_reconnect()
+                        local ok_sub, new_part = pcall(function() return content:sub(last_size + 1) end)
+                        if ok_sub and new_part then
+                            last_size = size
+                            local low = new_part:lower()
+                            if low:find("кикнул игрока") then
+                                handle_admin_kick(new_part, "chatlog")
+                            end
+                            if not is_reconnecting
+                                and low:find("вы отключены от сервера")
+                                and not low:find("восстановление позиции")
+                                and not low:find("ƒисконнект по Ќќ¬ќ… строке chatlog.txt") then
+                                log("ƒисконнект по Ќќ¬ќ… строке chatlog.txt")
+                                is_spawned = false
+                                player_in_world = false
+                                is_logging_in = false
+                                waiting_for_spawn_choice = false
+                                spawn_timer_seconds = 0
+                                trigger_reconnect()
+                            end
+                        else
+                            last_size = size
                         end
                     end
                 end
@@ -1571,48 +1679,38 @@ local function game_window_active()
 end
 
 local function anti_afk_thread()
-    local keys = { 0x57, 0x44, 0x53, 0x41 }  -- W, D, S, A (пор€док по заданию)
-    local last_held = 0
-    local hold_ms = math.random(1000, 3000)  -- одинаковое дл€ всех кнопок в проходе
-    local c_next_at = 0                      -- os.clock(), когда следующее нажатие C
     while true do
         wait(100)
         if not mafk_active then
-            if last_held ~= 0 then
-                user32.keybd_event(last_held, 0, KEYEVENTF_KEYUP, 0)
-                last_held = 0
-            end
+            -- inactive: просто ждЄм
         elseif player_in_world and game_window_active() then
-            -- один проход: W -> D -> S -> A, кажда€ нажата/отпущена с одинаковым удержанием
-            local aborted = false
-            for i = 1, #keys do
-                local k = keys[i]
-                user32.keybd_event(k, 0, KEYEVENTF_KEYDOWN, 0)
-                last_held = k
-                wait(hold_ms)
-                user32.keybd_event(k, 0, KEYEVENTF_KEYUP, 0)
-                last_held = 0
-                wait(400)
-                if not mafk_active or not player_in_world or not game_window_active() then
-                    aborted = true
-                    break
-                end
+            local template
+            if afk_mode == 0 then
+                template = afk_templates[math.random(#afk_templates)]
+            else
+                template = afk_templates[afk_mode]
             end
-            -- пересчЄт одинакового времени удержани€ дл€ следующего прохода
-            hold_ms = math.random(1000, 3000)
-            -- эмул€ци€ C (простое нажатие) в рандомный интервал 1-5 сек
-            if not aborted then
-                local now = os.clock()
-                if c_next_at == 0 then
-                    c_next_at = now + math.random(1, 5)
-                end
-                if now >= c_next_at then
-                    user32.keybd_event(0x43, 0, KEYEVENTF_KEYDOWN, 0)
+            local route = generate_afk_route(template)
+            for _, step in ipairs(route) do
+                if not mafk_active or not player_in_world or not game_window_active() then break end
+                local key
+                if step.axis == 'x' and step.dir == 1 then key = 0x57
+                elseif step.axis == 'x' and step.dir == -1 then key = 0x53
+                elseif step.axis == 'y' and step.dir == 1 then key = 0x44
+                elseif step.axis == 'y' and step.dir == -1 then key = 0x41 end
+                if key then
+                    user32.keybd_event(key, 0, KEYEVENTF_KEYDOWN, 0)
+                    wait(step.time * 1000)
+                    user32.keybd_event(key, 0, KEYEVENTF_KEYUP, 0)
+                    if math.random() < 0.2 then
+                        user32.keybd_event(0x43, 0, KEYEVENTF_KEYDOWN, 0)
+                        wait(math.random(500, 1500))
+                        user32.keybd_event(0x43, 0, KEYEVENTF_KEYUP, 0)
+                    end
                     wait(50)
-                    user32.keybd_event(0x43, 0, KEYEVENTF_KEYUP, 0)
-                    c_next_at = now + math.random(1, 5)
                 end
             end
+            wait(math.random(1000, 2000))
         end
     end
 end
