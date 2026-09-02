@@ -1,6 +1,14 @@
-local cimguimodule = getWorkingDirectory() .. [[\lib\mimgui\cimguidx9]]
+local function this_dir()
+    local src = debug.getinfo(1, 'S').source
+    if src:sub(1, 1) == '@' then src = src:sub(2) end
+    local dir = src:match('^(.*[/\\])')
+    if dir then return dir end
+    return getWorkingDirectory() .. [[\lib\mimgui\old\]]
+end
+local _pkg = (... or 'mimgui.old.imgui'):match('^(.+)%.[^%.]+$') or 'mimgui.old'
+local cimguimodule = this_dir() .. 'cimguidx9'
 local ffi = require "ffi"
-local cdecl = assert(require "mimgui.cdefs", "imgui.lua not properly build")
+local cdecl = assert(require(_pkg .. ".cdefs"), "imgui.lua not properly build")
 
 ffi.cdef(cdecl)
 
