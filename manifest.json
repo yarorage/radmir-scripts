@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.0.2",
     "launcherVersion":  "1.0.2",
-    "updatedAt":  "2026-09-02 03:02",
+    "updatedAt":  "2026-09-02 03:04",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -140,12 +140,6 @@
                       "path":  "moonloader/check-moonloader-updates.lua",
                       "sha256":  "6578114195dfa1d0ee9e4d900a05ca9e0537d8ea08443d7f61be0529af4c4024",
                       "size":  2320,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/gta_sa.set",
-                      "sha256":  "4615fa88da8b6f6a4e95e059c426f8818aa92e692f7c293e474304cb28c237fe",
-                      "size":  2900,
                       "dest":  "gameRoot"
                   },
                   {
