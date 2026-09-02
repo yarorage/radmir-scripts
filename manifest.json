@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.0.2",
     "launcherVersion":  "1.0.2",
-    "updatedAt":  "2026-09-02 03:04",
+    "updatedAt":  "2026-09-02 03:32",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -102,8 +102,8 @@
                   },
                   {
                       "path":  "mafk_watchdog/mafk_watchdog.ps1",
-                      "sha256":  "ca05280bee205f83737674c7fc47fa0990fd3d759939cead4ee2a747a33473ad",
-                      "size":  4037,
+                      "sha256":  "9e2695e77849d85fd072342e4cbc1620f67a8e4b41bf84d59e4a6fd61bb643d9",
+                      "size":  4049,
                       "dest":  "base"
                   },
                   {
@@ -125,12 +125,6 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/CEF Monitoring (1).lua",
-                      "sha256":  "302eb3a266ef3f33438d8b27b694f14ea9d90a0e19463c1c0a6b75b0b22ec925",
-                      "size":  17174,
-                      "dest":  "gameRoot"
-                  },
-                  {
                       "path":  "moonloader/CheatByYaroRage.lua",
                       "sha256":  "08a3bb855c597dcf35101dd80602a9e02e4d91acf8930e1e31cf47a2391e9f5e",
                       "size":  60877,
@@ -144,8 +138,8 @@
                   },
                   {
                       "path":  "moonloader/Les.lua",
-                      "sha256":  "a9a66bd735501b751b1b6cb81d5bdf557b2f284cf9a04f5dd87b6d41e5d53b27",
-                      "size":  50864,
+                      "sha256":  "3a5118f979225204e80dca0987825c7cd7c1e93b47bb4be21090d906b2e01577",
+                      "size":  59121,
                       "dest":  "gameRoot"
                   },
                   {

@@ -20,16 +20,34 @@ ffi.cdef[[
 ]]
 local user32 = ffi.load("user32")
 
+local _cursorShown, _processOn = nil, nil
+local function setCursorShown(v)
+    v = v and true or false
+    if _cursorShown == v then return end
+    _cursorShown = v
+    imgui.ShowCursor = v
+end
+local function setImguiProcess(v)
+    v = v and true or false
+    if _processOn == v then return end
+    _processOn = v
+    imgui.Process = v
+end
+
 local function game_has_focus()
     local hwnd = user32.FindWindowA("Grand theft auto San Andreas", nil)
     return hwnd ~= nil and user32.IsIconic(hwnd) == 0 and user32.GetForegroundWindow() == hwnd
 end
 
 
--- Шрифт (гарантированная кириллица)
-imgui.GetIO().Fonts:Clear()
+-- пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+local _fontInitDone = false
+imgui.BeforeDrawFrame = function()
+    if _fontInitDone then return end
+    _fontInitDone = true
+    imgui.GetIO().Fonts:Clear()
 local _fontCands = {
-    'C:\\Windows\\Fonts\\segoeui.ttf',   -- системный, всегда есть
+    'C:\\Windows\\Fonts\\segoeui.ttf',   -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
     'C:\\Windows\\Fonts\\arial.ttf',
     getFolderPath(0x14) .. '\\Arial.ttf',
 }
@@ -40,20 +58,19 @@ for _, _fp in ipairs(_fontCands) do
     end)
     if _ok then _fontLoaded = true break end
 end
-if _fontLoaded then
-    pcall(function() imgui.GetIO().Fonts:Build() end)
-else
+if not _fontLoaded then
     imgui.GetIO().Fonts:AddFontDefault()
 end
+end
 
--- Алиасы
+-- пїЅпїЅпїЅпїЅпїЅпїЅ
 local ImVec2 = imgui.ImVec2
 local ImVec4 = imgui.ImVec4
 local ImGuiStyle = imgui.GetStyle()
 local ImGuiColors = ImGuiStyle.Colors
 local ImGuiClr = imgui.Col
 
--- Параметры
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 local waitDownClickY = 300
 local waitWaitClickY = 600
 
@@ -72,14 +89,14 @@ end
 local AutoYLastSetFill = 0
 local AutoYPresses = 0
 
--- отладка моделей объектов (объявлено до главного цикла)
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ)
 local _dbgScanAt = 0
 local _dbgScreen = {}
-local _dbgObjs = {}   -- объекты в радиусе для отрисовки: {m=, x=, y=, z=, s=}
-local _probeId = 613  -- текущая модель пробы построек (F6/F7)
+local _dbgObjs = {}   -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: {m=, x=, y=, z=, s=}
+local _probeId = 613  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (F6/F7)
 
--- Автопрогон полос построек (F8 старт/стоп, F9 размер полосы).
--- ОДНА модель за тик (пачки ломают рендер samp.dll+0x12843), бюджет на сессию.
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (F8 пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅ, F9 пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ).
+-- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ samp.dll+0x12843), пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.
 local _sweepRun = false
 local _sweepCursor = 1
 local _sweepBandW = 5
@@ -89,7 +106,7 @@ local _sweepMin = 1
 local _sweepMax = 1024
 local _sweepBudget = 500
 
--- Класс "Кликер"
+-- пїЅпїЅпїЅпїЅпїЅ "пїЅпїЅпїЅпїЅпїЅпїЅ"
 local Clicker = {}
 function Clicker:new(Button, Sleep)
     local obj = {}
@@ -124,46 +141,46 @@ end
 local Menu = {
     windowState = imgui.ImBool(false);
 }
--- Модели животных
+-- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 local MODEL_DEER = 15555
 local MODEL_BEAR = 15556
 
 local Ohota = {
-    -- Охота / WH
-    Wh = imgui.ImBool(false),          -- WH живых животных
-    WhPlayers = imgui.ImBool(false),   -- WH игроков (надпись)
-    HeadDot = imgui.ImBool(false),     -- точка на голове
-    ShowDistance = imgui.ImBool(false),-- дистанция
-    -- дальности отображения (0 = выключено)
-    DistAnimals = imgui.ImFloat(250.0),-- дальность по животным
-    DistCars    = imgui.ImFloat(0.0),  -- дальность по машинам (выкл)
-    DistPlayers = imgui.ImFloat(0.0),  -- дальность по игрокам (выкл)
-    -- линии отдельно
-    LineAnimals = imgui.ImBool(false), -- линии до живых животных
-    LineCars = imgui.ImBool(false),    -- линии до машин
-    LinePlayers = imgui.ImBool(false), -- линии до игроков
+    -- пїЅпїЅпїЅпїЅпїЅ / WH
+    Wh = imgui.ImBool(false),          -- WH пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    WhPlayers = imgui.ImBool(false),   -- WH пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+    HeadDot = imgui.ImBool(false),     -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+    ShowDistance = imgui.ImBool(false),-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (0 = пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+    DistAnimals = imgui.ImFloat(250.0),-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    DistCars    = imgui.ImFloat(0.0),  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅ)
+    DistPlayers = imgui.ImFloat(0.0),  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅ)
+    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    LineAnimals = imgui.ImBool(false), -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    LineCars = imgui.ImBool(false),    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+    LinePlayers = imgui.ImBool(false), -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     -- ESP
-    EspTush = imgui.ImBool(false),     -- WH туш (мертвых животных)
-    EspCars = imgui.ImBool(false),     -- WH машин
-    -- Прицел
-    Aim = imgui.ImBool(false),         -- аим по животным
-    AimPlayers = imgui.ImBool(false),  -- аим по игрокам
+    EspTush = imgui.ImBool(false),     -- WH пїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+    EspCars = imgui.ImBool(false),     -- WH пїЅпїЅпїЅпїЅпїЅ
+    -- пїЅпїЅпїЅпїЅпїЅпїЅ
+    Aim = imgui.ImBool(false),         -- пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    AimPlayers = imgui.ImBool(false),  -- пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     Aim_silent = imgui.ImBool(false),
     AimHandle = nil,
-    -- Уборка
+    -- пїЅпїЅпїЅпїЅпїЅпїЅ
     AutoY = imgui.ImBool(false),
     AutoY_Clicker = Clicker:new(vkeys.VK_Y, waitWaitClickY),
-    Clear = imgui.ImBool(false),       -- убирать призраков туш (20 с)
-    ClearFol = imgui.ImBool(false),    -- убирать деревья/листву вокруг
-    DbgObjs = imgui.ImBool(false),     -- отладка моделей объектов на экране
+    Clear = imgui.ImBool(false),       -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (20 пїЅ)
+    ClearFol = imgui.ImBool(false),    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+    DbgObjs = imgui.ImBool(false),     -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     FolApplied = false,
     FolBldTimer = 0,
     FirstApplied = false,
     LastTargetHandle = nil,
 }
 
--- Защита от CEF/D3D-крашей: не рисуем оверлеи, пока устройство сбрасывается.
-_devBarrier = 0.0   -- время, раньше которого рендер запрещён
+-- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ CEF/D3D-пїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+_devBarrier = 0.0   -- пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
 function renderAllowed()
     return os.clock() >= _devBarrier
@@ -177,7 +194,7 @@ function onScriptD3DDeviceRestore()
     _devBarrier = os.clock() + 0.6
 end
 
--- все пункты выключены до первого открытия меню
+-- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 Ohota.Wh.v = false
 Ohota.WhPlayers.v = false
 Ohota.HeadDot.v = false
@@ -197,7 +214,7 @@ Ohota.FirstApplied = false
 
 function imgui_Menu_windowState(arg)
     Menu.windowState.v = not Menu.windowState.v
-    imgui.ShowCursor = Menu.windowState.v
+    setCursorShown(Menu.windowState.v)
     if Menu.windowState.v and not Ohota.FirstApplied then
         Ohota.FirstApplied = true
         Ohota.Wh.v = true
@@ -210,7 +227,7 @@ function imgui_Menu_windowState(arg)
     end
 end
 
--- Главный цикл
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 function main()
     if not isSampLoaded() or not isSampfuncsLoaded then return end
     while not isSampAvailable() do wait(100) end
@@ -222,10 +239,10 @@ function main()
 
     local okY, yw = pcall(require, "ywelcome")
     if okY and type(yw) == "function" then
-        yw("Les", "Охота в лесу. Меню: удерживай L 1 сек, закрыть - нажатие L / /les")
+        yw("Les", "пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ L 1 пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ L / /les")
     end
 
-    -- Управление меню по L: открытие - удержание 1 сек, закрытие - нажатие
+    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ L: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1 пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     local VK_L = 0x4C
     lua_thread.create(function()
         local prev_down = false
@@ -237,21 +254,21 @@ function main()
             local menuOpen = Menu.windowState.v
 
             if down and not prev_down then
-                -- свежее нажатие
+                -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 if menuOpen then
-                    -- меню открыто -> закрыть сразу по нажатию
+                    -- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ -> пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                     if game_has_focus() and not sampIsChatInputActive() and not sampIsDialogActive() then
                         imgui_Menu_windowState()
                     end
                     fired = true
                     hold_start = 0
                 else
-                    -- меню закрыто -> начали удержание для открытия
+                    -- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ -> пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                     hold_start = os.clock()
                     fired = false
                 end
             elseif down and prev_down then
-                -- удержание кнопки
+                -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
                 if not menuOpen and not fired and hold_start > 0 and (os.clock() - hold_start) >= 0.5 then
                     fired = true
                     if game_has_focus() and not sampIsChatInputActive() and not sampIsDialogActive() then
@@ -259,7 +276,7 @@ function main()
                     end
                 end
             else
-                -- кнопка отпущена
+                -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                 hold_start = 0
                 fired = false
             end
@@ -267,8 +284,8 @@ function main()
         end
     end)
 
-    -- Проба моделей построек: F6/F7 - вручную, F8 - автопрогон полос, F9 - размер полосы.
-    -- Работает только при включённой отладке (защита от случайных удалений).
+    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: F6/F7 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, F8 - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, F9 - пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.
+    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ).
     local VK_F6 = 0x75
     local VK_F7 = 0x76
     local VK_F8 = 0x77
@@ -306,7 +323,7 @@ function main()
                     else _sweepBandW = 5 end
                 end
             end
-            -- автопрогон: одна модель за тик (0.4 с) — без пачек, чтобы не ронять рендер
+            -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ (0.4 пїЅ) пїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
             if _sweepRun and Ohota.DbgObjs.v and (os.clock() - _sweepLast) >= 0.4 then
                 _sweepLast = os.clock()
                 _sweepTotal = _sweepTotal + 1
@@ -323,28 +340,28 @@ function main()
         end
     end)
 
-    -- Шрифт для живых животных
+    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     font_whGreen = renderCreateFont('Arial', 7, 13)
 
-    -- Шрифт для отладки объектов
+    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     font_dbg = renderCreateFont('Arial', 7, 13)
 
-    imgui.Process = true
-    imgui.ShowCursor = false
+    setImguiProcess(true)
+    setCursorShown(false)
 
-    -- автоочистка деревьев при старте, если включено
+    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     if Ohota.ClearFol.v then
         pcall(applyFoliageClear)
     end
 
     while true do
         wait(0)
-        -- Защита от CEF/D3D-крашей: пока устройство сбрасывается/восстанавливается,
-        -- полностью пропускаем и графику (ESP/имиудж/текст), и объектную уборку
-        -- (setObjectCoordinates/RPC43 бьются об обновляющийся D3D-ресурс).
+        -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ CEF/D3D-пїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ,
+        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (ESP/пїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ), пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+        -- (setObjectCoordinates/RPC43 пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ D3D-пїЅпїЅпїЅпїЅпїЅпїЅ).
         if not renderAllowed() then goto continue end
 
-        -- охранные вызовы ESP (безопасно)
+        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ESP (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
         if Ohota.EspTush.v and type(renderEspTush) == "function" then pcall(renderEspTush) end
         if Ohota.EspCars.v and type(renderEspCars) == "function" then pcall(renderEspCars) end
         if Ohota.ClearFol.v then
@@ -357,7 +374,7 @@ function main()
                 Ohota.FolTimer = os.clock()
                 pcall(applyFoliageClear)
             end
-            -- статические деревья/кусты карты (buildings) убираем через RPC 43
+            -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (buildings) пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ RPC 43
             if (os.clock() - (Ohota.FolBldTimer or 0)) > 5.0 then
                 Ohota.FolBldTimer = os.clock()
                 pcall(sendRemoveBuildingRPCs)
@@ -369,22 +386,22 @@ function main()
             end
         end
 
-        -- отладка моделей объектов (раз в 1.5 c)
+        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅ 1.5 c)
         if Ohota.DbgObjs.v then
             if (os.clock() - _dbgScanAt) > 1.5 then
                 _dbgScanAt = os.clock()
-                dbg('--- скан объектов вокруг ---')
+                dbg('--- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ---')
                 pcall(dbgObjectsScan)
             end
             pcall(dbgObjectsRender)
-            renderFontDrawText(font_dbg, 'ПРОБА построек: ID ' .. _probeId .. '  (F6 назад / F7 вперёд)', 12, 105, 0xFFFF66FF)
+            renderFontDrawText(font_dbg, 'пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: ID ' .. _probeId .. '  (F6 пїЅпїЅпїЅпїЅпїЅ / F7 пїЅпїЅпїЅпїЅпїЅ)', 12, 105, 0xFFFF66FF)
             if _sweepRun then
                 local _bs = math.floor((_sweepCursor - 1) / _sweepBandW) * _sweepBandW + 1
                 local _be = math.min(_bs + _sweepBandW - 1, _sweepMax)
-                renderFontDrawText(font_dbg, string.format('АВТОПРОБА: БАНД %d-%d (F8 стоп, F9 ширина=%d) курсор=%d',
+                renderFontDrawText(font_dbg, string.format('пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅ %d-%d (F8 пїЅпїЅпїЅпїЅ, F9 пїЅпїЅпїЅпїЅпїЅпїЅ=%d) пїЅпїЅпїЅпїЅпїЅпїЅ=%d',
                     _bs, _be, _sweepBandW, _sweepCursor), 12, 118, 0xFF66FF00)
             else
-                renderFontDrawText(font_dbg, string.format('АВТОПРОБА выкл — F8 старт (ширина=%d, F9 менять)', _sweepBandW), 12, 118, 0xFF66FF00)
+                renderFontDrawText(font_dbg, string.format('пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ F8 пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ=%d, F9 пїЅпїЅпїЅпїЅпїЅпїЅ)', _sweepBandW), 12, 118, 0xFF66FF00)
             end
             local _sw, _sh = getScreenResolution()
             for _i, _line in ipairs(_dbgScreen) do
@@ -392,7 +409,7 @@ function main()
             end
         end
 
-        -- WH живых животных + подписи + линии
+        -- WH пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅ
         if Ohota.Wh.v or Ohota.LineAnimals.v or Ohota.WhPlayers.v or Ohota.LinePlayers.v or Ohota.HeadDot.v or Ohota.ShowDistance.v then
             for pairsId, value in pairs(getAllChars()) do
                 if doesCharExist(value) and value ~= PLAYER_PED and isCharOnScreen(value) and getCharHealth(value) > 0 then
@@ -412,53 +429,53 @@ function main()
                     local isAnimal = (modelid == MODEL_DEER or modelid == MODEL_BEAR)
                     local shouldRenderAimExtras = (doesCharExist(Ohota.AimHandle) and Ohota.AimHandle == value)
 
-                    -- защита от NaN/мусорных координат (иначе краш рендера)
+                    -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ NaN/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
                     local okScreen = (_X ~= nil and _Y ~= nil and _X == _X and _Y == _Y
                                       and _X > -50 and _X < 8050 and _Y > -50 and _Y < 6050)
                     local okHead = (hxx ~= nil and hyy ~= nil and hxx == hxx and hyy == hyy
                                     and hxx > -50 and hxx < 8050 and hyy > -50 and hyy < 6050)
 
-                    -- WH животин
+                    -- WH пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                     if Ohota.Wh.v and isAnimal and okScreen and (Ohota.DistAnimals.v > 0 and dist <= Ohota.DistAnimals.v) then
                         if modelid == MODEL_DEER then
                             if health == 100 then
-                                renderFontDrawText(font_whGreen, 'Олень(3)', _X, _Y, 0xFF00FF00)
+                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅ(3)', _X, _Y, 0xFF00FF00)
                             elseif health == 65 then
-                                renderFontDrawText(font_whGreen, 'Олень(2)', _X, _Y, 0xFFFF9D00)
+                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅ(2)', _X, _Y, 0xFFFF9D00)
                             elseif health == 30 then
-                                renderFontDrawText(font_whGreen, 'Олень(1)', _X, _Y, 0xFFFF0000)
+                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅ(1)', _X, _Y, 0xFFFF0000)
                             end
                         elseif modelid == MODEL_BEAR then
                             if health == 100 then
-                                renderFontDrawText(font_whGreen, 'Медведь(7)', _X, _Y, 0xFF00FF00)
+                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(7)', _X, _Y, 0xFF00FF00)
                             elseif health == 85 then
-                                renderFontDrawText(font_whGreen, 'Медведь(6)', _X, _Y, 0xFF55E100)
+                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(6)', _X, _Y, 0xFF55E100)
                             elseif health == 70 then
-                                renderFontDrawText(font_whGreen, 'Медведь(5)', _X, _Y, 0xFFAAC300)
+                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(5)', _X, _Y, 0xFFAAC300)
                             elseif health == 55 then
-                                renderFontDrawText(font_whGreen, 'Медведь(4)', _X, _Y, 0xFFFFA500)
+                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(4)', _X, _Y, 0xFFFFA500)
                             elseif health == 40 then
-                                renderFontDrawText(font_whGreen, 'Медведь(3)', _X, _Y, 0xFFFF6E00)
+                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(3)', _X, _Y, 0xFFFF6E00)
                             elseif health == 25 then
-                                renderFontDrawText(font_whGreen, 'Медведь(2)', _X, _Y, 0xFFFF3700)
+                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(2)', _X, _Y, 0xFFFF3700)
                             elseif health == 10 then
-                                renderFontDrawText(font_whGreen, 'Медведь(1)', _X, _Y, 0xFFFF0000)
+                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(1)', _X, _Y, 0xFFFF0000)
                             end
                         end
-                        -- линия до животин
+                        -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                         if Ohota.LineAnimals.v and not shouldRenderAimExtras and okHead then
                             local sw, sh = getScreenResolution()
                             renderDrawLine(sw/2, sh/2, hxx, hyy, 1.0, 0xFFFFFF00)
                         end
                     end
 
-                    -- линия до игроков
+                    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
                     local isPlayer = false
                     local resPid, pid = sampGetPlayerIdByCharHandle(value)
                     if resPid then isPlayer = true end
                     if okScreen and isPlayer and (Ohota.DistPlayers.v > 0 and dist <= Ohota.DistPlayers.v) then
                         if Ohota.WhPlayers.v then
-                            renderFontDrawText(font_whGreen, "Игрок", _X, _Y, 0xFF00CCFF)
+                            renderFontDrawText(font_whGreen, "пїЅпїЅпїЅпїЅпїЅ", _X, _Y, 0xFF00CCFF)
                         end
                         if Ohota.LinePlayers.v and not shouldRenderAimExtras and okHead then
                             local sw, sh = getScreenResolution()
@@ -466,12 +483,12 @@ function main()
                         end
                     end
 
-                    -- точка на голове
+                    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
                     if Ohota.HeadDot.v and okHead then
                         renderDrawBoxWithBorder(hxx, hyy, 3, 3, 0xFF00FF00, 1, 0xFF00FF00)
                     end
 
-                    -- дистанция (только для активных категорий)
+                    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
                     if Ohota.ShowDistance.v then
                         local _showDist = false
                         if isAnimal and Ohota.Wh.v and (Ohota.DistAnimals.v > 0 and dist <= Ohota.DistAnimals.v) then
@@ -480,14 +497,14 @@ function main()
                             _showDist = true
                         end
                         if _showDist and okScreen then
-                            renderFontDrawText(font_whGreen, string.format("%.0f м", dist), _X, _Y - 10, 0xFFFFFFFF)
+                            renderFontDrawText(font_whGreen, string.format("%.0f пїЅ", dist), _X, _Y - 10, 0xFFFFFFFF)
                         end
                     end
                 end
             end
         end
 
-        -- Уборка призраков туш (20 с без движения)
+        -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (20 пїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
         if Ohota.Clear.v then
             if not animalLastState then animalLastState = {} end
             for _, value in pairs(getAllChars()) do
@@ -518,7 +535,7 @@ function main()
             end
         end
 
-        -- Прицел (аим): раздельно животные / игроки
+        -- пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ): пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ / пїЅпїЅпїЅпїЅпїЅпїЅ
         local camMode = readMemory(0xB6F1A8, 1, false)
         local aiming = (camMode == 53 or camMode == 55 or camMode == 7 or camMode == 8)
         local aimAnimals = Ohota.Aim.v
@@ -531,7 +548,7 @@ function main()
             local distance = 0.025 * coeficent
             local width_crosshair, heigth_crosshair = convertGameScreenCoordsToWindowScreenCoords(339.1, 179.1)
 
-            -- квадратик зоны прицела
+            -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             renderDrawBoxWithBorder(width_crosshair-(distance/2), heigth_crosshair-(distance/2), distance, distance, nil, 2, 0xFF5AE053)
 
             local candidates = {}
@@ -547,7 +564,7 @@ function main()
                         local r, p = sampGetPlayerIdByCharHandle(v)
                         if r then isPl = true end
                     end
-                    -- фильтр по типу цели
+                    -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
                     if (aimAnimals and isAn) or (aimPlayers and isPl) then
                         local x, y, z = GetBodyPartCoordinates(8, v)
                         local wposX, wposY = convert3DCoordsToScreen(x, y, z)
@@ -604,20 +621,19 @@ function main()
             Ohota.LastTargetHandle = Ohota.AimHandle
         end
 
-        -- курсор
+        -- пїЅпїЅпїЅпїЅпїЅпїЅ
         if not Menu.windowState.v then
-            imgui.ShowCursor = false
+            setCursorShown(false)
         else
-            imgui.ShowCursor = true
+            setCursorShown(true)
         end
         ::continue::
     end
 end
 
--- Меню
+-- пїЅпїЅпїЅпїЅ
 function imgui.OnDrawFrame()
     if not renderAllowed() then
-        imgui.ShowCursor = false
         return
     end
     local sw, sh = getScreenResolution()
@@ -629,72 +645,72 @@ function imgui.OnDrawFrame()
         imgui.SetNextWindowSize(ImVec2(mainWidth, mainHeight), imgui.Cond.FirstUseEver)
         imgui.SetNextWindowPos(ImVec2(sw / 2, sh / 2), imgui.Cond.FirstUseEver, ImVec2(0.5, 0.5))
 
-        imgui.Begin(u8'Охота в лесу', Menu.windowState, imgui.WindowFlags.NoResize)
+        imgui.Begin(u8'пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ', Menu.windowState, imgui.WindowFlags.NoResize)
             imgui.TextColored(imgui.ImVec4(0.30, 0.90, 0.35, 1.0), u8"Ohota By YaroRage")
             imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.60, 0.60, 0.60, 1.0))
-            imgui.Text(u8"Охота в лесу - ESP, прицел, автокликер Y")
+            imgui.Text(u8"пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ - ESP, пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Y")
             imgui.PopStyleColor(1)
             imgui.Separator()
 
-            -- Охота / ESP
-            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- Охота / ESP ---")
-            if imgui.Checkbox(u8"WH животных", Ohota.Wh) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"Подсветка живых животных с количеством хитов (3-1 / 7-1)") end
+            -- пїЅпїЅпїЅпїЅпїЅ / ESP
+            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- пїЅпїЅпїЅпїЅпїЅ / ESP ---")
+            if imgui.Checkbox(u8"WH пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.Wh) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (3-1 / 7-1)") end
 
-            if imgui.Checkbox(u8"WH туш", Ohota.EspTush) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"Подсветка призраков туш (рамка + линия + дистанция)") end
+            if imgui.Checkbox(u8"WH пїЅпїЅпїЅ", Ohota.EspTush) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)") end
 
-            if imgui.Checkbox(u8"WH машин", Ohota.EspCars) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"Подсветка машин вокруг (рамка + линия + дистанция)") end
+            if imgui.Checkbox(u8"WH пїЅпїЅпїЅпїЅпїЅ", Ohota.EspCars) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)") end
 
-            if imgui.Checkbox(u8"WH игроков", Ohota.WhPlayers) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"Показывает надпись Игрок над игроком") end
+            if imgui.Checkbox(u8"WH пїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.WhPlayers) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ") end
 
             imgui.Separator()
-            imgui.TextColored(imgui.ImVec4(0.80, 0.80, 0.80, 1.0), u8"Линии до цели:")
+            imgui.TextColored(imgui.ImVec4(0.80, 0.80, 0.80, 1.0), u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ:")
 
-            if imgui.Checkbox(u8"Линии до животных", Ohota.LineAnimals) then end
-            if imgui.Checkbox(u8"Линии до машин", Ohota.LineCars) then end
-            if imgui.Checkbox(u8"Линии до игроков", Ohota.LinePlayers) then end
+            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.LineAnimals) then end
+            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ", Ohota.LineCars) then end
+            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.LinePlayers) then end
 
-            if imgui.Checkbox(u8"Точка на голове", Ohota.HeadDot) then end
-            if imgui.Checkbox(u8"Дистанция", Ohota.ShowDistance) then end
+            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.HeadDot) then end
+            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.ShowDistance) then end
             imgui.Separator()
-            imgui.TextColored(imgui.ImVec4(0.80, 0.80, 0.80, 1.0), u8"Дальность (0 = выкл):")
-            if imgui.SliderFloat(u8"Животные, м", Ohota.DistAnimals, 0.0, 500.0, '%.0f') then Ohota.DistAnimals.v = math.floor(Ohota.DistAnimals.v + 0.5) end
-            if imgui.SliderFloat(u8"Машины, м", Ohota.DistCars, 0.0, 500.0, '%.0f') then Ohota.DistCars.v = math.floor(Ohota.DistCars.v + 0.5) end
-            if imgui.SliderFloat(u8"Игроки, м", Ohota.DistPlayers, 0.0, 500.0, '%.0f') then Ohota.DistPlayers.v = math.floor(Ohota.DistPlayers.v + 0.5) end
-            imgui.Separator()
-
-            -- Прицел
-            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- Прицел ---")
-            if imgui.Checkbox(u8"Аим по животным", Ohota.Aim) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"Наводится только на животных (олень/медведь)") end
-
-            if imgui.Checkbox(u8"Аим по игрокам", Ohota.AimPlayers) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"Наводится только на игроков") end
+            imgui.TextColored(imgui.ImVec4(0.80, 0.80, 0.80, 1.0), u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (0 = пїЅпїЅпїЅпїЅ):")
+            if imgui.SliderFloat(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ", Ohota.DistAnimals, 0.0, 500.0, '%.0f') then Ohota.DistAnimals.v = math.floor(Ohota.DistAnimals.v + 0.5) end
+            if imgui.SliderFloat(u8"пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ", Ohota.DistCars, 0.0, 500.0, '%.0f') then Ohota.DistCars.v = math.floor(Ohota.DistCars.v + 0.5) end
+            if imgui.SliderFloat(u8"пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ", Ohota.DistPlayers, 0.0, 500.0, '%.0f') then Ohota.DistPlayers.v = math.floor(Ohota.DistPlayers.v + 0.5) end
             imgui.Separator()
 
-            -- Уборка
-            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- Уборка ---")
-            if imgui.Checkbox(u8"Автокликер Y", Ohota.AutoY) then
+            -- пїЅпїЅпїЅпїЅпїЅпїЅ
+            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- пїЅпїЅпїЅпїЅпїЅпїЅ ---")
+            if imgui.Checkbox(u8"пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.Aim) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)") end
+
+            if imgui.Checkbox(u8"пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.AimPlayers) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ") end
+            imgui.Separator()
+
+            -- пїЅпїЅпїЅпїЅпїЅпїЅ
+            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- пїЅпїЅпїЅпїЅпїЅпїЅ ---")
+            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Y", Ohota.AutoY) then
                 if not Ohota.AutoY.v then
                     Ohota.AutoY_Clicker:Stop()
                 end
             end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"Автоматический клик по клавише Y (для охоты)") end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ Y (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ)") end
 
-            if imgui.Checkbox(u8"Убирать призраков туш (20 с)", Ohota.Clear) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"Удаляет туши животных, которые 20 секунд не двигаются") end
+            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (20 пїЅ)", Ohota.Clear) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ 20 пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ") end
 
-            if imgui.Checkbox(u8"Убирать деревья вокруг", Ohota.ClearFol) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"Визуально убирает деревья/кусты в радиусе вокруг персонажа") end
+            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.ClearFol) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ") end
 
-            if imgui.Checkbox(u8"Отладка моделей объектов", Ohota.DbgObjs) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"Показывает модели объектов вокруг на экране и пишет их в les_dbg.txt (для поиска верных ID деревьев)") end
+            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.DbgObjs) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅ les_dbg.txt (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ID пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)") end
 
             imgui.Separator()
-            imgui.TextColored(imgui.ImVec4(0.55, 0.55, 0.55, 1.0), u8"/les - меню, /lesr - перезапуск")
+            imgui.TextColored(imgui.ImVec4(0.55, 0.55, 0.55, 1.0), u8"/les - пїЅпїЅпїЅпїЅ, /lesr - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")
         imgui.End()
     end
 end
@@ -763,7 +779,7 @@ function RGBA(r, g, b, a)
     return r, g, b, a
 end
 
--- Рисует рамку вокруг персонажа по экранным координатам
+-- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 function drawCharBox(handle, color)
     if not doesCharExist(handle) then return end
     local hx, hy, hz = GetBodyPartCoordinates(8, handle)
@@ -780,7 +796,7 @@ function drawCharBox(handle, color)
     renderDrawBoxWithBorder(x0, y0, w, h, color, 1, color)
 end
 
--- WH туш: рамка + линия + дистанция
+-- WH пїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 function renderEspTush()
     if type(getAllChars) ~= "function" then return end
     for _, v in pairs(getAllChars()) do
@@ -793,9 +809,9 @@ function renderEspTush()
                     drawCharBox(v, 0xFFFF0000)
                     local px, py, pz = getCharCoordinates(PLAYER_PED)
                     local d = math.sqrt((lx-px)^2 + (ly-py)^2 + (lz-pz)^2)
-                    renderFontDrawText(font_whGreen, 'Туша', X, Y, 0xFFFF0000)
-                    renderFontDrawText(font_whGreen, string.format("%.0f м", d), X, Y - 10, 0xFFFFAAAA)
-                    -- линия от перекрестья до туши
+                    renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅ', X, Y, 0xFFFF0000)
+                    renderFontDrawText(font_whGreen, string.format("%.0f пїЅ", d), X, Y - 10, 0xFFFFAAAA)
+                    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ
                     local sw, sh = getScreenResolution()
                     local hx, hy, hz = GetBodyPartCoordinates(8, v)
                     local hX, hY = convert3DCoordsToScreen(hx, hy, hz)
@@ -808,7 +824,7 @@ function renderEspTush()
     end
 end
 
--- WH машин через память (getCarPointer + матрица позиции)
+-- WH пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (getCarPointer + пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 local _vehPosOk = (type(getCarPointer) == "function")
 function getVehiclePosByMemory(veh)
     if not _vehPosOk then return nil end
@@ -840,8 +856,8 @@ function renderEspCars()
                     local px, py, pz = getCharCoordinates(PLAYER_PED)
                     local d = math.sqrt((vvx-px)^2 + (vvy-py)^2 + (vvz-pz)^2)
                     if Ohota.DistCars.v > 0 and d <= Ohota.DistCars.v then
-                        renderFontDrawText(font_whGreen, 'Машина', VX, VY, 0xFF00CCFF)
-                        renderFontDrawText(font_whGreen, string.format("%.0f м", d), VX, VY - 10, 0xFFFFFFFF)
+                        renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅ', VX, VY, 0xFF00CCFF)
+                        renderFontDrawText(font_whGreen, string.format("%.0f пїЅ", d), VX, VY - 10, 0xFFFFFFFF)
                         if Ohota.LineCars.v then
                             local sw, sh = getScreenResolution()
                             renderDrawLine(sw/2, sh/2, VX, VY, 1.0, 0xFF00CCFF)
@@ -853,7 +869,7 @@ function renderEspCars()
     end
 end
 
--- Отрисовка отладки: бокс + линия + ID на каждом объекте в радиусе
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅ + ID пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 function dbgObjectsRender()
     local sw, sh = getScreenResolution()
     for _, o in ipairs(_dbgObjs) do
@@ -880,11 +896,11 @@ function dbgObjectsRender()
     end
 end
 
--- Деревья/кусты: в GTA растительность хранится в пуле ОБЪЕКТОВ (не зданий),
--- поэтому RPC 43 их не удаляет. НЕ удаляем объекты и НЕ телепортируем далеко
--- (риск краша) — прячем каждое дерево, погружая его на 500 м вниз НА ТОМ ЖЕ
--- МЕСТЕ (та же ячейка стриминга, ничего не ломаем). Координаты запоминаем,
--- чтобы вернуть деревья при выключении. Серверные объекты не трогаем.
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ: пїЅ GTA пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ),
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ RPC 43 пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+-- (пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ) пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅ 500 пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ пїЅпїЅ
+-- пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ). пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ,
+-- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 local TREE_MODELS = {}
 for _i = 613, 820 do
     TREE_MODELS[#TREE_MODELS + 1] = _i
@@ -896,15 +912,15 @@ local FOLIAGE_SINK = 500.0
 local FOLIAGE_MAX_PER_PASS = 20
 local FOLIAGE_MAX_RESTORE_PER_PASS = 25
 local _folBldPosX, _folBldPosY, _folBldPosZ = nil, nil, nil
-local _folBldStep = 0        -- индекс текущей модели в пошаговом проходе (0 = не идёт)
-local FOLIAGE_RPC_PER_STEP = 5   -- сколько моделей за один вызов (без пачек в кадре)
+local _folBldStep = 0        -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (0 = пїЅпїЅ пїЅпїЅпїЅ)
+local FOLIAGE_RPC_PER_STEP = 5   -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ)
 
 local _objHideOk = (type(getAllObjects) == "function" and type(setObjectCoordinates) == "function"
                     and type(getObjectModel) == "function" and type(getObjectCoordinates) == "function")
 
--- true = объект серверный (не трогаем), false = игровой (можно прятать).
--- Натив возвращает -1/0 или false для игровых объектов; -1 в Lua — истина,
--- поэтому проверяем явно.
+-- true = пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ), false = пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ).
+-- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ -1/0 пїЅпїЅпїЅ false пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ; -1 пїЅ Lua пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ,
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ.
 local function isServerObject(obj)
     if not sampGetObjectSampIdByHandle then return false end
     local ok, r1, r2 = pcall(sampGetObjectSampIdByHandle, obj)
@@ -915,7 +931,7 @@ local function isServerObject(obj)
     return false
 end
 
-_folHidden = {}   -- obj -> {x, y, z} (оригинальные координаты)
+_folHidden = {}   -- obj -> {x, y, z} (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 local _folCheckAt = 0
 
 function applyFoliageClear()
@@ -942,7 +958,7 @@ function applyFoliageClear()
             end
         end
     end
-    -- редкая чистка устаревших записей (дерево перестримилось = старый хэндл)
+    -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ = пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ)
     if (os.clock() - _folCheckAt) > 10 then
         _folCheckAt = os.clock()
         for h in pairs(_folHidden) do
@@ -966,15 +982,15 @@ function restoreFoliage()
     end
 end
 
--- Статические деревья/кусты (building-сущности карты) — только через RemoveBuildingForPlayer.
--- RPC 43 уходит клиенту локально и не трогает сервер. Чтобы НЕ лавиннились RPC при
--- частом вкл/выкл и НЕ сыпались пачками в один кадр (samp.dll+0x12843):
---  - полный проход выполняется только когда игрок отошёл > 150 м от точки прошлого прохода;
---  - модели отдаются по FOLIAGE_RPC_PER_STEP штуки за вызов из главного цикла (5/тик).
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ (building-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ) пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ RemoveBuildingForPlayer.
+-- RPC 43 пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ RPC пїЅпїЅпїЅ
+-- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ/пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ (samp.dll+0x12843):
+--  - пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ > 150 пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ;
+--  - пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ FOLIAGE_RPC_PER_STEP пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (5/пїЅпїЅпїЅ).
 function sendRemoveBuildingRPCs()
     if type(raknetEmulRpcReceiveBitStream) ~= "function" then return end
     local px, py, pz = getCharCoordinates(PLAYER_PED)
-    -- новый проход начинает только если далеко от прошлой точки (рапид-вкл/выкл не перемещает)
+    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅ/пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
     if _folBldStep == 0 then
         if _folBldPosX ~= nil then
             local dx = px - _folBldPosX
@@ -1004,7 +1020,7 @@ function sendRemoveBuildingRPCs()
     end
 end
 
--- Проба: убрать постройку с указанной моделью вокруг игрока (одним RPC 43).
+-- пїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ RPC 43).
 function probeBuilding(id)
     if type(raknetEmulRpcReceiveBitStream) ~= "function" then return end
     local px, py, pz = getCharCoordinates(PLAYER_PED)
@@ -1019,7 +1035,7 @@ function probeBuilding(id)
     dbg('PROBE id=' .. id)
 end
 
--- Одна модель за вызов: удаляет постройки только этой модели вокруг игрока.
+-- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.
 function sweepOne(id)
     if type(raknetEmulRpcReceiveBitStream) ~= "function" then return end
     local px, py, pz = getCharCoordinates(PLAYER_PED)
@@ -1034,12 +1050,12 @@ function sweepOne(id)
     dbg('SWEEP id=' .. id)
 end
 
--- Отладка: показать модели объектов вокруг (в реальном времени)
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 function dbgObjectsScan()
     _dbgScreen = {}
     _dbgObjs = {}
     if not _objHideOk then
-        _dbgScreen[1] = 'нет API объектов (getAllObjects недоступен)'
+        _dbgScreen[1] = 'пїЅпїЅпїЅ API пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (getAllObjects пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)'
         return
     end
     local px, py, pz = getCharCoordinates(PLAYER_PED)
@@ -1073,7 +1089,7 @@ function dbgObjectsScan()
             end
         end
     end
-    _dbgScreen[1] = string.format('Объектов всего: %d | в радиусе: %d | по ID дерева: %d | скрыто: %d | серверных: %d',
+    _dbgScreen[1] = string.format('пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ: %d | пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ: %d | пїЅпїЅ ID пїЅпїЅпїЅпїЅпїЅпїЅ: %d | пїЅпїЅпїЅпїЅпїЅпїЅ: %d | пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: %d',
         total, withinRad, treeById, hiddenNow, serverCnt)
     local sorted = {}
     for m, c in pairs(counts) do
@@ -1082,9 +1098,9 @@ function dbgObjectsScan()
                 n = c.n,
                 r = c.rad,
                 s = string.format('ID %d: x%d%s%s%s', m, c.n,
-                    (c.rad > 0 and (' в радиус=' .. c.rad) or ''),
-                    (c.s > 0 and (' серв=' .. c.s) or ''),
-                    (c.hid > 0 and (' скрыто=' .. c.hid) or ''))
+                    (c.rad > 0 and (' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ=' .. c.rad) or ''),
+                    (c.s > 0 and (' пїЅпїЅпїЅпїЅ=' .. c.s) or ''),
+                    (c.hid > 0 and (' пїЅпїЅпїЅпїЅпїЅпїЅ=' .. c.hid) or ''))
             }
         end
     end
@@ -1099,10 +1115,10 @@ function dbgObjectsScan()
         _shown = _shown + 1
     end
     if #sorted > _shown then
-        _dbgScreen[#_dbgScreen + 1] = '... итого моделей ' .. #sorted .. ' (полный список в les_dbg.txt)'
+        _dbgScreen[#_dbgScreen + 1] = '... пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ ' .. #sorted .. ' (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ les_dbg.txt)'
     end
     if #_dbgScreen < 2 then
-        _dbgScreen[#_dbgScreen + 1] = 'рядом объектов нет'
+        _dbgScreen[#_dbgScreen + 1] = 'пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ'
     end
 end
 

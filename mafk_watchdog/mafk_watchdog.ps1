@@ -105,7 +105,7 @@ while($true){
       Start-Sleep -Seconds 2
     }
     Write-Log 'TRIGGER: after crash -> autostart'
-    Start-Autostart
+    & $ACTION -LogFile $LOGFILE
     Start-Sleep -Seconds 5
     continue
   }
