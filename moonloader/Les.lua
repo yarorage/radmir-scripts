@@ -1,4 +1,4 @@
-﻿require "lib.moonloader"
+require "lib.moonloader"
 require "lib.sampfuncs"
 
 -- Include
@@ -27,10 +27,10 @@ local function game_has_focus()
 end
 
 
--- пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+-- ����� (��������������� ���������)
 imgui.GetIO().Fonts:Clear()
 local _fontCands = {
-    'C:\\Windows\\Fonts\\segoeui.ttf',   -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
+    'C:\\Windows\\Fonts\\segoeui.ttf',   -- ���������, ������ ����
     'C:\\Windows\\Fonts\\arial.ttf',
     getFolderPath(0x14) .. '\\Arial.ttf',
 }
@@ -47,14 +47,14 @@ else
     imgui.GetIO().Fonts:AddFontDefault()
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅ
+-- ������
 local ImVec2 = imgui.ImVec2
 local ImVec4 = imgui.ImVec4
 local ImGuiStyle = imgui.GetStyle()
 local ImGuiColors = ImGuiStyle.Colors
 local ImGuiClr = imgui.Col
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+-- ���������
 local waitDownClickY = 300
 local waitWaitClickY = 600
 
@@ -73,16 +73,16 @@ end
 local AutoYLastSetFill = 0
 local AutoYPresses = 0
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ)
+-- ������� ������� �������� (��������� �� �������� �����)
 local _dbgScanAt = 0
 local _dbgScreen = {}
-local _dbgObjs = {}   -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: {m=, x=, y=, z=, s=}
+local _dbgObjs = {}   -- ������� � ������� ��� ���������: {m=, x=, y=, z=, s=}
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ).
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ-IDs пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ (пїЅпїЅ. dbgObjectsScan), пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
-local _treeModels = {}        -- model -> true  (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ)
-local _tgList = {}            -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ {m=}
-local _nearModels = {}        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: {m=model, n=пїЅпїЅпїЅ-пїЅпїЅ}
+-- ������������ ����� ������� ��� ������ (�������/�����/�����/��������� - ��� ������� � ����).
+-- ����������� ������-IDs �� ������ ������� ���� (��. dbgObjectsScan), � �� ������ �������.
+local _treeModels = {}        -- model -> true  (��������� ��� ������)
+local _tgList = {}            -- ������������� ������ ��������� {m=}
+local _nearModels = {}        -- ��������� ��������� ������ ������: {m=model, n=���-��}
 local _nearModelsAt = 0
 
 
@@ -108,7 +108,7 @@ local _bldMemOk = pcall(function() return ffi.cast('uint32_t*', 0xA9B0C8) end)
 local _treeBuildingIds = {}
 local _treeBldScanAt = 0
 
--- пїЅпїЅпїЅпїЅпїЅ "пїЅпїЅпїЅпїЅпїЅпїЅ"
+-- ����� "������"
 local Clicker = {}
 function Clicker:new(Button, Sleep)
     local obj = {}
@@ -143,47 +143,47 @@ end
 local Menu = {
     windowState = imgui.ImBool(false);
 }
--- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+-- ������ ��������
 local MODEL_DEER = 15555
 local MODEL_BEAR = 15556
 
 local Ohota = {
-    -- пїЅпїЅпїЅпїЅпїЅ / WH
-    Wh = imgui.ImBool(false),          -- WH пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
-    WhPlayers = imgui.ImBool(false),   -- WH пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
-    HeadDot = imgui.ImBool(false),     -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
-    ShowDistance = imgui.ImBool(false),-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
-    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (0 = пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
-    DistAnimals = imgui.ImFloat(250.0),-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
-    DistCars    = imgui.ImFloat(0.0),  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅ)
-    DistPlayers = imgui.ImFloat(0.0),  -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅ)
-    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
-    LineAnimals = imgui.ImBool(false), -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
-    LineCars = imgui.ImBool(false),    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
-    LinePlayers = imgui.ImBool(false), -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    -- ����� / WH
+    Wh = imgui.ImBool(false),          -- WH ����� ��������
+    WhPlayers = imgui.ImBool(false),   -- WH ������� (�������)
+    HeadDot = imgui.ImBool(false),     -- ����� �� ������
+    ShowDistance = imgui.ImBool(false),-- ���������
+    -- ��������� ����������� (0 = ���������)
+    DistAnimals = imgui.ImFloat(250.0),-- ��������� �� ��������
+    DistCars    = imgui.ImFloat(0.0),  -- ��������� �� ������� (����)
+    DistPlayers = imgui.ImFloat(0.0),  -- ��������� �� ������� (����)
+    -- ����� ��������
+    LineAnimals = imgui.ImBool(false), -- ����� �� ����� ��������
+    LineCars = imgui.ImBool(false),    -- ����� �� �����
+    LinePlayers = imgui.ImBool(false), -- ����� �� �������
     LineCorpses = imgui.ImBool(false), -- ????? ?? ????
     -- ESP
-    EspTush = imgui.ImBool(false),     -- WH пїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
-    EspCars = imgui.ImBool(false),     -- WH пїЅпїЅпїЅпїЅпїЅ
-    -- пїЅпїЅпїЅпїЅпїЅпїЅ
-    Aim = imgui.ImBool(false),         -- пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
-    AimPlayers = imgui.ImBool(false),  -- пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    EspTush = imgui.ImBool(false),     -- WH ��� (������� ��������)
+    EspCars = imgui.ImBool(false),     -- WH �����
+    -- ������
+    Aim = imgui.ImBool(false),         -- ��� �� ��������
+    AimPlayers = imgui.ImBool(false),  -- ��� �� �������
     Aim_silent = imgui.ImBool(false),
     AimHandle = nil,
-    -- пїЅпїЅпїЅпїЅпїЅпїЅ
+    -- ������
     AutoY = imgui.ImBool(false),
     AutoY_Clicker = Clicker:new(vkeys.VK_Y, waitWaitClickY),
-    Clear = imgui.ImBool(false),       -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (20 пїЅ)
-    ClearFol = imgui.ImBool(false),    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
-    DbgObjs = imgui.ImBool(false),     -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+    Clear = imgui.ImBool(false),       -- ������� ��������� ��� (20 �)
+    ClearFol = imgui.ImBool(false),    -- ������� �������/������ ������
+    DbgObjs = imgui.ImBool(false),     -- ������� ������� �������� �� ������
     FolApplied = false,
     FolBldTimer = 0,
     FirstApplied = false,
     LastTargetHandle = nil,
 }
 
--- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ CEF/D3D-пїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
-_devBarrier = 0.0   -- пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+-- ������ �� CEF/D3D-������: �� ������ �������, ���� ���������� ������������.
+_devBarrier = 0.0   -- �����, ������ �������� ������ ��������
 
 function renderAllowed()
     return os.clock() >= _devBarrier
@@ -197,7 +197,7 @@ function onScriptD3DDeviceRestore()
     _devBarrier = os.clock() + 0.6
 end
 
--- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
+-- ��� ������ ��������� �� ������� �������� ����
 Ohota.Wh.v = false
 Ohota.WhPlayers.v = false
 Ohota.HeadDot.v = false
@@ -230,7 +230,7 @@ function imgui_Menu_windowState(arg)
     end
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
+-- ������� ����
 function main()
     if not isSampLoaded() or not isSampfuncsLoaded then return end
     while not isSampAvailable() do wait(100) end
@@ -242,10 +242,10 @@ function main()
 
     local okY, yw = pcall(require, "ywelcome")
     if okY and type(yw) == "function" then
-        yw("Les", "пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ L 1 пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ L / /les")
+        yw("Les", "����� � ����. ����: ��������� L 1 ���, ������� - ������� L / /les")
     end
 
-    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ L: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1 пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    -- ���������� ���� �� L: �������� - ��������� 1 ���, �������� - �������
     local VK_L = 0x4C
     lua_thread.create(function()
         local prev_down = false
@@ -257,21 +257,21 @@ function main()
             local menuOpen = Menu.windowState.v
 
             if down and not prev_down then
-                -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                -- ������ �������
                 if menuOpen then
-                    -- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ -> пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                    -- ���� ������� -> ������� ����� �� �������
                     if game_has_focus() and not sampIsChatInputActive() and not sampIsDialogActive() then
                         imgui_Menu_windowState()
                     end
                     fired = true
                     hold_start = 0
                 else
-                    -- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ -> пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                    -- ���� ������� -> ������ ��������� ��� ��������
                     hold_start = os.clock()
                     fired = false
                 end
             elseif down and prev_down then
-                -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+                -- ��������� ������
                 if not menuOpen and not fired and hold_start > 0 and (os.clock() - hold_start) >= 0.5 then
                     fired = true
                     if game_has_focus() and not sampIsChatInputActive() and not sampIsDialogActive() then
@@ -279,7 +279,7 @@ function main()
                     end
                 end
             else
-                -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                -- ������ ��������
                 hold_start = 0
                 fired = false
             end
@@ -287,32 +287,32 @@ function main()
         end
     end)
 
-    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
-    -- пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ (пїЅпїЅ. dbgObjectsScan). пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (F6-F9) пїЅпїЅпїЅпїЅпїЅпїЅпїЅ:
-    -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (samp.dll+0x12843 / 0x4702683).
+    -- ������������ ������ ������� ��������/�������� ��� ������ ����������
+    -- �� ������� ���� (��. dbgObjectsScan). ������� ����� (F6-F9) �������:
+    -- ������ ������� ������� ����� ������ (samp.dll+0x12843 / 0x4702683).
 
-    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    -- ����� ��� ����� ��������
     font_whGreen = renderCreateFont('Arial', 7, 13)
 
-    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    -- ����� ��� ������� ��������
     font_dbg = renderCreateFont('Arial', 7, 13)
 
     imgui.Process = true
     imgui.ShowCursor = false
 
-    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    -- ����������� �������� ��� ������, ���� ��������
     if Ohota.ClearFol.v then
         pcall(applyFoliageClear)
     end
 
     while true do
         wait(0)
-        -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ CEF/D3D-пїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ,
-        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (ESP/пїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ), пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
-        -- (setObjectCoordinates/RPC43 пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ D3D-пїЅпїЅпїЅпїЅпїЅпїЅ).
+        -- ������ �� CEF/D3D-������: ���� ���������� ������������/�����������������,
+        -- ��������� ���������� � ������� (ESP/������/�����), � ��������� ������
+        -- (setObjectCoordinates/RPC43 ������ �� ������������� D3D-������).
         if not renderAllowed() then goto continue end
 
-        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ESP (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+        -- �������� ������ ESP (���������)
         if Ohota.EspTush.v and type(renderEspTush) == "function" then pcall(renderEspTush) end
         if Ohota.EspCars.v and type(renderEspCars) == "function" then pcall(renderEspCars) end
         if Ohota.ClearFol.v then
@@ -333,19 +333,19 @@ function main()
             end
         end
 
-        -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅ 1.5 c)
+        -- ������� ������� �������� (��� � 1.5 c)
         if Ohota.DbgObjs.v then
             if (os.clock() - _dbgScanAt) > 1.5 then
                 _dbgScanAt = os.clock()
-                dbg('--- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ---')
+                dbg('--- ���� �������� ������ ---')
                 pcall(dbgObjectsScan)
                 if _bldMemOk and #_treeBuildingIds == 0 then
                     pcall(scanTreeBuildings)
                 end
             end
             pcall(dbgObjectsRender)
-            local _bldInfo = _bldMemOk and ('пїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: ' .. #_treeBuildingIds) or 'ffi memory пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ'
-            renderFontDrawText(font_dbg, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: ' .. treeCount() .. ' | ' .. _bldInfo, 12, 105, 0xFFFF66FF)
+            local _bldInfo = _bldMemOk and ('������-����������: ' .. #_treeBuildingIds) or 'ffi memory ����������'
+            renderFontDrawText(font_dbg, '��������: ' .. treeCount() .. ' | ' .. _bldInfo, 12, 105, 0xFFFF66FF)
             if #_treeBuildingIds > 0 then
                 local _max = math.min(#_treeBuildingIds, 12)
                 for _bi = 1, _max do
@@ -354,7 +354,7 @@ function main()
                     renderFontDrawText(font_dbg, _txt, 12, 118 + _bi * 11, 0xFF00FF00)
                 end
                 if #_treeBuildingIds > _max then
-                    renderFontDrawText(font_dbg, '  ...+' .. (#_treeBuildingIds - _max) .. ' (пїЅпїЅ. les_dbg.txt)', 12, 118 + (_max+1) * 11, 0xFF00FF00)
+                    renderFontDrawText(font_dbg, '  ...+' .. (#_treeBuildingIds - _max) .. ' (��. les_dbg.txt)', 12, 118 + (_max+1) * 11, 0xFF00FF00)
                 end
             end
             local _sw, _sh = getScreenResolution()
@@ -363,7 +363,7 @@ function main()
             end
         end
 
-        -- WH пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅ
+        -- WH ����� �������� + ������� + �����
         if Ohota.Wh.v or Ohota.LineAnimals.v or Ohota.WhPlayers.v or Ohota.LinePlayers.v or Ohota.HeadDot.v or Ohota.ShowDistance.v then
             for pairsId, value in pairs(getAllChars()) do
                 if doesCharExist(value) and value ~= PLAYER_PED and isCharOnScreen(value) and getCharHealth(value) > 0 then
@@ -383,53 +383,53 @@ function main()
                     local isAnimal = (modelid == MODEL_DEER or modelid == MODEL_BEAR)
                     local shouldRenderAimExtras = (doesCharExist(Ohota.AimHandle) and Ohota.AimHandle == value)
 
-                    -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ NaN/пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+                    -- ������ �� NaN/�������� ��������� (����� ���� �������)
                     local okScreen = (_X ~= nil and _Y ~= nil and _X == _X and _Y == _Y
                                       and _X > -50 and _X < 8050 and _Y > -50 and _Y < 6050)
                     local okHead = (hxx ~= nil and hyy ~= nil and hxx == hxx and hyy == hyy
                                     and hxx > -50 and hxx < 8050 and hyy > -50 and hyy < 6050)
 
-                    -- WH пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                    -- WH �������
                     if Ohota.Wh.v and isAnimal and okScreen and (Ohota.DistAnimals.v > 0 and dist <= Ohota.DistAnimals.v) then
                         if modelid == MODEL_DEER then
                             if health == 100 then
-                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅ(3)', _X, _Y, 0xFF00FF00)
+                                renderFontDrawText(font_whGreen, '�����(3)', _X, _Y, 0xFF00FF00)
                             elseif health == 65 then
-                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅ(2)', _X, _Y, 0xFFFF9D00)
+                                renderFontDrawText(font_whGreen, '�����(2)', _X, _Y, 0xFFFF9D00)
                             elseif health == 30 then
-                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅ(1)', _X, _Y, 0xFFFF0000)
+                                renderFontDrawText(font_whGreen, '�����(1)', _X, _Y, 0xFFFF0000)
                             end
                         elseif modelid == MODEL_BEAR then
                             if health == 100 then
-                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(7)', _X, _Y, 0xFF00FF00)
+                                renderFontDrawText(font_whGreen, '�������(7)', _X, _Y, 0xFF00FF00)
                             elseif health == 85 then
-                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(6)', _X, _Y, 0xFF55E100)
+                                renderFontDrawText(font_whGreen, '�������(6)', _X, _Y, 0xFF55E100)
                             elseif health == 70 then
-                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(5)', _X, _Y, 0xFFAAC300)
+                                renderFontDrawText(font_whGreen, '�������(5)', _X, _Y, 0xFFAAC300)
                             elseif health == 55 then
-                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(4)', _X, _Y, 0xFFFFA500)
+                                renderFontDrawText(font_whGreen, '�������(4)', _X, _Y, 0xFFFFA500)
                             elseif health == 40 then
-                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(3)', _X, _Y, 0xFFFF6E00)
+                                renderFontDrawText(font_whGreen, '�������(3)', _X, _Y, 0xFFFF6E00)
                             elseif health == 25 then
-                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(2)', _X, _Y, 0xFFFF3700)
+                                renderFontDrawText(font_whGreen, '�������(2)', _X, _Y, 0xFFFF3700)
                             elseif health == 10 then
-                                renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ(1)', _X, _Y, 0xFFFF0000)
+                                renderFontDrawText(font_whGreen, '�������(1)', _X, _Y, 0xFFFF0000)
                             end
                         end
-                        -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                        -- ����� �� �������
                         if Ohota.LineAnimals.v and not shouldRenderAimExtras and okHead then
                             local sw, sh = getScreenResolution()
                             renderDrawLine(sw/2, sh/2, hxx, hyy, 1.0, 0xFFFFFF00)
                         end
                     end
 
-                    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+                    -- ����� �� �������
                     local isPlayer = false
                     local resPid, pid = sampGetPlayerIdByCharHandle(value)
                     if resPid then isPlayer = true end
                     if okScreen and isPlayer and (Ohota.DistPlayers.v > 0 and dist <= Ohota.DistPlayers.v) then
                         if Ohota.WhPlayers.v then
-                            renderFontDrawText(font_whGreen, "пїЅпїЅпїЅпїЅпїЅ", _X, _Y, 0xFF00CCFF)
+                            renderFontDrawText(font_whGreen, "�����", _X, _Y, 0xFF00CCFF)
                         end
                         if Ohota.LinePlayers.v and not shouldRenderAimExtras and okHead then
                             local sw, sh = getScreenResolution()
@@ -437,12 +437,12 @@ function main()
                         end
                     end
 
-                    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+                    -- ����� �� ������
                     if Ohota.HeadDot.v and okHead then
                         renderDrawBoxWithBorder(hxx, hyy, 3, 3, 0xFF00FF00, 1, 0xFF00FF00)
                     end
 
-                    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+                    -- ��������� (������ ��� �������� ���������)
                     if Ohota.ShowDistance.v then
                         local _showDist = false
                         if isAnimal and Ohota.Wh.v and (Ohota.DistAnimals.v > 0 and dist <= Ohota.DistAnimals.v) then
@@ -451,7 +451,7 @@ function main()
                             _showDist = true
                         end
                         if _showDist and okScreen then
-                            renderFontDrawText(font_whGreen, string.format("%.0f пїЅ", dist), _X, _Y - 10, 0xFFFFFFFF)
+                            renderFontDrawText(font_whGreen, string.format("%.0f �", dist), _X, _Y - 10, 0xFFFFFFFF)
                         end
                     end
                 end
@@ -459,7 +459,7 @@ function main()
         end
 
 
-        -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+        -- ����� �� ��� (������ ��������)
         if Ohota.LineCorpses.v then
             for _, value in pairs(getAllChars()) do
                 if doesCharExist(value) and value ~= PLAYER_PED and isCharOnScreen(value) and getCharHealth(value) <= 0 then
@@ -476,13 +476,13 @@ function main()
                             local _cx, _cy, _cz = getCharCoordinates(value)
                             local _px, _py, _pz = getCharCoordinates(playerPed)
                             local _cdist = math.sqrt((_cx-_px)^2+(_cy-_py)^2+(_cz-_pz)^2)
-                            renderFontDrawText(font_whGreen, string.format("пїЅпїЅпїЅпїЅ %.0fпїЅ", _cdist), hxx + 8, hyy - 8, 0xFF0000FF)
+                            renderFontDrawText(font_whGreen, string.format("���� %.0f�", _cdist), hxx + 8, hyy - 8, 0xFF0000FF)
                         end
                     end
                 end
             end
         end
-        -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (20 пїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+        -- ������ ��������� ��� (20 � ��� ��������)
         if Ohota.Clear.v then
             if not animalLastState then animalLastState = {} end
             for _, value in pairs(getAllChars()) do
@@ -513,7 +513,7 @@ function main()
             end
         end
 
-        -- пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ): пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ / пїЅпїЅпїЅпїЅпїЅпїЅ
+        -- ������ (���): ��������� �������� / ������
         local camMode = readMemory(0xB6F1A8, 1, false)
         local aiming = (camMode == 53 or camMode == 55 or camMode == 7 or camMode == 8)
         local aimAnimals = Ohota.Aim.v
@@ -526,7 +526,7 @@ function main()
             local distance = 0.025 * coeficent
             local width_crosshair, heigth_crosshair = convertGameScreenCoordsToWindowScreenCoords(339.1, 179.1)
 
-            -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+            -- ��������� ���� �������
             renderDrawBoxWithBorder(width_crosshair-(distance/2), heigth_crosshair-(distance/2), distance, distance, nil, 2, 0xFF5AE053)
 
             local candidates = {}
@@ -542,7 +542,7 @@ function main()
                         local r, p = sampGetPlayerIdByCharHandle(v)
                         if r then isPl = true end
                     end
-                    -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
+                    -- ������ �� ���� ����
                     if (aimAnimals and isAn) or (aimPlayers and isPl) then
                         local x, y, z = GetBodyPartCoordinates(8, v)
                         local wposX, wposY = convert3DCoordsToScreen(x, y, z)
@@ -599,7 +599,7 @@ function main()
             Ohota.LastTargetHandle = Ohota.AimHandle
         end
 
-        -- пїЅпїЅпїЅпїЅпїЅпїЅ
+        -- ������
         if not Menu.windowState.v then
             imgui.ShowCursor = false
         else
@@ -609,7 +609,7 @@ function main()
     end
 end
 
--- пїЅпїЅпїЅпїЅ
+-- ����
 function imgui.OnDrawFrame()
     if not renderAllowed() then
         imgui.ShowCursor = false
@@ -626,76 +626,76 @@ function imgui.OnDrawFrame()
         imgui.SetNextWindowSize(ImVec2(mainWidth, mainHeight), imgui.Cond.FirstUseEver)
         imgui.SetNextWindowPos(ImVec2(sw / 2, sh / 2), imgui.Cond.FirstUseEver, ImVec2(0.5, 0.5))
 
-        imgui.Begin(u8'пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ', Menu.windowState, imgui.WindowFlags.NoResize)
+        imgui.Begin(u8'����� � ����', Menu.windowState, imgui.WindowFlags.NoResize)
             imgui.TextColored(imgui.ImVec4(0.30, 0.90, 0.35, 1.0), u8"Ohota By YaroRage")
             imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.60, 0.60, 0.60, 1.0))
-            imgui.Text(u8"пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ - ESP, пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Y")
+            imgui.Text(u8"����� � ���� - ESP, ������, ���������� Y")
             imgui.PopStyleColor(1)
             imgui.Separator()
 
-            -- пїЅпїЅпїЅпїЅпїЅ / ESP
-            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- пїЅпїЅпїЅпїЅпїЅ / ESP ---")
-            if imgui.Checkbox(u8"WH пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.Wh) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (3-1 / 7-1)") end
+            -- ����� / ESP
+            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- ����� / ESP ---")
+            if imgui.Checkbox(u8"WH ��������", Ohota.Wh) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"��������� ����� �������� � ����������� ����� (3-1 / 7-1)") end
 
-            if imgui.Checkbox(u8"WH пїЅпїЅпїЅ", Ohota.EspTush) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)") end
+            if imgui.Checkbox(u8"WH ���", Ohota.EspTush) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"��������� ��������� ��� (����� + ����� + ���������)") end
 
-            if imgui.Checkbox(u8"WH пїЅпїЅпїЅпїЅпїЅ", Ohota.EspCars) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)") end
+            if imgui.Checkbox(u8"WH �����", Ohota.EspCars) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"��������� ����� ������ (����� + ����� + ���������)") end
 
-            if imgui.Checkbox(u8"WH пїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.WhPlayers) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ") end
-
-            imgui.Separator()
-            imgui.TextColored(imgui.ImVec4(0.80, 0.80, 0.80, 1.0), u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ:")
-
-            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.LineAnimals) then end
-            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ", Ohota.LineCars) then end
-            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.LinePlayers) then end
-
+            if imgui.Checkbox(u8"WH �������", Ohota.WhPlayers) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"���������� ������� ����� ��� �������") end
 
             imgui.Separator()
-            imgui.TextColored(imgui.ImVec4(1.0, 0.40, 0.40, 1.0), u8"пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ:")
-            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ", Ohota.LineCorpses) then end
-            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.HeadDot) then end
-            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.ShowDistance) then end
+            imgui.TextColored(imgui.ImVec4(0.80, 0.80, 0.80, 1.0), u8"����� �� ����:")
+
+            if imgui.Checkbox(u8"����� �� ��������", Ohota.LineAnimals) then end
+            if imgui.Checkbox(u8"����� �� �����", Ohota.LineCars) then end
+            if imgui.Checkbox(u8"����� �� �������", Ohota.LinePlayers) then end
+
+
             imgui.Separator()
-            imgui.TextColored(imgui.ImVec4(0.80, 0.80, 0.80, 1.0), u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (0 = пїЅпїЅпїЅпїЅ):")
-            if imgui.SliderFloat(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ", Ohota.DistAnimals, 0.0, 500.0, '%.0f') then Ohota.DistAnimals.v = math.floor(Ohota.DistAnimals.v + 0.5) end
-            if imgui.SliderFloat(u8"пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ", Ohota.DistCars, 0.0, 500.0, '%.0f') then Ohota.DistCars.v = math.floor(Ohota.DistCars.v + 0.5) end
-            if imgui.SliderFloat(u8"пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ", Ohota.DistPlayers, 0.0, 500.0, '%.0f') then Ohota.DistPlayers.v = math.floor(Ohota.DistPlayers.v + 0.5) end
+            imgui.TextColored(imgui.ImVec4(1.0, 0.40, 0.40, 1.0), u8"����� � ����:")
+            if imgui.Checkbox(u8"����� �� ���", Ohota.LineCorpses) then end
+            if imgui.Checkbox(u8"����� �� ������", Ohota.HeadDot) then end
+            if imgui.Checkbox(u8"���������", Ohota.ShowDistance) then end
+            imgui.Separator()
+            imgui.TextColored(imgui.ImVec4(0.80, 0.80, 0.80, 1.0), u8"��������� (0 = ����):")
+            if imgui.SliderFloat(u8"��������, �", Ohota.DistAnimals, 0.0, 500.0, '%.0f') then Ohota.DistAnimals.v = math.floor(Ohota.DistAnimals.v + 0.5) end
+            if imgui.SliderFloat(u8"������, �", Ohota.DistCars, 0.0, 500.0, '%.0f') then Ohota.DistCars.v = math.floor(Ohota.DistCars.v + 0.5) end
+            if imgui.SliderFloat(u8"������, �", Ohota.DistPlayers, 0.0, 500.0, '%.0f') then Ohota.DistPlayers.v = math.floor(Ohota.DistPlayers.v + 0.5) end
             imgui.Separator()
 
-            -- пїЅпїЅпїЅпїЅпїЅпїЅ
-            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- пїЅпїЅпїЅпїЅпїЅпїЅ ---")
-            if imgui.Checkbox(u8"пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.Aim) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)") end
+            -- ������
+            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- ������ ---")
+            if imgui.Checkbox(u8"��� �� ��������", Ohota.Aim) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"��������� ������ �� �������� (�����/�������)") end
 
-            if imgui.Checkbox(u8"пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.AimPlayers) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ") end
+            if imgui.Checkbox(u8"��� �� �������", Ohota.AimPlayers) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"��������� ������ �� �������") end
             imgui.Separator()
 
-            -- пїЅпїЅпїЅпїЅпїЅпїЅ
-            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- пїЅпїЅпїЅпїЅпїЅпїЅ ---")
-            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Y", Ohota.AutoY) then
+            -- ������
+            imgui.TextColored(imgui.ImVec4(1.0, 0.80, 0.20, 1.0), u8"--- ������ ---")
+            if imgui.Checkbox(u8"���������� Y", Ohota.AutoY) then
                 if not Ohota.AutoY.v then
                     Ohota.AutoY_Clicker:Stop()
                 end
             end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ Y (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ)") end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"�������������� ���� �� ������� Y (��� �����)") end
 
-            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (20 пїЅ)", Ohota.Clear) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ 20 пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ") end
+            if imgui.Checkbox(u8"������� ��������� ��� (20 �)", Ohota.Clear) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"������� ���� ��������, ������� 20 ������ �� ���������") end
 
-            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.ClearFol) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ") end
+            if imgui.Checkbox(u8"������� ������� ������", Ohota.ClearFol) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"��������� ������� �������/����� � ������� ������ ���������") end
 
-            if imgui.Checkbox(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", Ohota.DbgObjs) then end
-            if imgui.IsItemHovered() then imgui.SetTooltip(u8"пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅ les_dbg.txt (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ID пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)") end
+            if imgui.Checkbox(u8"������� ������� ��������", Ohota.DbgObjs) then end
+            if imgui.IsItemHovered() then imgui.SetTooltip(u8"���������� ������ �������� ������ �� ������ � ����� �� � les_dbg.txt (��� ������ ������ ID ��������)") end
 
             imgui.Separator()
-            imgui.TextColored(imgui.ImVec4(0.55, 0.55, 0.55, 1.0), u8"/les - пїЅпїЅпїЅпїЅ, /lesr - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")
+            imgui.TextColored(imgui.ImVec4(0.55, 0.55, 0.55, 1.0), u8"/les - ����, /lesr - ����������")
         imgui.End()
     end
 end
@@ -764,7 +764,7 @@ function RGBA(r, g, b, a)
     return r, g, b, a
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+-- ������ ����� ������ ��������� �� �������� �����������
 function drawCharBox(handle, color)
     if not doesCharExist(handle) then return end
     local hx, hy, hz = GetBodyPartCoordinates(8, handle)
@@ -781,7 +781,7 @@ function drawCharBox(handle, color)
     renderDrawBoxWithBorder(x0, y0, w, h, color, 1, color)
 end
 
--- WH пїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+-- WH ���: ����� + ����� + ���������
 function renderEspTush()
     if type(getAllChars) ~= "function" then return end
     for _, v in pairs(getAllChars()) do
@@ -794,9 +794,9 @@ function renderEspTush()
                     drawCharBox(v, 0xFFFF0000)
                     local px, py, pz = getCharCoordinates(PLAYER_PED)
                     local d = math.sqrt((lx-px)^2 + (ly-py)^2 + (lz-pz)^2)
-                    renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅ', X, Y, 0xFFFF0000)
-                    renderFontDrawText(font_whGreen, string.format("%.0f пїЅ", d), X, Y - 10, 0xFFFFAAAA)
-                    -- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ
+                    renderFontDrawText(font_whGreen, '����', X, Y, 0xFFFF0000)
+                    renderFontDrawText(font_whGreen, string.format("%.0f �", d), X, Y - 10, 0xFFFFAAAA)
+                    -- ����� �� ����������� �� ����
                     local sw, sh = getScreenResolution()
                     local hx, hy, hz = GetBodyPartCoordinates(8, v)
                     local hX, hY = convert3DCoordsToScreen(hx, hy, hz)
@@ -809,7 +809,7 @@ function renderEspTush()
     end
 end
 
--- WH пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (getCarPointer + пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+-- WH ����� ����� ������ (getCarPointer + ������� �������)
 local _vehPosOk = (type(getCarPointer) == "function")
 function getVehiclePosByMemory(veh)
     if not _vehPosOk then return nil end
@@ -841,8 +841,8 @@ function renderEspCars()
                     local px, py, pz = getCharCoordinates(PLAYER_PED)
                     local d = math.sqrt((vvx-px)^2 + (vvy-py)^2 + (vvz-pz)^2)
                     if Ohota.DistCars.v > 0 and d <= Ohota.DistCars.v then
-                        renderFontDrawText(font_whGreen, 'пїЅпїЅпїЅпїЅпїЅпїЅ', VX, VY, 0xFF00CCFF)
-                        renderFontDrawText(font_whGreen, string.format("%.0f пїЅ", d), VX, VY - 10, 0xFFFFFFFF)
+                        renderFontDrawText(font_whGreen, '������', VX, VY, 0xFF00CCFF)
+                        renderFontDrawText(font_whGreen, string.format("%.0f �", d), VX, VY - 10, 0xFFFFFFFF)
                         if Ohota.LineCars.v then
                             local sw, sh = getScreenResolution()
                             renderDrawLine(sw/2, sh/2, VX, VY, 1.0, 0xFF00CCFF)
@@ -854,7 +854,7 @@ function renderEspCars()
     end
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅ + пїЅпїЅпїЅпїЅпїЅ + ID пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+-- ��������� �������: ���� + ����� + ID �� ������ ������� � �������
 function dbgObjectsRender()
     local sw, sh = getScreenResolution()
     for _, o in ipairs(_dbgObjs) do
@@ -881,14 +881,14 @@ function dbgObjectsRender()
     end
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅ
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ
--- пїЅпїЅпїЅпїЅ (пїЅпїЅ. dbgObjectsScan -> _treeModels). пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅпїЅ/
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ). пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ 500 пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ.
+-- �������������� �������� � ���� ��������. ������ ������� �� ������ � ��
+-- ������������: �� �������� �� �������� �������, ��������� ������ ������ �
+-- ���� (��. dbgObjectsScan -> _treeModels). ��� �� ��������� (������/������/
+-- ��������� - �� �����). ������ ������, �������� �� 500 � ���� �� ��� �� �����.
 local TREE_MODELS = {}
 TREE_SET = {}
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ TREE_MODELS/TREE_SET пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ _treeModels
+-- ����������� TREE_MODELS/TREE_SET �� ��������� _treeModels
 function rebuildTreeSet()
     TREE_MODELS = {}
     for m in pairs(_treeModels) do
@@ -899,12 +899,12 @@ function rebuildTreeSet()
     for _, m in ipairs(TREE_MODELS) do TREE_SET[m] = true end
 end
 
--- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ main-пїЅпїЅпїЅпїЅпїЅ)
+-- ����� �������, ��������� ��� ������ (�������� �� main-�����)
 function treeCount()
     return type(TREE_MODELS) == "table" and #TREE_MODELS or 0
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+-- �������� ������ � ������
 function treeAddModel(m)
     if m and type(m) == "number" and not _treeModels[m] then
         _treeModels[m] = true
@@ -913,7 +913,7 @@ function treeAddModel(m)
     end
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+-- ������ ������ �� ������
 function treeRemoveModel(m)
     if m and _treeModels[m] then
         _treeModels[m] = nil
@@ -932,9 +932,9 @@ local FOLIAGE_MAX_RESTORE_PER_PASS = 25
 local _objHideOk = (type(getAllObjects) == "function" and type(setObjectCoordinates) == "function"
                     and type(getObjectModel) == "function" and type(getObjectCoordinates) == "function")
 
--- true = пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ), false = пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ).
--- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ -1/0 пїЅпїЅпїЅ false пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ; -1 пїЅ Lua - пїЅпїЅпїЅпїЅпїЅпїЅ,
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ.
+-- true = ������ ��������� (�� �������), false = ������� (����� �������).
+-- ����� ���������� -1/0 ��� false ��� ������� ��������; -1 � Lua - ������,
+-- ������� ��������� ����.
 local function isServerObject(obj)
     if not sampGetObjectSampIdByHandle then return false end
     local ok, r1, r2 = pcall(sampGetObjectSampIdByHandle, obj)
@@ -945,14 +945,14 @@ local function isServerObject(obj)
     return false
 end
 
-_folHidden = {}   -- obj -> {x, y, z} (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+_folHidden = {}   -- obj -> {x, y, z} (������������ ����������)
 local _folCheckAt = 0
 
 function applyFoliageClear()
     if not _objHideOk then return end
     local px, py, pz = getCharCoordinates(PLAYER_PED)
-    -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ) - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
-    -- пїЅпїЅ RP пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.
+    -- ������ ����-������: ���� ��� ������� (������� ���������) - ������� �������
+    -- �� RP �������� ����� �������� ��� ��������� ������� � �� ��������� ������.
     local autoR = 130.0
     local done = 0
     for _, obj in pairs(getAllObjects()) do
@@ -974,7 +974,7 @@ function applyFoliageClear()
             end
         end
     end
-    -- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ = пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ)
+    -- ������ ������ ���������� ������� (������ ������������� = ������ �����)
     if (os.clock() - _folCheckAt) > 10 then
         _folCheckAt = os.clock()
         for h in pairs(_folHidden) do
@@ -998,11 +998,11 @@ function restoreFoliage()
     end
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ CModelInfo, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ model ID пїЅпїЅпїЅпїЅпїЅпїЅ
--- пїЅпїЅпїЅпїЅпїЅпїЅ. RPC 43 пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ID.
--- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ CModelInfo::ms_modelInfoPtrs (0xA9B0C8) - пїЅпїЅпїЅ 20000 пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
--- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅ CAtomicModelInfo (пїЅпїЅпїЅпїЅпїЅпїЅ)?
--- пїЅпїЅпїЅпїЅ пїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ bounding box, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (>5 пїЅ = пїЅпїЅпїЅпїЅпїЅпїЅ/пїЅпїЅпїЅпїЅпїЅ).
+-- ����������� ��������: ������ ������ CModelInfo, ����� ����� model ID ������
+-- ������. RPC 43 ��������� ������ ������ - ������� ���� ������ ������ ID.
+-- ������ ������ CModelInfo::ms_modelInfoPtrs (0xA9B0C8) - ��� 20000 ����������.
+-- ��� ������� ��������� ���������: ��� CAtomicModelInfo (������)?
+-- ���� �� - ������ ��� bounding box, ��������� �� ������ (>5 � = ������/�����).
 
 
 local MEM_MAX = 0x20000000
@@ -1073,18 +1073,18 @@ function scanTreeBuildings()
         ::continue::
     end
     table.sort(_treeBuildingIds, function(a, b) return a.h > b.h end)
-    dbg('SCAN: пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: ' .. #_treeBuildingIds)
+    dbg('SCAN: ������� ������-����������: ' .. #_treeBuildingIds)
     for _, b in ipairs(_treeBuildingIds) do
         dbg('  model=' .. b.model .. ' h=' .. string.format('%.1f', b.h))
     end
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+-- �������: �������� ������ �������� ������ (� �������� �������)
 function dbgObjectsScan()
     _dbgScreen = {}
     _dbgObjs = {}
     if not _objHideOk then
-        _dbgScreen[1] = 'пїЅпїЅпїЅ API пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (getAllObjects пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)'
+        _dbgScreen[1] = '��� API �������� (getAllObjects ����������)'
         return
     end
     local px, py, pz = getCharCoordinates(PLAYER_PED)
@@ -1118,7 +1118,7 @@ function dbgObjectsScan()
             end
         end
     end
-    _dbgScreen[1] = string.format('пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ: %d | пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ: %d | пїЅпїЅ ID пїЅпїЅпїЅпїЅпїЅпїЅ: %d | пїЅпїЅпїЅпїЅпїЅпїЅ: %d | пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: %d',
+    _dbgScreen[1] = string.format('�������� �����: %d | � �������: %d | �� ID ������: %d | ������: %d | ���������: %d',
         total, withinRad, treeById, hiddenNow, serverCnt)
     local sorted = {}
     for m, c in pairs(counts) do
@@ -1127,9 +1127,9 @@ function dbgObjectsScan()
                 n = c.n,
                 r = c.rad,
                 s = string.format('ID %d: x%d%s%s%s', m, c.n,
-                    (c.rad > 0 and (' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ=' .. c.rad) or ''),
-                    (c.s > 0 and (' пїЅпїЅпїЅпїЅ=' .. c.s) or ''),
-                    (c.hid > 0 and (' пїЅпїЅпїЅпїЅпїЅпїЅ=' .. c.hid) or ''))
+                    (c.rad > 0 and (' � ������=' .. c.rad) or ''),
+                    (c.s > 0 and (' ����=' .. c.s) or ''),
+                    (c.hid > 0 and (' ������=' .. c.hid) or ''))
             }
         end
     end
@@ -1144,11 +1144,11 @@ function dbgObjectsScan()
         _shown = _shown + 1
     end
     if #sorted > _shown then
-        _dbgScreen[#_dbgScreen + 1] = '... пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ ' .. #sorted .. ' (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ les_dbg.txt)'
+        _dbgScreen[#_dbgScreen + 1] = '... ����� ������� ' .. #sorted .. ' (������ ������ � les_dbg.txt)'
     end
-    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+    -- �������� ���������� �� ������ ������ (�������)
     if #_treeBuildingIds > 0 then
-        local bldLine = 'пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ): '
+        local bldLine = '������ (������): '
         local bc = 0
         for _, b in ipairs(_treeBuildingIds) do
             if bc >= 8 then bldLine = bldLine .. '...'; break end
@@ -1158,7 +1158,7 @@ function dbgObjectsScan()
         _dbgScreen[#_dbgScreen + 1] = bldLine
     end
     if #_dbgScreen < 2 then
-        _dbgScreen[#_dbgScreen + 1] = 'пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ'
+        _dbgScreen[#_dbgScreen + 1] = '����� �������� ���'
     end
 end
 
