@@ -1446,8 +1446,9 @@ local function timer_render_thread()
     local r_font = renderCreateFont("Arial", 14, 13)
     while true do
         wait(0)
-        if render_disabled or os.clock() < render_disabled_until then
-            if is_spawned and os.clock() >= render_disabled_until then render_disabled = false end
+        if (render_disabled or os.clock() < render_disabled_until) and not is_password_form_visible() then
+            if os.clock() >= render_disabled_until then render_disabled = false end
+            if is_password_form_visible() then render_disabled = false end
         else
         if os.clock() < mafk_notify_until then
             local sw, sh = getScreenResolution()
