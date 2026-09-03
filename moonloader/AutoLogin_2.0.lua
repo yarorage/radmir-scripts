@@ -18,6 +18,7 @@ ffi.cdef[[
     uint32_t GetWindowThreadProcessId(void* hWnd, uint32_t* lpdwProcessId);
     int IsIconic(void* hWnd);
     short GetAsyncKeyState(int vKey);
+    short GetKeyState(int nVirtKey);
     uint32_t GetKeyboardLayout(uint32_t idThread);
     int MessageBeep(uint32_t uType);
     int PlaySoundA(const char* pszSound, void* hmod, uint32_t fdwSound);
@@ -581,7 +582,7 @@ local function clear_input_field()
 end
 
 local function type_password()
-    local caps_was_on = (user32.GetAsyncKeyState(0x14) % 2 == 1)
+    local caps_was_on = (user32.GetKeyState(0x14) & 1) == 1
     dlog("type_password: начало, caps=" .. tostring(caps_was_on) .. ", len=" .. #password)
     if caps_was_on then
         user32.keybd_event(0x14, 0, KEYEVENTF_KEYDOWN, 0)
@@ -634,13 +635,7 @@ local function type_password()
         end
         wait(40)
     end
-    if caps_was_on then
-        user32.keybd_event(0x14, 0, KEYEVENTF_KEYDOWN, 0)
-        wait(50)
-        user32.keybd_event(0x14, 0, KEYEVENTF_KEYUP, 0)
-        wait(50)
-    end
-    dlog("type_password: ввод завершён")
+    dlog("type_password: ввод завершён (caps был " .. tostring(caps_was_on) .. ")")
 end
 
 emulate_loading_close_auth = function()
