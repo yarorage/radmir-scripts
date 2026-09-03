@@ -582,7 +582,7 @@ local function clear_input_field()
 end
 
 local function type_password()
-    local caps_was_on = (user32.GetKeyState(0x14) & 1) == 1
+    local caps_was_on = bit.band(user32.GetKeyState(0x14), 1) == 1
     dlog("type_password: начало, caps=" .. tostring(caps_was_on) .. ", len=" .. #password)
     if caps_was_on then
         user32.keybd_event(0x14, 0, KEYEVENTF_KEYDOWN, 0)
