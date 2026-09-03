@@ -659,10 +659,10 @@ function imgui.OnDrawFrame()
             if imgui.Checkbox(u8"Линии до животных", Ohota.LineAnimals) then end
             if imgui.Checkbox(u8"Линии до машин", Ohota.LineCars) then end
             if imgui.Checkbox(u8"Линии до игроков", Ohota.LinePlayers) then end
+            if imgui.Checkbox(u8"Линии до туш", Ohota.LineCorpses) then end
 
 
             imgui.Separator()
-            if imgui.Checkbox(u8"Линии до туш", Ohota.LineCorpses) then end
             if imgui.Checkbox(u8"Точка на голове", Ohota.HeadDot) then end
             if imgui.Checkbox(u8"Дистанция", Ohota.ShowDistance) then end
             imgui.Separator()
