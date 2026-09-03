@@ -3,7 +3,7 @@ local password = '74108520'
 script_name("UltraHack")
 script_author("YaroRage")
 script_version("1.0")
---==================================[ Основные настройки ]==============================================
+--==================================[ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
 
@@ -45,12 +45,12 @@ function GetBodyPartCoordinates(id, handle)
     return vec[0], vec[1], vec[2]
 end
 
--- Кликер.
+-- пїЅпїЅпїЅпїЅпїЅпїЅ.
 
 local mcheat = imgui.ImBool(false)
 local autorem = false -- AutoRem
 
--- Инициализация.
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 
 local clickwarp = imgui.ImBool(false)
 local sbivx = imgui.ImBool(false)
@@ -79,6 +79,7 @@ local NoAnimationMoney = imgui.ImBool(false)
 local godcar = imgui.ImBool(false)
 local silentmode = imgui.ImInt(3)
 local pslide = imgui.ImBool(false)
+local flipcar = imgui.ImBool(false)
 
 local nametags_dist_slider = imgui.ImInt(8)
 local tdtext_dist_slider = imgui.ImInt(8)
@@ -160,6 +161,7 @@ damageinf.v = mainIni.MultiCheat.damageinf or false
 tfirst.v = mainIni.MultiCheat.tfirst or false
 tsecond.v = mainIni.MultiCheat.tsecond or false
 triggermode.v = mainIni.MultiCheat.triggermode or 3
+			flipcar.v = mainIni.MultiCheat.flipcar or false
 
 nametags_dist_slider.v = mainIni.MultiCheat.nametags_dist or 8
 tdtext_dist_slider.v = mainIni.MultiCheat.tdtext_dist or 8
@@ -237,7 +239,7 @@ local config = inicfg.load(nil, f_ini)
 function main()
     repeat wait(0) until isSampAvailable()
 
-	ywelcome("UltraHack", "Нажмите N (удерживайте 1 сек)")
+	ywelcome("UltraHack", "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ N (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1 пїЅпїЅпїЅ)")
 
 	clearAnim()
 	lua_thread.create(ClickWP)
@@ -305,7 +307,7 @@ function main()
 	end)
 
 	sampRegisterChatCommand('mhelp', function()
-		sampShowDialog(9999, "{FFFFFF}Меню читов by YaroRage.", '/mcheat - ??????? ???? ?????-????\n/mhelp - ??????? ??? ????\n/fake - ???? ????? ??? ???????? ???????\n/rec - ?????????, ????????? ? ????\n/ctime - ????? ?? ?????? ? ?????????????\n/skin - ??????????(??????)\n/slp - ???????? ?????? ????\n/sc - ???????? ?? ???????\n/autorem - ????????/????????? ?????????????? ??????\n/wolic - ???? ??? ????\n/pcol - ???? ?? ????????\n/st /sw - ????? ??????? ? ??????\n/fakepl - ???????? ???, ????? ?????? (id, ???, id ?????? ? ???????? ????? ????? ????, id ?????)\n/clan - ?????????\n/fix - ???????? ????\n/breakecar - ??????? ???? ??? ?????????? ???\nAlt + 1 - ??????? ?????? ????\nAlt + 2 - ??????? ????? ????', "? ???", "", 0)
+		sampShowDialog(9999, "{FFFFFF}пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ by YaroRage.", '/mcheat - ??????? ???? ?????-????\n/mhelp - ??????? ??? ????\n/fake - ???? ????? ??? ???????? ???????\n/rec - ?????????, ????????? ? ????\n/ctime - ????? ?? ?????? ? ?????????????\n/skin - ??????????(??????)\n/slp - ???????? ?????? ????\n/sc - ???????? ?? ???????\n/autorem - ????????/????????? ?????????????? ??????\n/wolic - ???? ??? ????\n/pcol - ???? ?? ????????\n/st /sw - ????? ??????? ? ??????\n/fakepl - ???????? ???, ????? ?????? (id, ???, id ?????? ? ???????? ????? ????? ????, id ?????)\n/clan - ?????????\n/fix - ???????? ????\n/breakecar - ??????? ???? ??? ?????????? ???\nAlt + 1 - ??????? ?????? ????\nAlt + 2 - ??????? ????? ????', "? ???", "", 0)
 	end)
 
 	sampRegisterChatCommand('slp', function()
@@ -494,7 +496,7 @@ function main()
 					wait(0)
 				end
 				if not opened and not mcheat.v then
-					-- Если игрок в зоне стрима, то ...
+					-- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ ...
 				end
 			end
 		end
@@ -528,6 +530,22 @@ function main()
 
 		if godcar.v and isCharInAnyCar(PLAYER_PED) then
 			setCarProofs(storeCarCharIsInNoSave(PLAYER_PED), true, true, true, true, true)
+		end
+
+		if flipcar.v and isCharInAnyCar(PLAYER_PED) then
+			local timerKey = 192 -- VK_OEM_3 (key with ~ and |, often РЄ on Russian keyboards)
+			if isKeyDown(timerKey) then
+				n_press_time = n_press_time + 1
+				if n_press_time >= 50 then -- 0.5 seconds (50 * 10ms)
+					local veh = storeCarCharIsInNoSave(PLAYER_PED)
+					setVehicleForwardSpeed(veh, 0)
+					setCarProofs(veh, false, false, false, false, false)
+					setVehicleModel(veh, getVehicleModel(veh)) -- reset to original model to flip
+					n_press_time = 0
+				end
+			else
+				n_press_time = 0
+			end
 		end
 
 		if NoAnimationMoney.v then
@@ -712,7 +730,7 @@ end
 
 function cmd_stime()
     lua_thread.create(function()
-        local dtext = "Текст Текст Текст Текст\t" .. (config.settings.activate and "{45d900}ON\n" or "{ff0000}OFF\n")
+        local dtext = "пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ\t" .. (config.settings.activate and "{45d900}ON\n" or "{ff0000}OFF\n")
         local dtext = dtext .. "?????? ??????:\t" .. config.settings.fontsize .. "\n"
         local dtext = dtext .. "???? ???????:\t{" .. config.settings.color .. "}||||||||||\n"
         local dtext = dtext .. "???? ???????????:\t{" .. config.settings.msColor .. "}||||||||||\n"
@@ -1096,10 +1114,10 @@ function ev.onSendEnterVehicle(vehId, pass)
 	end
 end
 
--- Рендер
+-- пїЅпїЅпїЅпїЅпїЅпїЅ
 function imgui.OnDrawFrame()
 	resX, resY = getScreenResolution()
-	-- Автомасштаб под высокое разрешение (4K/2K): всё умножаем на долю от 1080p
+	-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (4K/2K): пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ 1080p
 	fsc = resY / 1080
 	imgui.GetIO().FontGlobalScale = fsc
 	local winW, winH = 475 * fsc, 670 * fsc
@@ -1110,10 +1128,10 @@ function imgui.OnDrawFrame()
 
 		imgui.BeginChild("##MainGroup", imgui.ImVec2(winW, winH), true, imgui.WindowFlags.NoScrollbar)
 			imgui.BeginGroup()
-				sbox(u8'Авто-кликер', autokick)
-				imgui.TextQuestion(u8'Опция')
+				sbox(u8'пїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅ', autokick)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
 				sbox('ClickWarp', clickwarp)
-				imgui.TextQuestion(u8'Опция')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
 				imgui.NewLine()
 				if imgui.RadioButton('Trigger 1', triggermode, 1) then
 					triggermode.v = 1
@@ -1124,7 +1142,7 @@ function imgui.OnDrawFrame()
 					triggermode.v = 2
 					save()
 				end
-				if imgui.RadioButton(u8'Опция', triggermode, 3) then
+				if imgui.RadioButton(u8'пїЅпїЅпїЅпїЅпїЅ', triggermode, 3) then
 					triggermode.v = 3
 					save()
 				end
@@ -1137,31 +1155,31 @@ function imgui.OnDrawFrame()
 					silentmode.v = 2
 					save()
 				end
-				if imgui.RadioButton(u8'Опция', silentmode, 3) then
+				if imgui.RadioButton(u8'пїЅпїЅпїЅпїЅпїЅ', silentmode, 3) then
 					silentmode.v = 3
 					save()
 				end
 				imgui.NewLine()
-				sbox(u8'Опция', sbivx)
-				imgui.TextQuestion(u8'Опция')
+				sbox(u8'пїЅпїЅпїЅпїЅпїЅ', sbivx)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
 				sbox(u8'FullSkillGun', fullskillgun)
-				imgui.TextQuestion(u8'Опция')
-				sbox(u8'Опция', pslide)
-				imgui.TextQuestion(u8'Опция')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
+				sbox(u8'пїЅпїЅпїЅпїЅпїЅ', pslide)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
 				sbox(u8'AirBrake', airbrake)
-				imgui.TextQuestion(u8'Опция')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
 				sbox(u8'SpeedHack', SpeedHack)
-				imgui.TextQuestion(u8'Опция')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
 				imgui.PushItemWidth(90 * fsc)
 				if imgui.SliderInt('Smooth', SpeedSmooth, 0, 80) then
 					save()
 				end
 				sbox('NoDamage', nodamage)
-				imgui.TextQuestion(u8'Опция')
-				sbox(u8'Опция', capturebiz)
-				imgui.TextQuestion(u8'Опция')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
+				sbox(u8'пїЅпїЅпїЅпїЅпїЅ', capturebiz)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
 				sbox(u8'Damage Informer', damageinf)
-				imgui.TextQuestion(u8'Опция')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
 				sbox('LegitAimBot', cbz5)
 				if imgui.SliderFloat("SpeedAim", Speed, 0.0, 50.0, '%.1f') then
 					save()
@@ -1196,17 +1214,18 @@ function imgui.OnDrawFrame()
 					save()
 				end
 				sbox(u8'NoReload.', noReload)
-				imgui.TextQuestion(u8'Опция')
-				sbox(u8'Опция', enginecar)
-				imgui.TextQuestion(u8'Опция')
-				sbox(u8"Опция", shotmax)
-				sbox(u8"Опция", antistun)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
+				sbox(u8'пїЅпїЅпїЅпїЅпїЅ', enginecar)
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
+				sbox(u8"пїЅпїЅпїЅпїЅпїЅ", shotmax)
+				sbox(u8"пїЅпїЅпїЅпїЅпїЅ", antistun)
 				sbox(u8"AntiBunnyhop", allowBunnyhop)
-				sbox(u8"Опция", eyefish)
+				sbox(u8"пїЅпїЅпїЅпїЅпїЅ", eyefish)
 				sbox("FastConnect", ifastconnect)
 				sbox(u8'GMCar', godcar)
+				sbox(u8'FlipCar', flipcar)
 				sbox(u8'NoAnimationMoney', NoAnimationMoney)
-				imgui.TextQuestion(u8'Опция')
+				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
 				if imgui.Button('FIX', imgui.ImVec2(70 * fsc, 35 * fsc)) then
 					sampProcessChatInput('/fix')
 				end
@@ -1251,7 +1270,7 @@ function imgui.OnDrawFrame()
     end
 end
 
--- Отрисовка
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 function imgui.TextQuestion(text)
 	local war = (fa.ICON_FA_INFO_CIRCLE.. u8(' ?????????:'))
 	if imgui.IsItemHovered() then
@@ -1264,7 +1283,7 @@ function imgui.TextQuestion(text)
 	end
 end
 
--- Уведомления.
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 function imgui.CenterText(text)
     local width = imgui.GetWindowWidth()
     local calc = imgui.CalcTextSize(text)
@@ -1279,7 +1298,7 @@ function sbox(name, imguiname)
 	end
 end
 
--- Сохранение.
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 function apply_custom_style()
 	local style = imgui.GetStyle()
 	local colors = style.Colors
@@ -1377,7 +1396,7 @@ function find(s, p)
     return string.rlower(s):find(string.rlower(p))
 end
 
--- Отрисовка.
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 
 function ClickWP()
 	Matrix3X3 = require "matrix3x3"
@@ -1728,7 +1747,7 @@ function showCursor(toggle)
 	cursorEnabled = toggle
 end
 
--- Сохранение настроек.
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 function onScriptTerminate(script, quit)
 	if script == thisScript() then
 		imgui.Process = false
@@ -1737,7 +1756,7 @@ function onScriptTerminate(script, quit)
 	end
 end
 
--- Загрузка настроек из ini
+-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ ini
 function save()
     inicfg.save({
         MultiCheat =
@@ -1750,6 +1769,7 @@ function save()
 			trigger = trigger.v,
 			airbrake = airbrake.v,
 			triggermode = triggermode.v,
+			flipcar = flipcar.v,
 			tfirst = tfirst.v,
 			tsecond = tsecond.v,
 			Speed = Speed.v,
