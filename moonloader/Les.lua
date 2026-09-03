@@ -628,9 +628,9 @@ function imgui.OnDrawFrame()
         apply_custom_style()
 
         local mainWidth = 430 * fsc
-        local mainHeight = 690 * fsc
-        imgui.SetNextWindowSize(ImVec2(mainWidth, mainHeight), imgui.Cond.FirstUseEver)
-        imgui.SetNextWindowPos(ImVec2(sw / 2, sh / 2), imgui.Cond.FirstUseEver, ImVec2(0.5, 0.5))
+        local mainHeight = 820 * fsc
+        imgui.SetNextWindowSize(ImVec2(mainWidth, mainHeight), imgui.Cond.Always)
+        imgui.SetNextWindowPos(ImVec2(sw / 2, sh / 2), imgui.Cond.Always, ImVec2(0.5, 0.5))
 
         imgui.Begin(u8'Охота в лесу', Menu.windowState, imgui.WindowFlags.NoResize)
             imgui.TextColored(imgui.ImVec4(0.30, 0.90, 0.35, 1.0), u8"Ohota By YaroRage")
