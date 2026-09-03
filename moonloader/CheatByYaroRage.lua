@@ -1104,8 +1104,8 @@ function imgui.OnDrawFrame()
 	imgui.GetIO().FontGlobalScale = fsc
 	local winW, winH = 475 * fsc, 670 * fsc
 	if mcheat.v then
-		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - winW / 2, resY / 2 - winH / 2), imgui.Cond.FirstUseEver)
-		imgui.SetNextWindowSize(imgui.ImVec2(winW, winH), imgui.Cond.FirstUseEver)
+		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - winW / 2, resY / 2 - winH / 2), imgui.Cond.Always)
+		imgui.SetNextWindowSize(imgui.ImVec2(winW, winH), imgui.Cond.Always)
 		imgui.Begin('', mcheat, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoScrollbar)
 
 		imgui.BeginChild("##MainGroup", imgui.ImVec2(winW, winH), true, imgui.WindowFlags.NoScrollbar)
@@ -1228,8 +1228,8 @@ function imgui.OnDrawFrame()
         local resX, resY = getScreenResolution()
         local fsc = resY / 1080
         local sizeX, sizeY = 300 * fsc, 150 * fsc
-        imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - sizeX / 2, resY / 2 - sizeY / 2), imgui.Cond.FirstUseEver)
-        imgui.SetNextWindowSize(imgui.ImVec2(sizeX, sizeY), imgui.Cond.FirstUseEver)
+        imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - sizeX / 2, resY / 2 - sizeY / 2), imgui.Cond.Always)
+        imgui.SetNextWindowSize(imgui.ImVec2(sizeX, sizeY), imgui.Cond.Always)
         imgui.Begin('Fake', window)
         imgui.PushItemWidth(255 * fsc)
         if imgui.InputText("##inp1", str) then
