@@ -1,14 +1,12 @@
-local password = '74108520'
 --============================================================================================
-script_name("UltraHack")
+script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("1.0")
---==================================[ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ]==============================================
+script_version("2.0")
+--==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
 
 local ywelcome         = require "ywelcome"
-local dlstatus 		= require('moonloader').download_status
 local fa 			= require 'fAwesome5'
 local vKeys         = require('vKeys')
 local ffi 			= require 'ffi'
@@ -16,27 +14,160 @@ local ev            = require("lib.samp.events")
 local inicfg 		= require('inicfg')
 local vector 		= require 'vector3d'
 local memory 		= require 'memory'
-local mem 			= require 'memory'
 local imgui 		= require('imgui')
 local fsc = 1
 local encoding      = require("encoding")
 encoding.default = 'CP1251'
 local u8 = encoding.UTF8
 
-local window = imgui.ImBool(false)
-local str = imgui.ImBuffer(256)
-local messages = {}
-local color = -1
-local buffer = {0, "test"}
-local sync = false
+-- HotKey система
+local hotkey = {}
+if doesFileExist(getWorkingDirectory() .. "/lib/imgui_addons.lua") then
+    hotkey = require("imgui_addons").HotKey
+end
 
+-- Профили конфигов
+local profiles = {"Visual Only", "Legit PvP", "Biz Farmer", "Full Safe", "Rage", "Custom"}
+local current_profile = 1
+
+-- ===== ADMIN DETECTION (Radmir CRMP) =====
+local admin_detection = imgui.ImBool(true)
+local auto_spectator_check = imgui.ImBool(false)  -- Автоматическая проверка слежки
+local admin_list = {}          -- {id = {nick, color, score, level}}
+local spectator_list = {}      -- {id = {nick, time}}
+local show_admin_hud = imgui.ImBool(false)
+local admin_hud_pos = {x = 10, y = 10}
+local admin_colors = {
+    [0xFFFF0000] = "Красный (Гл.админ)",     -- FF0000
+    [0xFF00FF00] = "Зелёный (Админ)",        -- 00FF00
+    [0xFFFFFF00] = "Жёлтый (Модер)",          -- FFFF00
+    [0xFF00FFFF] = "Бирюзовый (Хелпер)",      -- 00FFFF
+    [0xFFFFA500] = "Оранжевый (Куратор)",     -- FFA500
+}
+
+-- Теги админов в нике (Radmir специфика)
+local admin_tags = {"[A]", "[ADMIN]", "[ADM]", "[GM]", "[MOD]", "[HELPER]", "[CURATOR]", "[DEV]", "[OWNER]", "*", "*", "*"}
+
+-- Функция проверки, является ли игрок админом
+local function isPlayerAdmin(id)
+    if not sampIsPlayerConnected(id) then return false end
+    local nick = sampGetPlayerNickname(id)
+    local color = sampGetPlayerColor(id)
+    local score = sampGetPlayerScore(id)
+    
+    -- Проверка по тегам в нике
+    for _, tag in ipairs(admin_tags) do
+        if nick:find(tag, 1, true) then
+            return true, tag
+        end
+    end
+    
+    -- Проверка по цвету (Radmir: админы часто имеют специфические цвета)
+    if admin_colors[color] then
+        return true, admin_colors[color]
+    end
+    
+    -- Проверка по скору (админы часто имеют высокий скор или спец. значения)
+    if score > 10000 then
+        return true, "High Score"
+    end
+    
+    return false, nil
+end
+
+-- Обновление списка админов
+function updateAdminList()
+    admin_list = {}
+    for i = 0, sampGetMaxPlayerId(false) do
+        if sampIsPlayerConnected(i) then
+            local is_admin, reason = isPlayerAdmin(i)
+            if is_admin then
+                admin_list[i] = {
+                    nick = sampGetPlayerNickname(i),
+                    color = sampGetPlayerColor(i),
+                    score = sampGetPlayerScore(i),
+                    reason = reason,
+                    dist = 0
+                }
+                -- Дистанция до нас
+                local _, my_id = sampGetPlayerIdByCharHandle(PLAYER_PED)
+                if my_id ~= i then
+                    local _, ped = sampGetCharHandleBySampPlayerId(i)
+                    if ped then
+                        local mx, my, mz = getCharCoordinates(PLAYER_PED)
+                        local px, py, pz = getCharCoordinates(ped)
+                        admin_list[i].dist = math.floor(getDistanceBetweenCoords3d(mx, my, mz, px, py, pz))
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Проверка наблюдателей (время нахождения)
+function checkSpectators()
+    spectator_list = {}
+    for id, admin_data in pairs(admin_list) do
+        if sampIsPlayerConnected(id) then
+            local _, ped = sampGetCharHandleBySampPlayerId(id)
+            if ped and doesCharExist(ped) then
+                local _, my_id = sampGetPlayerIdByCharHandle(PLAYER_PED)
+                if id ~= my_id then
+                    local mx, my, mz = getCharCoordinates(PLAYER_PED)
+                    local px, py, pz = getCharCoordinates(ped)
+                    local dist = getDistanceBetweenCoords3d(mx, my, mz, px, py, pz)
+                    if dist < 100 then  -- Увеличен радиус для админов
+                        table.insert(spectator_list, {
+                            id = id,
+                            nick = admin_data.nick,
+                            dist = math.floor(dist),
+                            time = os.date("%H:%M:%S"),
+                            reason = admin_data.reason
+                        })
+                    end
+                end
+            end
+        end
+    end
+end
+
+local window = imgui.ImBool(false)
 local ignore = false
-local aiming = false
+local aiming = 3
 local silent = false
+
+-- Горячие клавиши для функций
+local hotkeys = {
+    airbrake = {v = {vKeys.VK_RSHIFT}},
+    flipcar = {v = {vKeys.VK_OEM_3}},
+    sbivx = {v = {vKeys.VK_B}},
+    capturebiz = {v = {}},
+    godcar = {v = {}},
+    enginecar = {v = {}},
+    speedhack = {v = {vKeys.VK_MENU}},
+    eyefish = {v = {}},
+    ifastconnect = {v = {}},
+    noReload = {v = {}},
+    antistun = {v = {}},
+    shotmax = {v = {}},
+    damageinf = {v = {}},
+    clickwarp = {v = {}},
+    pslide = {v = {}},
+    trigger = {v = {}},
+    cbz5 = {v = {}},
+    legit = {v = {}},
+    fullskillgun = {v = {}},
+    allowBunnyhop = {v = {}},
+    NoAnimationMoney = {v = {}},
+    silentmode = {v = {}},
+    nodamage = {v = {}},
+    autokick = {v = {}},
+}
 
 local getBonePosition = ffi.cast("int (__thiscall*)(void*, float*, int, bool)", 0x5E4280)
 
 local font = renderCreateFont("Arial", 8, 12)
+local font2 = renderCreateFont("Tahoma", 10, 5)
 
 function GetBodyPartCoordinates(id, handle)
     local pedptr = getCharPointer(handle)
@@ -45,12 +176,12 @@ function GetBodyPartCoordinates(id, handle)
     return vec[0], vec[1], vec[2]
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅ.
+-- НАСТРОЙКИ.
 
 local mcheat = imgui.ImBool(false)
 local autorem = false -- AutoRem
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+-- ФУНКЦИИ.
 
 local clickwarp = imgui.ImBool(false)
 local sbivx = imgui.ImBool(false)
@@ -59,9 +190,9 @@ local SpeedSmooth = imgui.ImInt(15)
 local fullskillgun = imgui.ImBool(false)
 local trigger = imgui.ImBool(false)
 local airbrake = imgui.ImBool(false)
-local Speed = imgui.ImFloat(0)
-local Dist = imgui.ImFloat(0)
-local Fov = imgui.ImFloat(0)
+local Speed = imgui.ImFloat(1.0)
+local Dist = imgui.ImFloat(50.0)
+local Fov = imgui.ImFloat(5.0)
 local cbz5 = imgui.ImBool(false)
 local nodamage = imgui.ImBool(false)
 local autokick = imgui.ImBool(false)
@@ -81,6 +212,28 @@ local silentmode = imgui.ImInt(3)
 local pslide = imgui.ImBool(false)
 local flipcar = imgui.ImBool(false)
 
+-- НОВЫЕ ФУНКЦИИ
+local flycar = imgui.ImBool(false)
+local flycar_speed = imgui.ImFloat(50.0)
+local flycar_brake = imgui.ImFloat(1.0)
+local esp_box = imgui.ImBool(false)
+local esp_line = imgui.ImBool(false)
+local esp_bones = imgui.ImBool(false)
+local esp_tracers = imgui.ImBool(false)
+local esp_distance = imgui.ImFloat(200.0)
+local coordmaster = imgui.ImBool(false)
+local coordmaster_step = imgui.ImFloat(5.0)
+local coordmaster_delay = imgui.ImInt(20)
+local coordmaster_height = imgui.ImFloat(120.0)
+local autocapture = imgui.ImBool(false)
+local autocapture_time = imgui.ImBuffer("13:00:00", 10)
+local autocapture_ms = imgui.ImInt(0)
+local anticrasher = imgui.ImBool(false)
+local anti_detonator = imgui.ImBool(false)
+local anti_roll = imgui.ImBool(false)
+local anti_trailer = imgui.ImBool(false)
+local anti_vortex = imgui.ImBool(false)
+
 local nametags_dist_slider = imgui.ImInt(8)
 local tdtext_dist_slider = imgui.ImInt(8)
 local chatbubbles_dist_slider = imgui.ImInt(6)
@@ -91,7 +244,7 @@ local tsecond = imgui.ImBool(false)
 local triggermode = imgui.ImInt(3)
 
 local mainIni = inicfg.load({
-    MultiCheat =
+    CheatByYaroRage =
     {
 		clickwarp = false,
 		sbivx = false,
@@ -106,8 +259,8 @@ local mainIni = inicfg.load({
 		pslide = false,
 		tfirst = false,
 		tsecond = false,
-		Speed = 0.0,
-		Dist = 0.0,
+		Speed = 1.0,
+		Dist = 50.0,
 		triggermode = 3,
 		silentmode = 3,
 		legit = false,
@@ -121,53 +274,96 @@ local mainIni = inicfg.load({
 		shotmax = false,
 		godcar = false,
 		NoAnimationMoney = false,
-		Fov = 0.0,
+		Fov = 5.0,
 		damageinf = false,
 		nametags_dist = 8,
 		tdtext_dist = 8,
 		chatbubbles_dist = 6,
 		fog_dist = 350,
-		lods_dist = 150
+		lods_dist = 150,
+		-- Новые функции
+		flycar = false,
+		flycar_speed = 50.0,
+		flycar_brake = 1.0,
+		esp_box = false,
+		esp_line = false,
+		esp_bones = false,
+		esp_tracers = false,
+		esp_distance = 200.0,
+		coordmaster = false,
+		coordmaster_step = 5.0,
+		coordmaster_delay = 20,
+		coordmaster_height = 120.0,
+		autocapture = false,
+		autocapture_time = "13:00:00",
+		autocapture_ms = 0,
+		anticrasher = false,
+		anti_detonator = false,
+		anti_roll = false,
+		anti_trailer = false,
+		anti_vortex = false,
     }
-}, 'MultiCheat_YaroRage/MultiCheat.ini')
+}, 'CheatByYaroRage/CheatByYaroRage.ini')
 
-godcar.v = mainIni.MultiCheat.godcar or false
-NoAnimationMoney.v = mainIni.MultiCheat.NoAnimationMoney or false
-clickwarp.v = mainIni.MultiCheat.clickwarp or false
-sbivx.v = mainIni.MultiCheat.sbivx or false
-SpeedHack.v = mainIni.MultiCheat.SpeedHack or false
-SpeedSmooth.v = mainIni.MultiCheat.SpeedSmooth or 15
-fullskillgun.v = mainIni.MultiCheat.fullskillgun or false
-pslide.v = mainIni.MultiCheat.pslide or false
-trigger.v = mainIni.MultiCheat.trigger or false
-autokick.v = mainIni.MultiCheat.autokick or false
-airbrake.v = mainIni.MultiCheat.airbrake or false
-Speed.v = mainIni.MultiCheat.Speed or 0.0
-ifastconnect.v = mainIni.MultiCheat.ifastconnect or false
-enginecar.v = mainIni.MultiCheat.enginecar or false
-noReload.v = mainIni.MultiCheat.noReload or false
-allowBunnyhop.v = mainIni.MultiCheat.allowBunnyhop or false
-eyefish.v = mainIni.MultiCheat.eyefish or false
-antistun.v = mainIni.MultiCheat.antistun or false
-shotmax.v = mainIni.MultiCheat.shotmax or false
-Dist.v = mainIni.MultiCheat.Dist or 0.0
-silentmode.v = mainIni.MultiCheat.silentmode or 3
-Fov.v = mainIni.MultiCheat.Fov or 0.0
-legit.v = mainIni.MultiCheat.legit or false
-cbz5.v = mainIni.MultiCheat.cbz5 or false
-nodamage.v = mainIni.MultiCheat.nodamage or false
-capturebiz.v = mainIni.MultiCheat.capturebiz or false
-damageinf.v = mainIni.MultiCheat.damageinf or false
-tfirst.v = mainIni.MultiCheat.tfirst or false
-tsecond.v = mainIni.MultiCheat.tsecond or false
-triggermode.v = mainIni.MultiCheat.triggermode or 3
-			flipcar.v = mainIni.MultiCheat.flipcar or false
+godcar.v = mainIni.CheatByYaroRage.godcar or false
+NoAnimationMoney.v = mainIni.CheatByYaroRage.NoAnimationMoney or false
+clickwarp.v = mainIni.CheatByYaroRage.clickwarp or false
+sbivx.v = mainIni.CheatByYaroRage.sbivx or false
+SpeedHack.v = mainIni.CheatByYaroRage.SpeedHack or false
+SpeedSmooth.v = mainIni.CheatByYaroRage.SpeedSmooth or 15
+fullskillgun.v = mainIni.CheatByYaroRage.fullskillgun or false
+pslide.v = mainIni.CheatByYaroRage.pslide or false
+trigger.v = mainIni.CheatByYaroRage.trigger or false
+autokick.v = mainIni.CheatByYaroRage.autokick or false
+airbrake.v = mainIni.CheatByYaroRage.airbrake or false
+Speed.v = mainIni.CheatByYaroRage.Speed or 1.0
+ifastconnect.v = mainIni.CheatByYaroRage.ifastconnect or false
+enginecar.v = mainIni.CheatByYaroRage.enginecar or false
+noReload.v = mainIni.CheatByYaroRage.noReload or false
+allowBunnyhop.v = mainIni.CheatByYaroRage.allowBunnyhop or false
+eyefish.v = mainIni.CheatByYaroRage.eyefish or false
+antistun.v = mainIni.CheatByYaroRage.antistun or false
+shotmax.v = mainIni.CheatByYaroRage.shotmax or false
+Dist.v = mainIni.CheatByYaroRage.Dist or 50.0
+silentmode.v = mainIni.CheatByYaroRage.silentmode or 3
+Fov.v = mainIni.CheatByYaroRage.Fov or 5.0
+legit.v = mainIni.CheatByYaroRage.legit or false
+cbz5.v = mainIni.CheatByYaroRage.cbz5 or false
+nodamage.v = mainIni.CheatByYaroRage.nodamage or false
+capturebiz.v = mainIni.CheatByYaroRage.capturebiz or false
+damageinf.v = mainIni.CheatByYaroRage.damageinf or false
+tfirst.v = mainIni.CheatByYaroRage.tfirst or false
+tsecond.v = mainIni.CheatByYaroRage.tsecond or false
+triggermode.v = mainIni.CheatByYaroRage.triggermode or 3
+flipcar.v = mainIni.CheatByYaroRage.flipcar or false
 
-nametags_dist_slider.v = mainIni.MultiCheat.nametags_dist or 8
-tdtext_dist_slider.v = mainIni.MultiCheat.tdtext_dist or 8
-chatbubbles_dist_slider.v = mainIni.MultiCheat.chatbubbles_dist or 6
-fog_dist_slider.v = mainIni.MultiCheat.fog_dist or 350
-lods_dist_slider.v = mainIni.MultiCheat.lods_dist or 150
+-- Новые
+flycar.v = mainIni.CheatByYaroRage.flycar or false
+flycar_speed.v = mainIni.CheatByYaroRage.flycar_speed or 50.0
+flycar_brake.v = mainIni.CheatByYaroRage.flycar_brake or 1.0
+esp_box.v = mainIni.CheatByYaroRage.esp_box or false
+esp_line.v = mainIni.CheatByYaroRage.esp_line or false
+esp_bones.v = mainIni.CheatByYaroRage.esp_bones or false
+esp_tracers.v = mainIni.CheatByYaroRage.esp_tracers or false
+esp_distance.v = mainIni.CheatByYaroRage.esp_distance or 200.0
+coordmaster.v = mainIni.CheatByYaroRage.coordmaster or false
+coordmaster_step.v = mainIni.CheatByYaroRage.coordmaster_step or 5.0
+coordmaster_delay.v = mainIni.CheatByYaroRage.coordmaster_delay or 20
+coordmaster_height.v = mainIni.CheatByYaroRage.coordmaster_height or 120.0
+autocapture.v = mainIni.CheatByYaroRage.autocapture or false
+autocapture_time.v = mainIni.CheatByYaroRage.autocapture_time or "13:00:00"
+autocapture_ms.v = mainIni.CheatByYaroRage.autocapture_ms or 0
+anticrasher.v = mainIni.CheatByYaroRage.anticrasher or false
+anti_detonator.v = mainIni.CheatByYaroRage.anti_detonator or false
+anti_roll.v = mainIni.CheatByYaroRage.anti_roll or false
+anti_trailer.v = mainIni.CheatByYaroRage.anti_trailer or false
+anti_vortex.v = mainIni.CheatByYaroRage.anti_vortex or false
+
+nametags_dist_slider.v = mainIni.CheatByYaroRage.nametags_dist or 8
+tdtext_dist_slider.v = mainIni.CheatByYaroRage.tdtext_dist or 8
+chatbubbles_dist_slider.v = mainIni.CheatByYaroRage.chatbubbles_dist or 6
+fog_dist_slider.v = mainIni.CheatByYaroRage.fog_dist or 350
+lods_dist_slider.v = mainIni.CheatByYaroRage.lods_dist or 150
 
 ffi.cdef[[
     typedef struct _SYSTEMTIME {
@@ -216,13 +412,11 @@ function intToHex(int)
     return HEX
 end
 
-aiming = 3
-
 local ClanPlayer = 0
 local start, cl = false, false
 local socket = require('socket')
 
-local f_ini = getGameDirectory().."\\moonloader\\config\\MultiCheat_YaroRage\\settingstime.ini"
+local f_ini = getGameDirectory().."\\moonloader\\config\\CheatByYaroRage\\settingstime.ini"
 ini = {
     settings = {
         activate = false,
@@ -239,7 +433,7 @@ local config = inicfg.load(nil, f_ini)
 function main()
     repeat wait(0) until isSampAvailable()
 
-	ywelcome("UltraHack", "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ N (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1 пїЅпїЅпїЅ)")
+	ywelcome("CheatByYaroRage", u8"Меню: /cheat или N (долгое нажатие 1 сек)")
 
 	clearAnim()
 	lua_thread.create(ClickWP)
@@ -248,6 +442,8 @@ function main()
 
 	save()
 
+    last_spectator_check = 0  -- для авто-проверки слежки
+	
     if config == nil then
         local f = io.open(f_ini, "w")
         if f then f:close() end
@@ -265,11 +461,15 @@ function main()
 	nametags_allowed_dist = 250
 	set_dist(0, nametags_dist_slider.v)
 
-	sampRegisterChatCommand("fake", function()
+	sampRegisterChatCommand("cheat", function()
+        mcheat.v = not mcheat.v
+    end)
+    
+    sampRegisterChatCommand("fake", function()
         window.v = true
     end)
 
-	sampRegisterChatCommand("mrec", function(arg)
+	sampRegisterChatCommand("rec", function(arg)
 		if tonumber(arg) then
 			lua_thread.create(function()
 				if sampIsDialogActive() then
@@ -306,8 +506,8 @@ function main()
 		end
 	end)
 
-	sampRegisterChatCommand('mhelp', function()
-		sampShowDialog(9999, "{FFFFFF}пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ by YaroRage.", '/mcheat - ??????? ???? ?????-????\n/mhelp - ??????? ??? ????\n/fake - ???? ????? ??? ???????? ???????\n/rec - ?????????, ????????? ? ????\n/ctime - ????? ?? ?????? ? ?????????????\n/skin - ??????????(??????)\n/slp - ???????? ?????? ????\n/sc - ???????? ?? ???????\n/autorem - ????????/????????? ?????????????? ??????\n/wolic - ???? ??? ????\n/pcol - ???? ?? ????????\n/st /sw - ????? ??????? ? ??????\n/fakepl - ???????? ???, ????? ?????? (id, ???, id ?????? ? ???????? ????? ????? ????, id ?????)\n/clan - ?????????\n/fix - ???????? ????\n/breakecar - ??????? ???? ??? ?????????? ???\nAlt + 1 - ??????? ?????? ????\nAlt + 2 - ??????? ????? ????', "? ???", "", 0)
+	sampRegisterChatCommand('chelp', function()
+		sampShowDialog(9999, "{FFFFFF}CheatByYaroRage by YaroRage.", '/cheat - Открыть/Закрыть меню\n/chelp - Показать это меню\n/fake - Открыть фейк чат\n/rec - Реконнект через N сек\n/ctime - Настройка времени на экране\n/skin - Установить скин\n/slp - Телепорт вверх\n/autorem - Авто /rem при входе в машину\n/wolic - WOLIC (проход сквозь стены)\n/pcol - Цвет игрока по ID\n/st /sw - Время/Погода\n/fakepl - Фейк игрок (id, имя, цвет, скин)\n/clan - Считать игроков в клане\n/fix - Починить машину\n/breakecar - Сломать машину\nAlt + 1 - Замок 1\nAlt + 2 - Замок 4\nN (1 сек) - Меню', "OK", "", 0)
 	end)
 
 	sampRegisterChatCommand('slp', function()
@@ -321,7 +521,7 @@ function main()
             hour, minute, second, ms = tonumber(hour), tonumber(minute), tonumber(second), tonumber(ms)
             active = true
         else
-            ywelcome("UltraHack", '???:??????:???????:???????????')
+            ywelcome("CheatByYaroRage", u8'Формат: ЧЧ:ММ:СС:МС')
         end
     end)
     time = ffi.new('SYSTEMTIME')
@@ -329,18 +529,18 @@ function main()
 	sampRegisterChatCommand('autorem', function()
 		autorem = not autorem
 		if autorem then
-			ywelcome("UltraHack", 'Autorem - ???????.')
+			ywelcome("CheatByYaroRage", u8'Autorem - ВКЛ.')
 		else
-			ywelcome("UltraHack", 'autorem - ????????.')
+			ywelcome("CheatByYaroRage", u8'Autorem - ВЫКЛ.')
 		end
 	end)
 
 	sampRegisterChatCommand("wolic", function()
 		wolic = not wolic
 		if wolic then
-			ywelcome("UltraHack", 'WOLIC - ???????.')
+			ywelcome("CheatByYaroRage", u8'WOLIC - ВКЛ.')
 		else
-			ywelcome("UltraHack", 'WOLIC - ????????.')
+			ywelcome("CheatByYaroRage", u8'WOLIC - ВЫКЛ.')
 		end
 	end)
 
@@ -361,10 +561,10 @@ function main()
                 sampSetPlayerSkin(tonumber(playerId), tonumber(skinId))
                 sampSetPlayerColor(tonumber(playerId), getPlayerColor(tonumber(playercolor)))
             else
-                sampAddChatMessage('????? ? ???? "'..tonumber(playerId)..'" ?? ??????!', -1)
+                sampAddChatMessage(u8'Игрок с ID "'..tonumber(playerId)..'" не найден!', -1)
             end
         else
-            sampAddChatMessage('??????? ??????? ???????! /fakepl id, ???, id ?????? ? ???????? ????? ????? ????, id ?????', -1)
+            sampAddChatMessage(u8'Неверный формат! /fakepl id, имя, цвет, скин', -1)
         end
     end)
 
@@ -379,11 +579,11 @@ function main()
 						ClanPlayer = ClanPlayer + 1
 					end
 				end
-				ywelcome("UltraHack", '??????? ? ????????? ??????? - '..ClanPlayer)
+				ywelcome("CheatByYaroRage", u8'Игроков в клане - '..ClanPlayer)
 				ClanPlayer = 0
 			end)
 		else
-			ywelcome("UltraHack", '??????! ??????? ID ??????.')
+			ywelcome("CheatByYaroRage", u8'Ошибка! Укажите ID игрока.')
 		end
 	end)
 
@@ -423,10 +623,6 @@ function main()
 		end
 	end)
 
-	sampRegisterChatCommand('mcheat', function()
-		mcheat.v = not mcheat.v
-	end)
-
 	lua_thread.create(function() 
         while true do
             wait(0)
@@ -443,6 +639,25 @@ function main()
 
 	while true do
 		wait(0)
+
+		-- Admin Detection обновление (каждые 2 сек)
+		if admin_detection.v then
+			local cur_time = os.clock()
+			if not last_admin_check or cur_time - last_admin_check >= 2.0 then
+				updateAdminList()
+				checkSpectators()
+				last_admin_check = cur_time
+			end
+		end
+
+		-- Auto Spectator Check (каждые 5 сек)
+		if auto_spectator_check.v then
+			local cur_time = os.clock()
+			if not last_spectator_check or cur_time - last_spectator_check >= 5.0 then
+				checkSpectators()
+				last_spectator_check = cur_time
+			end
+		end
 
 		if pslide.v and isCharOnFoot(PLAYER_PED) and getCurrentCharWeapon(PLAYER_PED) == 24 and not sampIsChatInputActive() and not sampIsCursorActive() and not sampIsDialogActive() then
             if not aiming then
@@ -496,7 +711,7 @@ function main()
 					wait(0)
 				end
 				if not opened and not mcheat.v then
-					-- пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ ...
+					-- короткое нажатие - ничего не делаем
 				end
 			end
 		end
@@ -513,17 +728,17 @@ function main()
 			end
 		end
 
-		if trigger.v and not isCharOnAnyBike(playerPed) and not isCharDead(playerPed) then
+		if trigger.v and not isCharOnAnyBike(PLAYER_PED) and not isCharDead(PLAYER_PED) then
 			local int = readMemory(0xB6F3B8, 4, 0)
-			int=int + 0x79C
+			int = int + 0x79C
 			local intS = readMemory(int, 4, 0)
 			if intS > 0 then
 				local lol = 0xB73458
-				lol=lol + 34
+				lol = lol + 34
 				writeMemory(lol, 4, 255, 0)
 				wait(100)
 				local int = readMemory(0xB6F3B8, 4, 0)
-				int=int + 0x79C
+				int = int + 0x79C
 				writeMemory(int, 4, 0, 0)
 			end
 		end
@@ -533,7 +748,7 @@ function main()
 		end
 
 		if flipcar.v and isCharInAnyCar(PLAYER_PED) then
-			local timerKey = 192 -- VK_OEM_3 (key with ~ and |, often РЄ on Russian keyboards)
+			local timerKey = 192 -- VK_OEM_3 (key with ~ and |, often Ъ on Russian keyboards)
 			if isKeyDown(timerKey) then
 				n_press_time = n_press_time + 1
 				if n_press_time >= 50 then -- 0.5 seconds (50 * 10ms)
@@ -549,9 +764,9 @@ function main()
 		end
 
 		if NoAnimationMoney.v then
-			mem.setuint8(5701879, 184, true)
-			mem.copy(5701883, mem.strptr("???   "), 6, true)
-			mem.setuint8(5701891, 235, true)
+			memory.setuint8(5701879, 184, true)
+			memory.copy(5701883, memory.strptr("???   "), 6, true)
+			memory.setuint8(5701891, 235, true)
 		end
 
 		if fullskillgun.v then
@@ -715,6 +930,82 @@ function main()
 			end
 		end
 
+		-- FlyCar
+		if flycar.v and isCharInAnyCar(PLAYER_PED) then
+			local veh = storeCarCharIsInNoSave(PLAYER_PED)
+			if isKeyDown(VK_W) then
+				setCarForwardSpeed(veh, getCarSpeed(veh) + flycar_speed.v * 0.1)
+			end
+			if isKeyDown(VK_S) then
+				setCarForwardSpeed(veh, getCarSpeed(veh) - flycar_brake.v)
+			end
+			if isKeyDown(VK_SPACE) then
+				local x, y, z = getCarCoordinates(veh)
+				setCarCoordinates(veh, x, y, z + 0.5)
+			end
+			if isKeyDown(VK_LSHIFT) then
+				local x, y, z = getCarCoordinates(veh)
+				setCarCoordinates(veh, x, y, z - 0.5)
+			end
+			setCarCollision(veh, false)
+		else
+			if isCharInAnyCar(PLAYER_PED) then
+				local veh = storeCarCharIsInNoSave(PLAYER_PED)
+				setCarCollision(veh, true)
+			end
+		end
+
+		-- CoordMaster (NTP teleport to marker)
+		if coordmaster.v and isKeyJustPressed(VK_F5) then
+			local blipX, blipY, blipZ = getTargetBlipCoordinates()
+			if blipX and blipY then
+				lua_thread.create(function()
+					local px, py, pz = getCharCoordinates(PLAYER_PED)
+					local dist = getDistanceBetweenCoords2d(px, py, blipX, blipY)
+					local steps = math.ceil(dist / coordmaster_step.v)
+					local angle = getHeadingFromVector2d(blipX - px, blipY - py)
+					
+					for i = 1, steps do
+						if not coordmaster.v then break end
+						local nx = px + coordmaster_step.v * math.sin(math.rad(angle))
+						local ny = py + coordmaster_step.v * math.cos(math.rad(angle))
+						setCharCoordinates(PLAYER_PED, nx, ny, coordmaster_height.v)
+						px, py = nx, ny
+						wait(coordmaster_delay.v)
+					end
+					setCharCoordinates(PLAYER_PED, blipX, blipY, blipZ)
+					printStringNow(u8"~g~Телепорт завершен!", 2000)
+				end)
+			end
+		end
+
+		-- AutoCapture Biz
+		if autocapture.v then
+			local curTime = os.date("%H:%M:%S")
+			local curMs = tonumber(string.format("%03d", math.floor(socket.gettime() * 1000) % 1000))
+			if curTime == autocapture_time.v and curMs >= autocapture_ms.v then
+				for i = 1, 5 do
+					sampSendChat('/capture_biz')
+				end
+			end
+		end
+
+		-- Anti-Crashers
+		if anticrasher.v then
+			if anti_detonator.v then
+				-- Handled in ev.onAimSync
+			end
+			if anti_roll.v then
+				-- Handled in ev.onPlayerSync
+			end
+			if anti_trailer.v then
+				-- Trailer crasher protection
+			end
+			if anti_vortex.v then
+				-- Vortex crasher protection
+			end
+		end
+
 		if mcheat.v then
 			imgui.ShowCursor = true
 			imgui.Process = true
@@ -730,12 +1021,12 @@ end
 
 function cmd_stime()
     lua_thread.create(function()
-        local dtext = "пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ\t" .. (config.settings.activate and "{45d900}ON\n" or "{ff0000}OFF\n")
-        local dtext = dtext .. "?????? ??????:\t" .. config.settings.fontsize .. "\n"
-        local dtext = dtext .. "???? ???????:\t{" .. config.settings.color .. "}||||||||||\n"
-        local dtext = dtext .. "???? ???????????:\t{" .. config.settings.msColor .. "}||||||||||\n"
-        local dtext = dtext .. "???????? ?????????"
-        sampShowDialog(10, "{A77BCA}Time On Screen", dtext, "OK", "??????", DIALOG_STYLE_TABLIST)
+        local dtext = u8"Время на экране\t" .. (config.settings.activate and "{45d900}ON\n" or "{ff0000}OFF\n")
+        dtext = dtext .. u8"Размер шрифта:\t" .. config.settings.fontsize .. "\n"
+        dtext = dtext .. u8"Цвет времени:\t{" .. config.settings.color .. "}||||||||||\n"
+        dtext = dtext .. u8"Цвет миллисекунд:\t{" .. config.settings.msColor .. "}||||||||||\n"
+        dtext = dtext .. u8"Перемещение окна"
+        sampShowDialog(10, "{A77BCA}Time On Screen", dtext, "OK", "Отмена", DIALOG_STYLE_TABLIST)
         while sampIsDialogActive(10) do wait(0) end
         local result, button, list, input = sampHasDialogRespond(10)
 
@@ -747,7 +1038,7 @@ function cmd_stime()
             end
 
             if list == 1 then
-                sampShowDialog(11, "{A77BCA}Time On Screen", "{FFFFFF}??????? ????? ???????? ??????:", "OK", "??????", DIALOG_STYLE_INPUT)
+                sampShowDialog(11, "{A77BCA}Time On Screen", u8"{FFFFFF}Введите размер шрифта:", "OK", "Отмена", DIALOG_STYLE_INPUT)
                 while sampIsDialogActive(11) do wait(0) end
                 local result, button, list, input = sampHasDialogRespond(11)
                 if result then
@@ -757,7 +1048,7 @@ function cmd_stime()
                         inicfg.save(config, f_ini)
                         return true
                     else
-                        ywelcome("UltraHack", "???????? ?????? ???? ??????!")
+                        ywelcome("CheatByYaroRage", u8"Неверный формат числа!")
                         return true
                     end
                 else
@@ -766,16 +1057,16 @@ function cmd_stime()
             end
 
             if list == 2 then
-                sampShowDialog(11, "{A77BCA}Time On Screen", "{FFFFFF}??????? ????? ???????? ?????:\n{c3c3c3}????????: AE433D ??? A77BCA (?? ????????? FFFFFF)", "OK", "??????", DIALOG_STYLE_INPUT)
+                sampShowDialog(11, "{A77BCA}Time On Screen", u8"{FFFFFF}Введите цвет времени (HEX):\n{c3c3c3}Примеры: AE433D или A77BCA (или FFFFFF)", "OK", "Отмена", DIALOG_STYLE_INPUT)
                 while sampIsDialogActive(11) do wait(0) end
                 local result, button, list, input = sampHasDialogRespond(11)
                 if result then
-                    if not input:match("[?-??-??]+") then
+                    if not input:match("[^0-9A-Fa-f]+") then
                         config.settings.color = input
                         inicfg.save(config, f_ini)
                         return true
                     else
-                        ywelcome("UltraHack", "???????????? ????.")
+                        ywelcome("CheatByYaroRage", u8"Неверный формат цвета.")
                         return true
                     end
                 else
@@ -784,16 +1075,16 @@ function cmd_stime()
             end
 
             if list == 3 then
-                sampShowDialog(11, "{A77BCA}Time On Screen", "{FFFFFF}??????? ????? ???????? ?????:\n{c3c3c3}????????: AE433D ??? A77BCA (?? ????????? 858585)", "OK", "??????", DIALOG_STYLE_INPUT)
+                sampShowDialog(11, "{A77BCA}Time On Screen", u8"{FFFFFF}Введите цвет миллисекунд (HEX):\n{c3c3c3}Примеры: AE433D или A77BCA (или 858585)", "OK", "Отмена", DIALOG_STYLE_INPUT)
                 while sampIsDialogActive(11) do wait(0) end
                 local result, button, list, input = sampHasDialogRespond(11)
                 if result then
-                    if not input:match("[?-??-??]+") then
+                    if not input:match("[^0-9A-Fa-f]+") then
                         config.settings.msColor = input
                         inicfg.save(config, f_ini)
                         return true
                     else
-                        ywelcome("UltraHack", "???????????? ????.")
+                        ywelcome("CheatByYaroRage", u8"Неверный формат цвета.")
                         return true
                     end
                 else
@@ -803,7 +1094,7 @@ function cmd_stime()
 
             if list == 4 then
                 moving = true
-                ywelcome("UltraHack", "??????? ??? ??? ?????????? ?????????.")
+                ywelcome("CheatByYaroRage", u8"Переместите окно мышкой и нажмите ЛКМ.")
             end
         end
     end)
@@ -859,11 +1150,14 @@ function set_dist(number, value)
 		end
 	end
 	if number == 1 then
+		-- 3D Text distance - only update when slider changes, not every frame
 		if mcheat.v then
 			for i=0, 2048 do
 				if sampIs3dTextDefined(i) then
 					local text, col, posX, posY, posZ, dist, los, plid, vehid = sampGet3dTextInfoById(i)
-					sampCreate3dTextEx(i, text, col, posX, posY, posZ, value, los, plid, vehid)
+					if dist ~= value then
+						sampCreate3dTextEx(i, text, col, posX, posY, posZ, value, los, plid, vehid)
+					end
 				end
 			end
 		end
@@ -1030,7 +1324,7 @@ function ev.onSendGiveDamage(id, data, data1, data2, data3)
 		end
 	end
 	if nodamage.v then
-		_, pID = sampGetPlayerIdByCharHandle(playerPed)
+		_, pID = sampGetPlayerIdByCharHandle(PLAYER_PED)
 		clist = sampGetPlayerColor(pID)
 		clistplayer = sampGetPlayerColor(id)
 		if clistplayer == clist then
@@ -1053,7 +1347,7 @@ function ev.onSendGiveDamage(id, data, data1, data2, data3)
 			else ox, oy, oz = 0, 0, 0 end
 
 			x, y, z = getOffsetFromCharInWorldCoords(ch, ox, oy, oz)
-			printStringNow('~g~ ???? ?? - '..nick..'['..playerid..'] ~y~[+] ~r~-'..math.floor(data)..'HP', 1500)
+			printStringNow(u8'~g~ Урон по - '..nick..'['..playerid..'] ~y~[+] ~r~-'..math.floor(data)..'HP', 1500)
 			sampCreate3dTextEx('1', math.floor(data), 0xFFFFFFFF, x, y, z, 100, 1, -1, -1)
 			wait(3000)
 			sampDestroy3dText(1)
@@ -1065,8 +1359,8 @@ function ev.onSendTakeDamage(id, data, data1, data2, data3)
 	if damageinf.v and getCharHealth(PLAYER_PED) >= 1 then
 		_, ch = sampGetCharHandleBySampPlayerId(id)
 		local nick = sampGetPlayerNickname(id)
-		local _, playerid = sampGetPlayerIdByCharHandle(playerPed)
-		printStringNow('~g~ ??????? ???? ?? - '..nick..'['..playerid..'] ~y~[-] ~r~-'..math.floor(data)..'HP', 1500)
+		local _, playerid = sampGetPlayerIdByCharHandle(PLAYER_PED)
+		printStringNow(u8'~g~ Урон от - '..nick..'['..playerid..'] ~y~[-] ~r~-'..math.floor(data)..'HP', 1500)
 	end
 end
 
@@ -1105,151 +1399,100 @@ end
 function ev.onSendEnterVehicle(vehId, pass)
 	if autorem then
 		lua_thread.create(function()
+			wait(5000)
 			result, handle = sampGetCarHandleBySampVehicleId(vehId)
 			if result then
-				wait(5000)
 				sampProcessChatInput('/rem')
 			end
 		end)
 	end
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅ
+-- ИНТЕРФЕЙС
+local search_text = imgui.ImBuffer(256)
+local theme_selector = imgui.ImInt(0)
+local themes = {
+    {name = u8"Классическая", colors = {}},
+    {name = u8"Тёмная", colors = {}},
+    {name = u8"Красная", colors = {}},
+    {name = u8"Фиолетовая", colors = {}},
+    {name = u8"Зелёная", colors = {}}
+}
+local profile_selector = imgui.ImInt(0)
+local profile_name = imgui.ImBuffer(256)
+
 function imgui.OnDrawFrame()
 	resX, resY = getScreenResolution()
-	-- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (4K/2K): пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ 1080p
 	fsc = resY / 1080
 	imgui.GetIO().FontGlobalScale = fsc
-	local winW, winH = 475 * fsc, 670 * fsc
+	
+	local winW, winH = 600 * fsc, 500 * fsc
+	
 	if mcheat.v then
-		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - winW / 2, resY / 2 - winH / 2), imgui.Cond.Always)
-		imgui.SetNextWindowSize(imgui.ImVec2(winW, winH), imgui.Cond.Always)
-		imgui.Begin('', mcheat, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoScrollbar)
-
-		imgui.BeginChild("##MainGroup", imgui.ImVec2(winW, winH), true, imgui.WindowFlags.NoScrollbar)
-			imgui.BeginGroup()
-				sbox(u8'пїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅ', autokick)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				sbox('ClickWarp', clickwarp)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				imgui.NewLine()
-				if imgui.RadioButton('Trigger 1', triggermode, 1) then
-					triggermode.v = 1
-					save()
-				end
-				imgui.SameLine()
-				if imgui.RadioButton('Trigger 2', triggermode, 2) then
-					triggermode.v = 2
-					save()
-				end
-				if imgui.RadioButton(u8'пїЅпїЅпїЅпїЅпїЅ', triggermode, 3) then
-					triggermode.v = 3
-					save()
-				end
-				imgui.NewLine()
-				if imgui.RadioButton('Silent Aim LITE', silentmode, 1) then
-					silentmode.v = 1
-					save()
-				end
-				if imgui.RadioButton('Silent Aim RAGE', silentmode, 2) then
-					silentmode.v = 2
-					save()
-				end
-				if imgui.RadioButton(u8'пїЅпїЅпїЅпїЅпїЅ', silentmode, 3) then
-					silentmode.v = 3
-					save()
-				end
-				imgui.NewLine()
-				sbox(u8'пїЅпїЅпїЅпїЅпїЅ', sbivx)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				sbox(u8'FullSkillGun', fullskillgun)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				sbox(u8'пїЅпїЅпїЅпїЅпїЅ', pslide)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				sbox(u8'AirBrake', airbrake)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				sbox(u8'SpeedHack', SpeedHack)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				imgui.PushItemWidth(90 * fsc)
-				if imgui.SliderInt('Smooth', SpeedSmooth, 0, 80) then
-					save()
-				end
-				sbox('NoDamage', nodamage)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				sbox(u8'пїЅпїЅпїЅпїЅпїЅ', capturebiz)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				sbox(u8'Damage Informer', damageinf)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				sbox('LegitAimBot', cbz5)
-				if imgui.SliderFloat("SpeedAim", Speed, 0.0, 50.0, '%.1f') then
-					save()
-				end
-				if imgui.SliderFloat("DistAim", Dist, 0.0, 100.0, '%.1f') then
-					save()
-				end
-				if imgui.SliderFloat("FovAim", Fov, 0.0, 100.0, '%.1f') then
-					save()
-				end
-				sbox('LegitAimBot V2', legit)
-			imgui.EndGroup()
-
-			imgui.SameLine(230)
-
-			imgui.BeginGroup()
-				imgui.PushItemWidth(120 * fsc)
-				if imgui.SliderInt('NAMETAGS', nametags_dist_slider, 0, nametags_allowed_dist) then
-					set_dist(0, nametags_dist_slider.v)
-					save()
-				end
-				if imgui.SliderInt('3D TEXT', tdtext_dist_slider, 0, 30) then
-					set_dist(1, tdtext_dist_slider.v)
-					save()
-				end
-				if imgui.SliderInt('CHAT BUBBLES', chatbubbles_dist_slider, 0, 30) then
-					set_dist(2, chatbubbles_dist_slider.v)
-					save()
-				end
-				if imgui.SliderInt('LODS', lods_dist_slider, 0, 1000) then
-					set_dist(4, lods_dist_slider.v)
-					save()
-				end
-				sbox(u8'NoReload.', noReload)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				sbox(u8'пїЅпїЅпїЅпїЅпїЅ', enginecar)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				sbox(u8"пїЅпїЅпїЅпїЅпїЅ", shotmax)
-				sbox(u8"пїЅпїЅпїЅпїЅпїЅ", antistun)
-				sbox(u8"AntiBunnyhop", allowBunnyhop)
-				sbox(u8"пїЅпїЅпїЅпїЅпїЅ", eyefish)
-				sbox("FastConnect", ifastconnect)
-				sbox(u8'GMCar', godcar)
-				sbox(u8'FlipCar', flipcar)
-				sbox(u8'NoAnimationMoney', NoAnimationMoney)
-				imgui.TextQuestion(u8'пїЅпїЅпїЅпїЅпїЅ')
-				if imgui.Button('FIX', imgui.ImVec2(70 * fsc, 35 * fsc)) then
-					sampProcessChatInput('/fix')
-				end
-				imgui.SameLine()
-				if imgui.Button('BREAK', imgui.ImVec2(70 * fsc, 35 * fsc)) then
-					sampProcessChatInput('/breakecar')
-				end
-				imgui.SameLine()
-				if imgui.Button('FAKE CHAT', imgui.ImVec2(70 * fsc, 35 * fsc)) then
-					sampProcessChatInput('/fake')
-					mcheat.v = false
-				end
-				imgui.EndGroup()
-			imgui.EndChild()
+		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - winW / 2, resY / 2 - winH / 2), imgui.Cond.FirstUseEver)
+		imgui.SetNextWindowSize(imgui.ImVec2(winW, winH), imgui.Cond.FirstUseEver)
+		imgui.Begin(u8'CheatByYaroRage v2.0', mcheat, imgui.WindowFlags.NoCollapse)
+		
+		-- Верхняя панель: поиск, профиль, тема, обновление
+		imgui.PushItemWidth(150 * fsc)
+		imgui.InputText(u8"##search", search_text, imgui.InputTextFlags.EnterReturnsTrue)
+		imgui.PopItemWidth()
+		imgui.SameLine()
+		if imgui.Button(u8" Поиск", imgui.ImVec2(80 * fsc, 25 * fsc)) then end
+		imgui.SameLine()
+		imgui.Dummy(imgui.ImVec2(10, 0))
+		imgui.SameLine()
+		imgui.Text(u8"Профиль:")
+		imgui.SameLine()
+		imgui.PushItemWidth(100 * fsc)
+		if imgui.Combo(u8"##profile", profile_selector, profiles) then
+			loadProfile(profiles[profile_selector.v + 1])
+		end
+		imgui.PopItemWidth()
+		imgui.SameLine()
+		if imgui.Button(u8"Сохранить", imgui.ImVec2(70 * fsc, 25 * fsc)) then
+			saveProfile(profiles[profile_selector.v + 1])
+		end
+		imgui.SameLine()
+		imgui.Text(u8"Тема:")
+		imgui.SameLine()
+		imgui.PushItemWidth(100 * fsc)
+		if imgui.Combo(u8"##theme", theme_selector, {"Классическая", "Тёмная", "Красная", "Фиолетовая", "Зелёная"}) then
+			applyTheme(theme_selector.v)
+		end
+		imgui.PopItemWidth()
+		imgui.SameLine()
+		if imgui.Button(u8"Запустить автоапдейтер", imgui.ImVec2(140 * fsc, 25 * fsc)) then
+			os.execute('start "" "..\\..\\autoupdateryr.exe"')
+		end
+		imgui.Separator()
+		
+		-- TabBar
+		if imgui.BeginTabBar("##MainTabBar") then
+			-- Вкладки вынесены в отдельные функции (обход лимита 60 upvalues)
+			drawAimTab()
+			drawVehicleTab()
+			drawPlayerTab()
+			drawVisualTab()
+			drawBizTab()
+			drawFlyTab()
+			drawEspTab()
+			drawCoordTab()
+			drawAutoCaptureTab()
+			drawAntiCrasherTab()
+			drawAdminTab()
+		end
+		
 		imgui.End()
 	end
-
+	
 	if window.v then
         local resX, resY = getScreenResolution()
         local fsc = resY / 1080
         local sizeX, sizeY = 300 * fsc, 150 * fsc
         imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - sizeX / 2, resY / 2 - sizeY / 2), imgui.Cond.Always)
         imgui.SetNextWindowSize(imgui.ImVec2(sizeX, sizeY), imgui.Cond.Always)
-        imgui.Begin('Fake', window)
+        imgui.Begin(u8'Fake Chat', window)
         imgui.PushItemWidth(255 * fsc)
         if imgui.InputText("##inp1", str) then
             for k, v in ipairs(messages) do
@@ -1262,7 +1505,7 @@ function imgui.OnDrawFrame()
             str.v = u8(buffer[2])
             color = buffer[1]
         end
-        if imgui.Button("Send") then
+        if imgui.Button(u8"Отправить") then
             sampAddChatMessage(u8:decode(str.v), color)
         end
         imgui.PopItemWidth()
@@ -1270,20 +1513,366 @@ function imgui.OnDrawFrame()
     end
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
-function imgui.TextQuestion(text)
-	local war = (fa.ICON_FA_INFO_CIRCLE.. u8(' ?????????:'))
-	if imgui.IsItemHovered() then
-		imgui.BeginTooltip()
-		imgui.PushTextWrapPos(450 * fsc)
-		imgui.TextColored(imgui.ImVec4(1.15, 0.18, 0.22, 1), war)
-		imgui.TextUnformatted(text)
-		imgui.PopTextWrapPos()
-		imgui.EndTooltip()
-	end
+-- Вкладки меню (вынесены из imgui.OnDrawFrame для обхода лимита 60 upvalues)
+
+function drawAimTab()
+			-- ВКЛАДКА: АИМБОТ
+			if imgui.BeginTabItem(fa.ICON_FA_CROSSHAIRS .. u8' Аимбот') then
+				imgui.BeginChild("##AimChild", imgui.ImVec2(0, 0), true)
+				imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"Настройки AimBot")
+				imgui.Separator()
+				
+				sbox(u8'Legit AimBot (LMB)', cbz5)
+				imgui.TextQuestion(u8'Плавное наведение на ЛКМ')
+				if imgui.SliderFloat(u8"Скорость##aim", Speed, 0.1, 50.0, '%.1f') then save() end
+				if imgui.SliderFloat(u8"Дистанция##aim", Dist, 1.0, 200.0, '%.1f') then save() end
+				if imgui.SliderFloat(u8"FOV##aim", Fov, 0.1, 30.0, '%.1f') then save() end
+				
+				imgui.NewLine()
+				imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"Silent Aim")
+				imgui.Separator()
+				if imgui.RadioButton(u8'LITE', silentmode, 1) then silentmode.v = 1; save() end
+				imgui.SameLine()
+				if imgui.RadioButton(u8'RAGE', silentmode, 2) then silentmode.v = 2; save() end
+				imgui.SameLine()
+				if imgui.RadioButton(u8'ВЫКЛ', silentmode, 3) then silentmode.v = 3; save() end
+				
+				imgui.NewLine()
+				imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"TriggerBot")
+				imgui.Separator()
+				if imgui.RadioButton(u8'Режим 1 (наведение)', triggermode, 1) then triggermode.v = 1; save() end
+				if imgui.RadioButton(u8'Режим 2 (автострелба)', triggermode, 2) then triggermode.v = 2; save() end
+				if imgui.RadioButton(u8'ВЫКЛ', triggermode, 3) then triggermode.v = 3; save() end
+				
+				imgui.NewLine()
+				sbox(u8'NoSpread', nodamage)
+				imgui.TextQuestion(u8'Убрать разброс пуль (требует перезахода)')
+				sbox(u8'NoReload', noReload)
+				imgui.TextQuestion(u8'Без перезарядки')
+				sbox(u8'FastDeagle', pslide)
+				imgui.TextQuestion(u8'Быстрая стрельба из Дигла (ПКМ)')
+				
+				imgui.EndChild()
+				imgui.EndTabItem()
+			end
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+function drawVehicleTab()
+			-- ВКЛАДКА: ТРАНСПОРТ
+			if imgui.BeginTabItem(fa.ICON_FA_CAR .. u8' Транспорт') then
+				imgui.BeginChild("##VehChild", imgui.ImVec2(0, 0), true)
+				
+				sbox(u8'AirBrake', airbrake)
+				imgui.TextQuestion(u8'Полет/ходьба в воздухе (RShift)')
+				sbox(u8'FlipCar (Del)', flipcar)
+				imgui.TextQuestion(u8'Переворот машины клавишей Del (удержание 0.5с)')
+				sbox(u8'GM Car', godcar)
+				imgui.TextQuestion(u8'Неуязвимая машина')
+				sbox(u8'EngineCar', enginecar)
+				imgui.TextQuestion(u8'Всегда заведенный двигатель')
+				sbox(u8'SpeedHack (Alt)', SpeedHack)
+				imgui.TextQuestion(u8'Ускорение машины на Alt')
+				if imgui.SliderInt(u8'Смут##speed', SpeedSmooth, 1, 100) then save() end
+				
+				imgui.EndChild()
+				imgui.EndTabItem()
+			end
+end
+
+function drawPlayerTab()
+			-- ВКЛАДКА: ИГРОК
+			if imgui.BeginTabItem(fa.ICON_FA_USER .. u8' Игрок') then
+				imgui.BeginChild("##PlayerChild", imgui.ImVec2(0, 0), true)
+				
+				sbox(u8'FullSkillGun', fullskillgun)
+				imgui.TextQuestion(u8'Максимальный скилл оружия')
+				sbox(u8'AntiStun', antistun)
+				imgui.TextQuestion(u8'Анти-стан от ударов')
+				sbox(u8'AntiBunnyhop', allowBunnyhop)
+				imgui.TextQuestion(u8'Разрешить баннихоп')
+				sbox(u8'EyeFish', eyefish)
+				imgui.TextQuestion(u8'Зум прицела (ПКМ на снайперке)')
+				sbox(u8'FastConnect', ifastconnect)
+				imgui.TextQuestion(u8'Быстрое подключение к серверу')
+				sbox(u8'NoAnimationMoney', NoAnimationMoney)
+				imgui.TextQuestion(u8'Без анимации отдачи денег')
+				sbox(u8'ShotMax', shotmax)
+				imgui.TextQuestion(u8'Максимальный урон (дробовик -> 48 урона)')
+				sbox(u8'Damage Informer', damageinf)
+				imgui.TextQuestion(u8'Показывать урон в 3D тексте')
+				
+				imgui.EndChild()
+				imgui.EndTabItem()
+			end
+end
+
+function drawVisualTab()
+			-- ВКЛАДКА: ВИЗУАЛЫ
+			if imgui.BeginTabItem(fa.ICON_FA_EYE .. u8' Визуалы') then
+				imgui.BeginChild("##VisualChild", imgui.ImVec2(0, 0), true)
+				
+				imgui.TextColored(imgui.ImVec4(0.3, 1, 0.3, 1), u8"Дистанции отрисовки")
+				imgui.Separator()
+				imgui.PushItemWidth(120 * fsc)
+				if imgui.SliderInt(u8'NickTags', nametags_dist_slider, 0, nametags_allowed_dist) then set_dist(0, nametags_dist_slider.v); save() end
+				if imgui.SliderInt(u8'3D Text', tdtext_dist_slider, 0, 50) then set_dist(1, tdtext_dist_slider.v); save() end
+				if imgui.SliderInt(u8'Chat Bubbles', chatbubbles_dist_slider, 0, 50) then set_dist(2, chatbubbles_dist_slider.v); save() end
+				if imgui.SliderInt(u8'LODs', lods_dist_slider, 0, 2000) then set_dist(4, lods_dist_slider.v); save() end
+				if imgui.SliderInt(u8'Fog', fog_dist_slider, 0, 5000) then set_dist(3, fog_dist_slider.v); save() end
+				
+				imgui.NewLine()
+				sbox(u8'SbivX (B)', sbivx)
+				imgui.TextQuestion(u8'Очистка анимаций (клавиша B)')
+				
+				imgui.EndChild()
+				imgui.EndTabItem()
+			end
+end
+
+function drawBizTab()
+			-- ВКЛАДКА: БИЗНЕС
+			if imgui.BeginTabItem(fa.ICON_FA_BRIEFCASE .. u8' Бизнес') then
+				imgui.BeginChild("##BizChild", imgui.ImVec2(0, 0), true)
+				
+				sbox(u8'AutoCapture Biz', capturebiz)
+				imgui.TextQuestion(u8'Автозахват биза по таймеру')
+				sbox(u8'Autorem', tfirst)
+				imgui.TextQuestion(u8'Авто /rem при входе в машину')
+				
+				if imgui.Button(u8'FIX Машину', imgui.ImVec2(70 * fsc, 35 * fsc)) then sampProcessChatInput('/fix') end
+				imgui.SameLine()
+				if imgui.Button(u8'BREAK Машину', imgui.ImVec2(70 * fsc, 35 * fsc)) then sampProcessChatInput('/breakecar') end
+				imgui.SameLine()
+				if imgui.Button(u8'Fake Chat', imgui.ImVec2(70 * fsc, 35 * fsc)) then sampProcessChatInput('/fake'); mcheat.v = false end
+				
+				imgui.EndChild()
+				imgui.EndTabItem()
+			end
+end
+
+function drawFlyTab()
+			-- ВКЛАДКА: FLYCAR
+			if imgui.BeginTabItem(fa.ICON_FA_PLANE .. u8' FlyCar') then
+				imgui.BeginChild("##FlyChild", imgui.ImVec2(0, 0), true)
+				
+				sbox(u8'FlyCar', flycar)
+				imgui.TextQuestion(u8'Полет на машине (W/S/Space/LShift)')
+				if imgui.SliderFloat(u8'Скорость полета', flycar_speed, 1.0, 200.0, '%.1f') then save() end
+				if imgui.SliderFloat(u8'Торможение', flycar_brake, 0.1, 10.0, '%.1f') then save() end
+				
+				imgui.EndChild()
+				imgui.EndTabItem()
+			end
+end
+
+function drawEspTab()
+			-- ВКЛАДКА: ESP
+			if imgui.BeginTabItem(fa.ICON_FA_EYE .. u8' ESP') then
+				imgui.BeginChild("##ESPChild", imgui.ImVec2(0, 0), true)
+				
+				imgui.TextColored(imgui.ImVec4(0.3, 1, 0.3, 1), u8"Настройки ESP")
+				imgui.Separator()
+				sbox(u8'Box ESP', esp_box)
+				imgui.TextQuestion(u8'Коробки вокруг игроков')
+				sbox(u8'Line ESP', esp_line)
+				imgui.TextQuestion(u8'Линии к игрокам')
+				sbox(u8'Bones ESP', esp_bones)
+				imgui.TextQuestion(u8'Скелеты игроков')
+				sbox(u8'Tracers', esp_tracers)
+				imgui.TextQuestion(u8'Трассеры пуль/линии прицела')
+				if imgui.SliderFloat(u8'Дистанция ESP', esp_distance, 50.0, 500.0, '%.1f') then save() end
+				
+				imgui.EndChild()
+				imgui.EndTabItem()
+			end
+end
+
+function drawCoordTab()
+			-- ВКЛАДКА: COORDMASTER
+			if imgui.BeginTabItem(fa.ICON_FA_MAP_MARKER_ALT .. u8' CoordMaster') then
+				imgui.BeginChild("##CoordChild", imgui.ImVec2(0, 0), true)
+				
+				sbox(u8'CoordMaster (F5)', coordmaster)
+				imgui.TextQuestion(u8'Телепорт к маркеру на карте по F5')
+				if imgui.SliderFloat(u8'Шаг', coordmaster_step, 1.0, 20.0, '%.1f') then save() end
+				if imgui.SliderInt(u8'Задержка (мс)', coordmaster_delay, 10, 100) then save() end
+				if imgui.SliderFloat(u8'Высота', coordmaster_height, 50.0, 500.0, '%.1f') then save() end
+				
+				imgui.EndChild()
+				imgui.EndTabItem()
+			end
+end
+
+function drawAutoCaptureTab()
+			-- ВКЛАДКА: AUTO CAPTURE
+			if imgui.BeginTabItem(fa.ICON_FA_CLOCK .. u8' AutoCapture') then
+				imgui.BeginChild("##AutoCapChild", imgui.ImVec2(0, 0), true)
+				
+				sbox(u8'AutoCapture Biz', autocapture)
+				imgui.TextQuestion(u8'Автозахват биза по точному времени')
+				imgui.PushItemWidth(100 * fsc)
+				if imgui.InputText(u8'Время##autocap', autocapture_time) then save() end
+				imgui.TextQuestion(u8'Формат: ЧЧ:ММ:СС')
+				if imgui.SliderInt(u8'Миллисекунды', autocapture_ms, 0, 999) then save() end
+				
+				imgui.EndChild()
+				imgui.EndTabItem()
+			end
+end
+
+function drawAntiCrasherTab()
+			-- ВКЛАДКА: ANTI-CRASHER
+			if imgui.BeginTabItem(fa.ICON_FA_SHIELD_ALT .. u8' Anti-Crasher') then
+				imgui.BeginChild("##AntiCrashChild", imgui.ImVec2(0, 0), true)
+				
+				sbox(u8'Вкл. защиту', anticrasher)
+				imgui.TextQuestion(u8'Глобальное включение анти-крашеров')
+				if anticrasher.v then
+					sbox(u8'Anti Detonator', anti_detonator)
+					imgui.TextQuestion(u8'Защита от крашера детонатором')
+					sbox(u8'Anti Roll', anti_roll)
+					imgui.TextQuestion(u8'Защита от Roll крашера')
+					sbox(u8'Anti Trailer', anti_trailer)
+					imgui.TextQuestion(u8'Защита от трейлер крашера')
+					sbox(u8'Anti Vortex', anti_vortex)
+					imgui.TextQuestion(u8'Защита от вихря крашера')
+				end
+				
+				imgui.EndChild()
+				imgui.EndTabItem()
+			end
+end
+
+function drawAdminTab()
+			-- ВКЛАДКА: ADMIN DETECTION (Radmir CRMP)
+			if imgui.BeginTabItem(fa.ICON_FA_USER_SHIELD .. u8' Admin Detection') then
+				imgui.BeginChild("##AdminDetectChild", imgui.ImVec2(0, 0), true)
+				
+				sbox(u8'Вкл. детекцию админов', admin_detection)
+				imgui.TextQuestion(u8'Автоматический поиск админов на сервере')
+				sbox(u8'Авто-проверка слежки', auto_spectator_check)
+				imgui.TextQuestion(u8'Автоматически проверять слежку каждые 5 сек')
+				sbox(u8'Показать HUD админов', show_admin_hud)
+				imgui.TextQuestion(u8'Отображать список админов на экране')
+				
+				imgui.Separator()
+				imgui.TextColored(imgui.ImVec4(1, 0.5, 0.5, 1), u8"Найденные админы:")
+				
+				if #admin_list > 0 then
+					for id, data in pairs(admin_list) do
+						local color_hex = string.format("%08X", data.color)
+						imgui.Text(string.format(u8"  %s [%d] | %s | %dm | %s", data.nick, id, color_hex, data.dist, data.reason))
+					end
+				else
+					imgui.TextColored(imgui.ImVec4(0.5, 0.5, 0.5, 1), u8"  Админы не найдены")
+				end
+				
+				if imgui.Button(u8"Обновить список", imgui.ImVec2(120 * fsc, 25 * fsc)) then
+					updateAdminList()
+				end
+				imgui.SameLine()
+				if imgui.Button(u8"Проверить слежку", imgui.ImVec2(120 * fsc, 25 * fsc)) then
+					checkSpectators()
+				end
+				
+				imgui.Separator()
+				imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"Потенциальные наблюдатели (спект/камера):")
+				
+				if #spectator_list > 0 then
+					for _, data in ipairs(spectator_list) do
+						imgui.Text(string.format(u8"  %s [%d] | %dm | %s", data.nick, data.id, data.dist, data.time))
+					end
+				else
+					imgui.TextColored(imgui.ImVec4(0.5, 0.5, 0.5, 1), u8"  Никто не следит")
+				end
+				
+				imgui.EndChild()
+				imgui.EndTabItem()
+			end
+end
+
+
+-- ТЕМЫ ОФОРМЛЕНИЯ
+function applyTheme(theme_id)
+    local style = imgui.GetStyle()
+    local colors = style.Colors
+    local clr = imgui.Col
+    local ImVec4 = imgui.ImVec4
+    
+    if theme_id == 0 then -- Классическая
+        colors[clr.WindowBg] = ImVec4(0.15, 0.18, 0.22, 1)
+        colors[clr.ChildWindowBg] = ImVec4(0.15, 0.18, 0.22, 1)
+        colors[clr.FrameBg] = ImVec4(0.2, 0.25, 0.29, 1)
+        colors[clr.TitleBg] = ImVec4(0.09, 0.12, 0.14, 0.65)
+        colors[clr.TitleBgActive] = ImVec4(0.08, 0.1, 0.12, 1)
+        colors[clr.CheckMark] = ImVec4(1.15, 0.28, 0.22, 1)
+        colors[clr.SliderGrab] = ImVec4(1.15, 0.18, 0.22, 1)
+        colors[clr.Button] = ImVec4(0.2, 0.25, 0.29, 1)
+        colors[clr.ButtonHovered] = ImVec4(1.15, 0.18, 0.22, 1)
+        colors[clr.ButtonActive] = ImVec4(1.15, 0.28, 0.22, 1)
+        colors[clr.Header] = ImVec4(0.2, 0.25, 0.29, 0.55)
+        colors[clr.HeaderHovered] = ImVec4(0.26, 0.59, 0.98, 0.8)
+        colors[clr.HeaderActive] = ImVec4(0.26, 0.59, 0.98, 1)
+    elseif theme_id == 1 then -- Тёмная
+        colors[clr.WindowBg] = ImVec4(0.08, 0.08, 0.08, 1)
+        colors[clr.ChildWindowBg] = ImVec4(0.1, 0.1, 0.1, 1)
+        colors[clr.FrameBg] = ImVec4(0.15, 0.15, 0.15, 1)
+        colors[clr.TitleBg] = ImVec4(0.04, 0.04, 0.04, 1)
+        colors[clr.TitleBgActive] = ImVec4(0.06, 0.06, 0.06, 1)
+        colors[clr.CheckMark] = ImVec4(0.8, 0.8, 0.8, 1)
+        colors[clr.SliderGrab] = ImVec4(0.6, 0.6, 0.6, 1)
+        colors[clr.Button] = ImVec4(0.2, 0.2, 0.2, 1)
+        colors[clr.ButtonHovered] = ImVec4(0.3, 0.3, 0.3, 1)
+        colors[clr.ButtonActive] = ImVec4(0.4, 0.4, 0.4, 1)
+        colors[clr.Header] = ImVec4(0.15, 0.15, 0.15, 1)
+        colors[clr.HeaderHovered] = ImVec4(0.25, 0.25, 0.25, 1)
+        colors[clr.HeaderActive] = ImVec4(0.35, 0.35, 0.35, 1)
+    elseif theme_id == 2 then -- Красная
+        colors[clr.WindowBg] = ImVec4(0.15, 0.05, 0.05, 1)
+        colors[clr.ChildWindowBg] = ImVec4(0.18, 0.08, 0.08, 1)
+        colors[clr.FrameBg] = ImVec4(0.3, 0.1, 0.1, 1)
+        colors[clr.TitleBg] = ImVec4(0.4, 0.05, 0.05, 1)
+        colors[clr.TitleBgActive] = ImVec4(0.5, 0.1, 0.1, 1)
+        colors[clr.CheckMark] = ImVec4(1, 0.3, 0.3, 1)
+        colors[clr.SliderGrab] = ImVec4(1, 0.2, 0.2, 1)
+        colors[clr.Button] = ImVec4(0.4, 0.1, 0.1, 1)
+        colors[clr.ButtonHovered] = ImVec4(0.6, 0.15, 0.15, 1)
+        colors[clr.ButtonActive] = ImVec4(0.8, 0.2, 0.2, 1)
+        colors[clr.Header] = ImVec4(0.4, 0.1, 0.1, 0.55)
+        colors[clr.HeaderHovered] = ImVec4(0.6, 0.15, 0.15, 0.8)
+        colors[clr.HeaderActive] = ImVec4(0.8, 0.2, 0.2, 1)
+    elseif theme_id == 3 then -- Фиолетовая
+        colors[clr.WindowBg] = ImVec4(0.1, 0.05, 0.15, 1)
+        colors[clr.ChildWindowBg] = ImVec4(0.12, 0.08, 0.18, 1)
+        colors[clr.FrameBg] = ImVec4(0.2, 0.1, 0.3, 1)
+        colors[clr.TitleBg] = ImVec4(0.3, 0.1, 0.4, 1)
+        colors[clr.TitleBgActive] = ImVec4(0.4, 0.15, 0.5, 1)
+        colors[clr.CheckMark] = ImVec4(0.8, 0.3, 1, 1)
+        colors[clr.SliderGrab] = ImVec4(0.7, 0.2, 0.9, 1)
+        colors[clr.Button] = ImVec4(0.25, 0.1, 0.35, 1)
+        colors[clr.ButtonHovered] = ImVec4(0.4, 0.15, 0.55, 1)
+        colors[clr.ButtonActive] = ImVec4(0.6, 0.2, 0.8, 1)
+        colors[clr.Header] = ImVec4(0.3, 0.1, 0.4, 0.55)
+        colors[clr.HeaderHovered] = ImVec4(0.5, 0.2, 0.6, 0.8)
+        colors[clr.HeaderActive] = ImVec4(0.7, 0.3, 0.8, 1)
+    elseif theme_id == 4 then -- Зелёная
+        colors[clr.WindowBg] = ImVec4(0.05, 0.15, 0.05, 1)
+        colors[clr.ChildWindowBg] = ImVec4(0.08, 0.18, 0.08, 1)
+        colors[clr.FrameBg] = ImVec4(0.1, 0.3, 0.1, 1)
+        colors[clr.TitleBg] = ImVec4(0.05, 0.4, 0.05, 1)
+        colors[clr.TitleBgActive] = ImVec4(0.1, 0.5, 0.1, 1)
+        colors[clr.CheckMark] = ImVec4(0.3, 1, 0.3, 1)
+        colors[clr.SliderGrab] = ImVec4(0.2, 0.8, 0.2, 1)
+        colors[clr.Button] = ImVec4(0.1, 0.4, 0.1, 1)
+        colors[clr.ButtonHovered] = ImVec4(0.15, 0.6, 0.15, 1)
+        colors[clr.ButtonActive] = ImVec4(0.2, 0.8, 0.2, 1)
+        colors[clr.Header] = ImVec4(0.1, 0.4, 0.1, 0.55)
+        colors[clr.HeaderHovered] = ImVec4(0.15, 0.6, 0.15, 0.8)
+        colors[clr.HeaderActive] = ImVec4(0.2, 0.8, 0.2, 1)
+    end
+end
+
+-- Центрирование текста.
 function imgui.CenterText(text)
     local width = imgui.GetWindowWidth()
     local calc = imgui.CalcTextSize(text)
@@ -1298,7 +1887,7 @@ function sbox(name, imguiname)
 	end
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+-- Применение стиля.
 function apply_custom_style()
 	local style = imgui.GetStyle()
 	local colors = style.Colors
@@ -1396,12 +1985,11 @@ function find(s, p)
     return string.rlower(s):find(string.rlower(p))
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+-- Глобальные require для ClickWP
+Matrix3X3 = require "matrix3x3"
+Vector3D = require "vector3d"
 
 function ClickWP()
-	Matrix3X3 = require "matrix3x3"
-	Vector3D = require "vector3d"
-
 	if not isSampfuncsLoaded() then return end
 
 	initializeRender()
@@ -1516,14 +2104,11 @@ function ClickWP()
 				end
 			end
 		end
-		wait(0)
-		removePointMarker()
-	end
+end
 end
 
 function initializeRender()
-	font = renderCreateFont("Tahoma", 10, FCR_BOLD + FCR_BORDER)
-	font2 = renderCreateFont("Arial", 8, FCR_ITALICS + FCR_BORDER)
+	-- font and font2 already created globally
 end
 
 function rotateCarAroundUpAxis(car, vec)
@@ -1573,7 +2158,7 @@ end
 
 function ev.onServerMessage(color, text)
 	lua_thread.create(function()
-		if capturebiz.v and (text:find('??????? ?????:') or text:find('(.+) ????????? ?????? (.+)') or text:find('??????? (.+) ????????? ?????? (.+) ???????????') or text:find('(.+) ????????? ?????????? (.+)') or text:find('??????? (.+) ????????? ?????????? (.+) ???????????')) then
+		if capturebiz.v and (text:find(u8'Бизнес захвачен:') or text:find(u8'(.+) захватил бизнес (.+)') or text:find(u8'Бизнес (.+) захвачен (.+) (.+)') or text:find(u8'(.+) захватил бизнес (.+)') or text:find(u8'Бизнес (.+) захвачен (.+)')) then
 			for i = 1, 4 do
 				sampSendChat('/capture_biz')
 				for a = 1, 5 do
@@ -1665,22 +2250,22 @@ function getCarFreeSeat(car)
 		return 0
 	end
 end
-
 function jumpIntoCar(car)
 	local seat = getCarFreeSeat(car)
+
 	if not seat then return false end
-	if seat == 0 then warpCharIntoCar(playerPed, car)
-	else warpCharIntoCarAsPassenger(playerPed, car, seat - 1)
+	if seat == 0 then warpCharIntoCar(PLAYER_PED, car)
+	else warpCharIntoCarAsPassenger(PLAYER_PED, car, seat - 1)
 	end
 	restoreCameraJumpcut()
 	return true
 end
 
 function teleportPlayer(x, y, z)
-	if isCharInAnyCar(playerPed) then
-		setCharCoordinates(playerPed, x, y, z)
+	if isCharInAnyCar(PLAYER_PED) then
+		setCharCoordinates(PLAYER_PED, x, y, z)
 	end
-	setCharCoordinatesDontResetAnim(playerPed, x, y, z)
+	setCharCoordinatesDontResetAnim(PLAYER_PED, x, y, z)
 end
 
 function setCharCoordinatesDontResetAnim(char, x, y, z)
@@ -1703,27 +2288,11 @@ function onReceivePacket(id, bs)
             if table.getn(e) > 0 then
                 local text = e[1]
                 if text == 'Auth' then
-                    login()
+                    -- login removed
                 end
             end
         end
     end
-end
-
-function login()
-    local bs = raknetNewBitStream()
-    raknetBitStreamWriteInt8(bs, 215)
-    raknetBitStreamWriteInt16(bs, 2)
-    raknetBitStreamWriteInt32(bs, 0)
-    raknetBitStreamWriteInt32(bs, 18)
-    raknetBitStreamWriteString(bs, 'OnPlayerStartLogin')
-    raknetBitStreamWriteInt32(bs, 2)
-    raknetBitStreamWriteInt8(bs, 115)
-    raknetBitStreamWriteInt16(bs, password:len())
-    raknetBitStreamWriteInt16(bs, 0)
-    raknetBitStreamWriteString(bs, password)
-    raknetSendBitStream(bs)
-    raknetDeleteBitStream(bs)
 end
 
 function setEntityCoordinates(entityPtr, x, y, z)
@@ -1747,7 +2316,7 @@ function showCursor(toggle)
 	cursorEnabled = toggle
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+-- Очистка ресурсов скрипта.
 function onScriptTerminate(script, quit)
 	if script == thisScript() then
 		imgui.Process = false
@@ -1756,10 +2325,10 @@ function onScriptTerminate(script, quit)
 	end
 end
 
--- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ ini
+-- СОХРАНЕНИЕ НАСТРОЕК В INI
 function save()
     inicfg.save({
-        MultiCheat =
+        CheatByYaroRage =
         {
 			clickwarp = clickwarp.v,
 			sbivx = sbivx.v,
@@ -1796,9 +2365,30 @@ function save()
 			tdtext_dist = tdtext_dist_slider.v,
 			chatbubbles_dist = chatbubbles_dist_slider.v,
 			fog_dist = fog_dist_slider.v,
-			lods_dist = lods_dist_slider.v
+			lods_dist = lods_dist_slider.v,
+			-- Новые
+			flycar = flycar.v,
+			flycar_speed = flycar_speed.v,
+			flycar_brake = flycar_brake.v,
+			esp_box = esp_box.v,
+			esp_line = esp_line.v,
+			esp_bones = esp_bones.v,
+			esp_tracers = esp_tracers.v,
+			esp_distance = esp_distance.v,
+			coordmaster = coordmaster.v,
+			coordmaster_step = coordmaster_step.v,
+			coordmaster_delay = coordmaster_delay.v,
+			coordmaster_height = coordmaster_height.v,
+			autocapture = autocapture.v,
+			autocapture_time = autocapture_time.v,
+			autocapture_ms = autocapture_ms.v,
+			anticrasher = anticrasher.v,
+			anti_detonator = anti_detonator.v,
+			anti_roll = anti_roll.v,
+			anti_trailer = anti_trailer.v,
+			anti_vortex = anti_vortex.v,
         }
-    }, 'MultiCheat_YaroRage/MultiCheat.ini')
+    }, 'CheatByYaroRage/CheatByYaroRage.ini')
 end
 
 function samp_create_sync_data(sync_type, copy_from_player)
@@ -1826,7 +2416,7 @@ function samp_create_sync_data(sync_type, copy_from_player)
         if copy_func then
             local _, player_id
             if copy_from_player == true then
-                _, player_id = sampGetPlayerIdByCharHandle(playerPed)
+                _, player_id = sampGetPlayerIdByCharHandle(PLAYER_PED)
             else
                 player_id = tonumber(copy_from_player)
             end
@@ -1851,20 +2441,36 @@ function samp_create_sync_data(sync_type, copy_from_player)
     return setmetatable({send = func_send}, mt)
 end
 
+-- Silent Aim implementation
 function ev.onSendBulletSync(data)
-    if pslide.v and silent then
-        local ped = GetNearestPed(3)
-        if ped ~= -1 then
-            local _, id = sampGetPlayerIdByCharHandle(ped)
-            if _ then
-                local x, y, z = getCharCoordinates(ped)
-                data.targetType = 1
-                data.targetId = id
-                data.target = {x = x, y = y, z = z}
-                sampSendGiveDamage(id, 46.2, 24, 3)
+    if silentmode.v == 1 then -- LITE
+        if cbz5.v and isKeyDown(VK_LBUTTON) then
+            local ped = GetNearestPed(Fov.v)
+            if ped ~= -1 then
+                local _, id = sampGetPlayerIdByCharHandle(ped)
+                if _ then
+                    local x, y, z = getCharCoordinates(ped)
+                    data.targetType = 1
+                    data.targetId = id
+                    data.target = {x = x, y = y, z = z}
+                    sampSendGiveDamage(id, 46.2, 24, 3)
+                end
             end
         end
-        silent = false
+    elseif silentmode.v == 2 then -- RAGE
+        if isKeyDown(VK_LBUTTON) then
+            local ped = GetNearestPed(Fov.v)
+            if ped ~= -1 then
+                local _, id = sampGetPlayerIdByCharHandle(ped)
+                if _ then
+                    local x, y, z = getCharCoordinates(ped)
+                    data.targetType = 1
+                    data.targetId = id
+                    data.target = {x = x, y = y, z = z}
+                    sampSendGiveDamage(id, 46.2, 24, 3)
+                end
+            end
+        end
     end
 end
 
@@ -1886,4 +2492,149 @@ function SmoothAimBott()
         end
     end
     return false
+end
+
+-- Профили конфигов
+function loadProfile(name)
+    local profile_ini = inicfg.load({
+        CheatByYaroRage = {}
+    }, 'CheatByYaroRage/profiles/' .. name .. '.ini')
+    if profile_ini and profile_ini.CheatByYaroRage then
+        for k, v in pairs(profile_ini.CheatByYaroRage) do
+            if _G[k] and type(_G[k]) == "table" and _G[k].v ~= nil then
+                _G[k].v = v
+            end
+        end
+        save()
+        ywelcome("CheatByYaroRage", u8"Профиль '" .. name .. u8"' загружен!")
+    end
+end
+
+function saveProfile(name)
+    local profile_data = {}
+    for k, v in pairs(_G) do
+        if type(v) == "table" and v.v ~= nil and (type(v.v) == "boolean" or type(v.v) == "number" or type(v.v) == "string") then
+            profile_data[k] = v.v
+        end
+    end
+    inicfg.save({CheatByYaroRage = profile_data}, 'CheatByYaroRage/profiles/' .. name .. '.ini')
+    ywelcome("CheatByYaroRage", u8"Профиль '" .. name .. u8"' сохранен!")
+end
+
+-- ESP Rendering
+function renderESP()
+    if not (esp_box.v or esp_line.v or esp_bones.v or esp_tracers.v) then return end
+    
+    local myX, myY, myZ = getCharCoordinates(PLAYER_PED)
+    
+    for i = 0, sampGetMaxPlayerId(true) do
+        if sampIsPlayerConnected(i) then
+            local result, handle = sampGetCharHandleBySampPlayerId(i)
+            if result and doesCharExist(handle) and not isCharDead(handle) then
+                local pedX, pedY, pedZ = getCharCoordinates(handle)
+                local dist = getDistanceBetweenCoords3d(myX, myY, myZ, pedX, pedY, pedZ)
+                
+                if dist <= esp_distance.v then
+                    local screenX, screenY = convert3DCoordsToScreen(pedX, pedY, pedZ)
+                    local headX, headY = convert3DCoordsToScreen(pedX, pedY, pedZ + 1.0)
+                    
+                    if screenX and screenY then
+                        local color = 0xFFFFFFFF
+                        local nick = sampGetPlayerNickname(i)
+                        
+                        if esp_box.v then
+                            local h = math.abs(screenY - headY)
+                            local w = h / 2
+                            renderDrawBox(screenX - w/2, headY, w, h, 2, color)
+                        end
+                        
+                        if esp_line.v then
+                            local resX, resY = getScreenResolution()
+                            renderDrawLine(resX/2, resY, screenX, screenY, 1, color)
+                        end
+                        
+                        if esp_tracers.v then
+                            local resX, resY = getScreenResolution()
+                            renderDrawLine(resX/2, resY/2, screenX, screenY, 1, color)
+                        end
+                        
+                        -- Bones ESP (simplified)
+                        if esp_bones.v then
+                            -- Draw basic skeleton
+                            local bones = {
+                                {1, 2}, {2, 3}, {3, 4}, -- Spine
+                                {2, 5}, {5, 6}, {6, 7}, -- Left arm
+                                {2, 8}, {8, 9}, {9, 10}, -- Right arm
+                                {1, 11}, {11, 12}, {12, 13}, -- Left leg
+                                {1, 14}, {14, 15}, {15, 16} -- Right leg
+                            }
+                            for _, bone in ipairs(bones) do
+                                local b1X, b1Y, b1Z = getBonePosition(bone[1], handle)
+                                local b2X, b2Y, b2Z = getBonePosition(bone[2], handle)
+                                local s1X, s1Y = convert3DCoordsToScreen(b1X, b1Y, b1Z)
+                                local s2X, s2Y = convert3DCoordsToScreen(b2X, b2Y, b2Z)
+                                if s1X and s1Y and s2X and s2Y then
+                                    renderDrawLine(s1X, s1Y, s2X, s2Y, 1, color)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Добавить рендер ESP в OnDrawFrame
+local originalOnDrawFrame = imgui.OnDrawFrame
+imgui.OnDrawFrame = function()
+    originalOnDrawFrame()
+    if mcheat.v then
+        renderESP()
+    end
+    -- Admin HUD
+    if show_admin_hud.v and admin_detection.v then
+        renderAdminHUD()
+    end
+end
+
+-- Admin HUD рендер
+function renderAdminHUD()
+    local resX, resY = getScreenResolution()
+    local x, y = admin_hud_pos.x, admin_hud_pos.y
+    local line_h = 16
+    
+    -- Фон
+    renderDrawBox(x - 5, y - 5, 280, 30 + #admin_list * line_h + #spectator_list * line_h, 0xCC000000)
+    
+    -- Заголовок
+    renderFontDrawText(font, u8"[ADMIN DETECTION]", x, y, 0xFFFFFFFF)
+    y = y + line_h + 2
+    
+    -- Админы
+    if #admin_list > 0 then
+        renderFontDrawText(font, u8"АДМИНЫ:", x, y, 0xFFFF0000)
+        y = y + line_h
+        for id, data in pairs(admin_list) do
+            local txt = string.format(u8"  %s [%d] | %dm | %s", data.nick, id, data.dist, data.reason)
+            renderFontDrawText(font, txt, x, y, data.color)
+            y = y + line_h
+        end
+    else
+        renderFontDrawText(font, u8"АДМИНЫ: нет", x, y, 0xFF888888)
+        y = y + line_h
+    end
+    
+    y = y + 5
+    
+    -- Наблюдатели
+    if #spectator_list > 0 then
+        renderFontDrawText(font, u8"НАБЛЮДАТЕЛИ:", x, y, 0xFFFF6600)
+        y = y + line_h
+        for _, data in ipairs(spectator_list) do
+            local txt = string.format(u8"  %s [%d] | %dm | %s", data.nick, data.id, data.dist, data.time)
+            renderFontDrawText(font, txt, x, y, 0xFFFFFF00)
+            y = y + line_h
+        end
+    end
 end
