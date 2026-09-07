@@ -1,7 +1,7 @@
 ﻿{
-    "version":  "1.0.3",
-    "launcherVersion":  "1.0.2",
-    "updatedAt":  "2026-09-07 20:00",
+    "version":  "1.1.0",
+    "launcherVersion":  "1.1.0",
+    "updatedAt":  "2026-09-07 17:57",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -11,9 +11,15 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  ".gitignore",
+                      "sha256":  "1a26c1f93eb82156f0ff82c3d73b334fc78b178f12d16fb388a5e76d3ff56a19",
+                      "size":  195,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "AutoStart.exe",
-                      "sha256":  "b005646078fae81543718b1f9032643250d9ca99085c863fae3ec78cf129461c",
-                      "size":  310880,
+                      "sha256":  "f3992af08de653e17816c8234c10d6867ccb817da574d9cefc1d1d0402a766ea",
+                      "size":  313952,
                       "dest":  "gameRoot"
                   },
                   {
@@ -48,8 +54,8 @@
                   },
                   {
                       "path":  "MoonGuard.exe",
-                      "sha256":  "2fe1e32fbd525e6b2ed536fb78c25d8a74a3750c719df423b611d33286bad760",
-                      "size":  316000,
+                      "sha256":  "1c2b221ad15c0731ce41f01f69f346c96e153f3e7cbec20bf0d910006e6ccbe1",
+                      "size":  340576,
                       "dest":  "gameRoot"
                   },
                   {
@@ -120,8 +126,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage.lua",
-                      "sha256":  "1b89f174fe72579a19f2b780fdb800a3be7b359adc9a697e98f260779a0a5d96",
-                      "size":  19851,
+                      "sha256":  "1cd4aa962534ae30a2fd0538e6a11b2b581fb06fe5b0ef45871bd4c81fbce94f",
+                      "size":  38802,
                       "dest":  "gameRoot"
                   },
                   {
@@ -137,15 +143,21 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/check_syntax3.py",
+                      "sha256":  "45c00064c7f33cdab34716d025d158b69ff7b97033125aed1c44dceff8166f95",
+                      "size":  1202,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/fix_encoding.ps1",
                       "sha256":  "92e6696eaebcb45af20e9fb27a7c47d31f383aa17471533b7d864e4427f7a3ef",
                       "size":  611,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/Les.lua",
-                      "sha256":  "de45d70b6f9523097a4bafa7acdd8c671f7f2655a8aaca5f2d6d9758fb797858",
-                      "size":  52571,
+                      "path":  "moonloader/LesByYaroRage_v1.0.lua",
+                      "sha256":  "fd17cb180c1bd11ab91effde7b6929052ce77b4d5629de49962d6f4d7c002137",
+                      "size":  77344,
                       "dest":  "gameRoot"
                   },
                   {
@@ -168,56 +180,56 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/admin_detection.lua",
-                      "sha256":  "ece44d3ac4fcaf065ec16133027cff096e5db8c7b4786884e1c5d163b6d7d1d5",
-                      "size":  1999,
+                      "sha256":  "2babd0deff74e975c73fd14a2145a6d6d27c5a9a8ec2ff3b0675a6a8a744551e",
+                      "size":  3206,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/antiafk.lua",
-                      "sha256":  "bbb2029e15ced19311f7273acf0e99fdb0645abf0db185e8799a2fa89cd67572",
-                      "size":  7291,
+                      "sha256":  "48ba0b877474c18f590c4b2016a53381483fae38628d08f8f665286a89e99902",
+                      "size":  7836,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/auth.lua",
-                      "sha256":  "ee9ccb1eda74bf49a99f3a6551fd9b98291345db96e14d7f98b032f71e08560d",
-                      "size":  4312,
+                      "sha256":  "99970a270833005f8778b62dee52db49ab016a2d4e7b8861e70d9d2076348ff1",
+                      "size":  10262,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/config.lua",
-                      "sha256":  "b7e7e3da12f9487b2086accc00aed2d0ac786fe22aa5321b00d841a15feb9a2d",
-                      "size":  4474,
+                      "sha256":  "a5e899ac1ca1be5cf2f4da07493569f81ed6c165a5c58e42a1179cb565e4d1ed",
+                      "size":  8401,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/reconnect.lua",
-                      "sha256":  "6685f7672c311cbe8cafbea260fa27b09e7f174d4e29061a56a8bca0fe04b9b5",
-                      "size":  7751,
+                      "sha256":  "acc60613e72190ae52c18f81276f43b2d4f78d2bbff243e3619bf7396a946fbb",
+                      "size":  10826,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/state.lua",
-                      "sha256":  "3bb732b6be15f54c21fd422f1d3e681efcad74873b79ec4abf756c4ffd928271",
-                      "size":  2278,
+                      "sha256":  "223a5d6efcca627108e73c3058f0a3d28bc3f66850e563b58c3ede3c577f6afa",
+                      "size":  8774,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/telegram.lua",
-                      "sha256":  "cf7a5a2987f48081d7b2673790b10eb8a3eb4b694bd1f8223ab8919ab49799f4",
-                      "size":  6440,
+                      "sha256":  "54eee2b387ba8c61290f092c1a5ad3f512f4997d71fdc48ff2bee96626b9e4ba",
+                      "size":  7779,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/ui.lua",
-                      "sha256":  "c4fb9b5b90bdac1e6ef142b5c32ccbf289f8cfa9f63fb0125a6735604073013b",
-                      "size":  14339,
+                      "sha256":  "09f3168654d1d45fc99588ae27bc3c68c4b4bcce2572e3a72e47aab3b381d5fb",
+                      "size":  29369,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/utils.lua",
-                      "sha256":  "2e04325876aa3a4f7b6f1e51bdd0768712051e0d5aaf6b5eb2e82061e30694f8",
-                      "size":  3202,
+                      "sha256":  "02a74d4ce63bbcac90785eab3e7127f3e3bdae99694ec87ff0704d8441accbd5",
+                      "size":  22682,
                       "dest":  "gameRoot"
                   },
                   {
@@ -227,9 +239,39 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/AutoLoginByYaroRage/resource/authSound.mp3",
+                      "path":  "moonloader/AutoLoginByYaroRage/resource/authSound1.mp3",
                       "sha256":  "7bc02c22f6a0a75446187dbe0547a7eca86c05e3d3d369e0831dc084bb974ea3",
                       "size":  29091,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/AutoLoginByYaroRage/resource/authSound2.mp3",
+                      "sha256":  "c1b77b0736954b193f6158e8a54adb59cf25530f58157485cc3621a1fe112bab",
+                      "size":  37632,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/config/CheatByYaroRage/CheatByYaroRage.ini",
+                      "sha256":  "0bf77daf77ab362ce0e0bf59cf2d18f8beec70fbda91ff7c931170dea05f4aa4",
+                      "size":  958,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/config/CheatByYaroRage/settingstime.ini",
+                      "sha256":  "c73e3ea4dca9e8289d9007738366bd76623392eb7ee1c846ff6a86cad7d03583",
+                      "size":  85,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/config/CheatByYaroRage/profiles/Custom.ini",
+                      "sha256":  "52b32c3ba50c25fd82780181907c062ccb13a62cd4466f2651d5af68d0030af4",
+                      "size":  18,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/config/CheatByYaroRage/profiles/Visual Only.ini",
+                      "sha256":  "52b32c3ba50c25fd82780181907c062ccb13a62cd4466f2651d5af68d0030af4",
+                      "size":  18,
                       "dest":  "gameRoot"
                   },
                   {
@@ -398,6 +440,12 @@
                       "path":  "moonloader/lib/inspect.lua",
                       "sha256":  "cbe437fe32d0cb895bd0123f07b866aac433e32c874adda441c9896e1f6ad7e7",
                       "size":  9749,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/json.lua",
+                      "sha256":  "7bf2d093ad5b49cac848c7c6cde4f18b6100552bad221c80b78df4eaa461e55a",
+                      "size":  636,
                       "dest":  "gameRoot"
                   },
                   {
@@ -941,6 +989,12 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/lib/inicfg/init.lua",
+                      "sha256":  "6f90c35c68ae5ecfd7603ad42c1e4502bddc9dd186f8a31b6210aa3d63c3bc03",
+                      "size":  2279,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/lib/inspect/inspect.lua",
                       "sha256":  "cbe437fe32d0cb895bd0123f07b866aac433e32c874adda441c9896e1f6ad7e7",
                       "size":  9749,
@@ -1148,6 +1202,12 @@
                       "path":  "moonloader/lib/md5/core.dll",
                       "sha256":  "cba9525d93957d6b442ef019557cf6c47bde0aad07652c897900475335e281e0",
                       "size":  75776,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/lib/memory/init.lua",
+                      "sha256":  "74190aba9400430cb1c54fddf806511a715410e6b5d8ddb8a4d5623a396a8274",
+                      "size":  1258,
                       "dest":  "gameRoot"
                   },
                   {
