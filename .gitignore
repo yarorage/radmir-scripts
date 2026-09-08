@@ -11,3 +11,20 @@
 # Личные/технические
 *.user
 *dist/
+
+# Сборки — бинарники собираются из исходников, не храним в репо
+AutoUpdaterYR.exe
+MoonGuard.exe
+MoonloaderGuard.exe
+AutoStart.exe
+MoonLoaderUninstall.exe
+
+# Пользовательские конфиги — привязаны к конкретной машине
+*.ini
+*.cfg
+
+# Директории с пользовательскими настройками
+moonloader/config/
+moonloader/AutoLoginByYaroRage/config/
+moonloader/CheatByYaroRage/config/
+mafk_watchdog/watchdog.log
