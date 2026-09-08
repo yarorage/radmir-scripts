@@ -1,19 +1,13 @@
 ﻿{
     "version":  "1.1.0",
     "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-08 20:18",
+    "updatedAt":  "2026-09-08 20:59",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
                       "path":  "!0rmrah_patchbycake.asi",
                       "sha256":  "7267a19dcd7e1f08d2fc315568750a6304377dbb0ca0e65056d18ccf0029c4a3",
                       "size":  71680,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "AutoStart.exe",
-                      "sha256":  "f3992af08de653e17816c8234c10d6867ccb817da574d9cefc1d1d0402a766ea",
-                      "size":  313952,
                       "dest":  "gameRoot"
                   },
                   {
@@ -44,12 +38,6 @@
                       "path":  "Hooks.asi",
                       "sha256":  "78fdb9f63cd74630d3d5171c2404b512f6d39c5dd14daf5530633f39780950b3",
                       "size":  134656,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "MoonGuard.exe",
-                      "sha256":  "1c2b221ad15c0731ce41f01f69f346c96e153f3e7cbec20bf0d910006e6ccbe1",
-                      "size":  340576,
                       "dest":  "gameRoot"
                   },
                   {
