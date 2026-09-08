@@ -124,6 +124,11 @@ local defaultConfig = {
     CarShowModel = true,
     CarShowDoor = true,
     CarShowDriver = true,
+    PlayerShowNick = true,
+    PlayerShowHP = true,
+    PlayerShowAP = true,
+    PlayerShowWeapon = true,
+    PlayerShowDistance = true,
     EspPickups = false,
     Aim = false,
     AimPlayers = false,
@@ -211,6 +216,21 @@ local function applyConfig(cfg)
     local _chdr = cfg.CarShowDriver
     if _chdr == nil then _chdr = true end
     Les.CarShowDriver.v = _chdr
+    local _psn = cfg.PlayerShowNick
+    if _psn == nil then _psn = true end
+    Les.PlayerShowNick.v = _psn
+    local _psh = cfg.PlayerShowHP
+    if _psh == nil then _psh = true end
+    Les.PlayerShowHP.v = _psh
+    local _psa = cfg.PlayerShowAP
+    if _psa == nil then _psa = true end
+    Les.PlayerShowAP.v = _psa
+    local _psw = cfg.PlayerShowWeapon
+    if _psw == nil then _psw = true end
+    Les.PlayerShowWeapon.v = _psw
+    local _psd = cfg.PlayerShowDistance
+    if _psd == nil then _psd = true end
+    Les.PlayerShowDistance.v = _psd
     Les.Triggerbot.v = cfg.Triggerbot or false
     Les.Triggerbot_Delay.v = cfg.Triggerbot_Delay or 50
     Les.Triggerbot_FOV.v = cfg.Triggerbot_FOV or 2.0
@@ -256,6 +276,11 @@ local function gatherConfig()
         CarShowModel = Les.CarShowModel.v,
         CarShowDoor = Les.CarShowDoor.v,
         CarShowDriver = Les.CarShowDriver.v,
+        PlayerShowNick = Les.PlayerShowNick.v,
+        PlayerShowHP = Les.PlayerShowHP.v,
+        PlayerShowAP = Les.PlayerShowAP.v,
+        PlayerShowWeapon = Les.PlayerShowWeapon.v,
+        PlayerShowDistance = Les.PlayerShowDistance.v,
         Triggerbot = Les.Triggerbot.v,
         Triggerbot_Delay = Les.Triggerbot_Delay.v,
         Triggerbot_FOV = Les.Triggerbot_FOV.v,
@@ -429,6 +454,11 @@ Les = {
     CarShowModel = imgui.ImBool(true),   -- Модель у машин
     CarShowDoor = imgui.ImBool(true),    -- Дверь у машин
     CarShowDriver = imgui.ImBool(true),  -- Водитель у машин
+    PlayerShowNick = imgui.ImBool(true),   -- ник в ESP игроков
+    PlayerShowHP = imgui.ImBool(true),     -- HP в ESP игроков
+    PlayerShowAP = imgui.ImBool(true),     -- броня в ESP игроков
+    PlayerShowWeapon = imgui.ImBool(true), -- оружие в ESP игроков
+    PlayerShowDistance = imgui.ImBool(true), -- дистанция в ESP игроков
     EspPickups = imgui.ImBool(false),  -- ESP пикапов/предметов
     -- Аим
     Aim = imgui.ImBool(false),         -- Аим на животных
@@ -479,6 +509,11 @@ Les.CarShowHP.v = true
 Les.CarShowModel.v = true
 Les.CarShowDoor.v = true
 Les.CarShowDriver.v = true
+Les.PlayerShowNick.v = true
+Les.PlayerShowHP.v = true
+Les.PlayerShowAP.v = true
+Les.PlayerShowWeapon.v = true
+Les.PlayerShowDistance.v = true
 Les.Aim.v = false
 Les.AimPlayers.v = false
 Les.AutoY.v = false
@@ -1140,6 +1175,19 @@ function imgui.OnDrawFrame()
 
                     if imgui.Checkbox(u8"WH Игроки", Les.WhPlayers) then end
                     if imgui.IsItemHovered() then imgui.SetTooltip(u8"Ник + здоровье + броня + оружие + дистанция") end
+                    if Les.WhPlayers.v then
+                        imgui.SameLine()
+                        imgui.Text(u8"Показ:")
+                        if imgui.Checkbox(u8"Ник", Les.PlayerShowNick) then end
+                        imgui.SameLine()
+                        if imgui.Checkbox(u8"HP", Les.PlayerShowHP) then end
+                        imgui.SameLine()
+                        if imgui.Checkbox(u8"Броня", Les.PlayerShowAP) then end
+                        imgui.SameLine()
+                        if imgui.Checkbox(u8"Оружие", Les.PlayerShowWeapon) then end
+                        imgui.SameLine()
+                        if imgui.Checkbox(u8"Дист.", Les.PlayerShowDistance) then end
+                    end
 
                     if imgui.Checkbox(u8"ESP Пикапы/Предметы", Les.EspPickups) then end
                     if imgui.IsItemHovered() then imgui.SetTooltip(u8"Отображение пикапов, оружия, здоровья, брони на карте") end
@@ -1426,17 +1474,25 @@ function renderEspPlayers()
                 local nick = sampGetPlayerNickname(pid) or "Unknown"
                 
                 local healthColor = 0xFF00FF00
-                if health < 50 then healthColor = 0xFFFF0000 end
-                if health < 20 then healthColor = 0xFFFF0000 end
+                if health < 500 then healthColor = 0xFFFFFF00 end
+                if health < 250 then healthColor = 0xFFFF0000 end
                 
                 local yOffset = 0
-                renderFontDrawText(font_whGreen, nick, _X, _Y + yOffset, 0xFF00CCFF); yOffset = yOffset + uiScaled(12)
-                renderFontDrawText(font_whGreen, "HP: " .. health, _X, _Y + yOffset, healthColor); yOffset = yOffset + uiScaled(12)
-                if armor > 0 then
+                if Les.PlayerShowNick.v then
+                    renderFontDrawText(font_whGreen, nick, _X, _Y + yOffset, 0xFF00CCFF); yOffset = yOffset + uiScaled(12)
+                end
+                if Les.PlayerShowHP.v then
+                    renderFontDrawText(font_whGreen, string.format("HP: %.0f", health/10), _X, _Y + yOffset, healthColor); yOffset = yOffset + uiScaled(12)
+                end
+                if Les.PlayerShowAP.v and armor > 0 then
                     renderFontDrawText(font_whGreen, "AP: " .. armor, _X, _Y + yOffset, 0xFF00AAFF); yOffset = yOffset + uiScaled(12)
                 end
-                renderFontDrawText(font_whGreen, weaponName, _X, _Y + yOffset, 0xFFFFFFFF); yOffset = yOffset + uiScaled(12)
-                renderFontDrawText(font_whGreen, string.format("%.0f м", dist), _X, _Y + yOffset, 0xFFFFAAAA)
+                if Les.PlayerShowWeapon.v then
+                    renderFontDrawText(font_whGreen, weaponName, _X, _Y + yOffset, 0xFFFFFFFF); yOffset = yOffset + uiScaled(12)
+                end
+                if Les.PlayerShowDistance.v then
+                    renderFontDrawText(font_whGreen, string.format("%.0f м", dist), _X, _Y + yOffset, 0xFFFFAAAA)
+                end
                 
                 -- Линия к игроку
                 if Les.LinePlayers.v then
