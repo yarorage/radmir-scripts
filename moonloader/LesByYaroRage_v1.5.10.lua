@@ -170,11 +170,14 @@ local function loadConfig()
 end
 
 -- Сохранение конфига
-local function saveConfig(cfg)
+local function saveConfig(cfg, notify)
     local f = io.open(CONFIG_FILE, "w")
     if f then
         f:write(json.encode(cfg))
         f:close()
+        if notify then
+            sampAddChatMessage(u8"[Les] Конфиг сохранен", -1)
+        end
         return true
     end
     return false
@@ -1273,7 +1276,7 @@ function imgui.OnDrawFrame()
 
                     imgui.Separator()
                     if imgui.Button(u8"Сохранить конфиг", ImVec2(-1, 25)) then
-                        saveConfig(gatherConfig())
+                        saveConfig(gatherConfig(), true)
                         print("[Les] Конфиг сохранён")
                     end
                     imgui.TextColored(imgui.ImVec4(0.55, 0.55, 0.55, 1.0), u8"/les - меню, /lesr - перезагрузка")

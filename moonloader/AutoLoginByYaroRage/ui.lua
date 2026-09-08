@@ -150,7 +150,9 @@ end
 -- Поле пароля
 function PF.render()
     local should_show = auth.is_password_form_visible()
+    local first_show = should_show and not PF.visible
     if should_show then PF.visible = true end
+    if first_show then PF.input_active = true end
     if not PF.visible then return end
 
     if should_show and PF.anim < 1 then
@@ -777,7 +779,7 @@ function draw_misc_tab()
     end
     
     imgui.Spacing()
-    imgui.Text("Версия: 2.14.0")
+    imgui.Text("Версия: 2.14.1")
     imgui.Text("Автор: YaroRage")
     imgui.Text("GitHub: yarorage.github.io")
 end
@@ -833,6 +835,12 @@ M.handle_copy = function()
     if #PF.password > 0 then
         utils.set_clipboard_text(PF.password)
     end
+end
+
+M.get_clipboard_imgui = function()
+    local ok, text = pcall(imgui.GetClipboardText)
+    if not ok then return "" end
+    return text or ""
 end
 
 M.handle_enter = function()

@@ -1,8 +1,8 @@
--- AutoLoginByYaroRage v2.14.0
+-- AutoLoginByYaroRage v2.14.1
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("2.14.0")
+script_version("2.14.1")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -570,7 +570,7 @@ function onWindowMessage(msg, wparam, lparam)
     end
 
     if auth.is_password_form_visible() and ui_mod.PF.input_active then
-        local ctrl_down = (user32.GetAsyncKeyState(0x11) < 0)
+        local ctrl_down = (user32.GetAsyncKeyState(0x11) < 0) or (bit.band(user32.GetKeyState(0x11), 0x8000) ~= 0)
         if msg == 0x0100 then
             if wparam == 0x08 then
                 ui_mod.handle_backspace()
@@ -579,11 +579,17 @@ function onWindowMessage(msg, wparam, lparam)
             elseif wparam == 0x56 and ctrl_down then
                 local ok_cb, cb = pcall(utils.get_clipboard_text)
                 if not ok_cb or not cb then cb = "" end
+                if #cb == 0 then
+                    local ok_img, cb_img = pcall(ui_mod.get_clipboard_imgui)
+                    if ok_img and cb_img and #cb_img > 0 then cb = cb_img end
+                end
                 if #cb > 0 then
                     if #ui_mod.PF.temp_password + #cb > 32 then
                         cb = cb:sub(1, 32 - #ui_mod.PF.temp_password)
                     end
                     ui_mod.handle_paste(cb)
+                else
+                    AL.log("Вставка: буфер обмена пуст")
                 end
             elseif wparam == 0x43 and ctrl_down then
                 ui_mod.handle_copy()
