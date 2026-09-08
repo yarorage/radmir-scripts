@@ -130,6 +130,46 @@ local known_admins = {
     {nick = "Willy_McLine",      post = "Админ 1 уровня", date = "21.08.2026"},
 }
 
+-- Файл дополнительных админов, выявленных детектором (не теряются при обновлении с сайта)
+local new_admins_file = resource_path .. "CheatNewAdmins.txt"
+
+-- Поиск админа в known_admins по нику (без учёта регистра)
+local function findInKnownAdminList(nick)
+    local target = string.lower(nick)
+    for _, a in ipairs(known_admins) do
+        if string.lower(a.nick) == target then
+            return a
+        end
+    end
+    return nil
+end
+
+-- Дозагрузка админов из файла новых (если ещё нет в списке)
+local function mergeNewAdmins()
+    local f = io.open(new_admins_file, "r")
+    if not f then return end
+    local data = f:read("*a")
+    f:close()
+    for line in data:gmatch("[^\r\n]+") do
+        local nick, post, date = line:match("^(.-)|(.-)|(.-)$")
+        if nick and #nick > 0 and not findInKnownAdminList(nick) then
+            table.insert(known_admins, {nick = nick, post = post or "Админ (по сообщению сервера)", date = date or os.date("%d.%m.%Y")})
+        end
+    end
+end
+
+-- Сохранение нового админа в отдельный файл и добавление в known_admins
+local function saveNewAdmin(nick, post, date)
+    if findInKnownAdminList(nick) then return end
+    date = date or os.date("%d.%m.%Y")
+    table.insert(known_admins, {nick = nick, post = post or "Админ (по сообщению сервера)", date = date})
+    local f = io.open(new_admins_file, "a")
+    if f then
+        f:write(nick .. "|" .. (post or "Админ (по сообщению сервера)") .. "|" .. date .. "\r\n")
+        f:close()
+    end
+end
+
 -- Загрузка внешнего списка админов из файла resource/CheatAdminList.txt
 local function loadAdminListFile()
     local path = resource_path .. "CheatAdminList.txt"
@@ -151,6 +191,7 @@ local function loadAdminListFile()
     end
     if counter > 0 then
         known_admins = loaded
+        mergeNewAdmins()
         sampAddChatMessage("Cheat: список админов обновлён из файла (" .. counter .. ")" , -1)
         return true
     end
@@ -632,6 +673,7 @@ function main()
 	lua_thread.create(SmoothAimBott)
 
 	save()
+	mergeNewAdmins()
 
     last_spectator_check = 0  -- для авто-проверки слежки
 	
@@ -1652,7 +1694,7 @@ function imgui.OnDrawFrame()
 	fsc = baseScale * dpiFactor
 	imgui.GetIO().FontGlobalScale = fsc
 	
-	local winW, winH = 680 * fsc, 560 * fsc
+	local winW, winH = 800 * fsc, 560 * fsc
 	
 	if mcheat.v then
 		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - winW / 2, resY / 2 - winH / 2), imgui.Cond.FirstUseEver)
@@ -1680,7 +1722,7 @@ function imgui.OnDrawFrame()
 				imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(1.15, 0.28, 0.22, 1))
 				imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
 			end
-			if imgui.Button(tabs[i], imgui.ImVec2(128 * fsc, 30 * fsc)) then menuTab.v = i end
+			if imgui.Button(tabs[i], imgui.ImVec2(148 * fsc, 30 * fsc)) then menuTab.v = i end
 			if tabActive then
 				imgui.PopStyleColor(2)
 			end
@@ -1992,7 +2034,7 @@ if imgui.Checkbox(u8'Вкл. детекцию админов', admin_detection) then
 				imgui.Separator()
 				imgui.TextColored(imgui.ImVec4(1, 0.5, 0.5, 1), u8"Найденные админы (должность | ник | дата назначения):")
 				
-				if #admin_list > 0 then
+				if next(admin_list) then
 					for _, data in pairs(admin_list) do
 						imgui.Text(string.format(u8"  %s | %s | %s", u8(data.reason or "-"), u8(data.nick), u8(data.date or "-")))
 					end
@@ -2455,39 +2497,15 @@ function ev.onServerMessage(color, text)
 			end
 			if found and not chat_admins[found] then
 				chat_admins[found] = true
-				chat_detected_list[found] = {reason = "Админ (по сообщению сервера)", date = nil}
-				debugLogStr("найден ник: " .. tostring(found), false)
-				debugLogStr(found, true)
-				debugLogStr(chat_detected_list[found].reason, true)
-				debugLogStr(string.sub(text, 1, 40), true)
 				updateAdminList()
-				sampAddChatMessage("Чит: админ " .. found .. " выявлен по сообщению сервера", -1)
-				local pid = findPlayerByNickname(found)
-				if pid and sampIsPlayerConnected(pid) then
-					sampAddChatMessage("Чит: админ " .. found .. " найден среди игроков (ID " .. pid .. ")", -1)
+				if findInKnownAdminList(found) then
+					-- Известный админ: молча отмечаем, что писал в чат (без сообщений)
+					chat_detected_list[found] = {reason = "Писал в чат", date = os.date("%d.%m.%Y %H:%M:%S")}
 				else
-					local online = 0
-					for i = 0, sampGetMaxPlayerId(false) do
-						if sampIsPlayerConnected(i) then online = online + 1 end
-					end
-					sampAddChatMessage("Чит: админ " .. found .. " отсутствует в списке игроков (онлайн всего: " .. online .. ")", -1)
-					-- Диагностика: дамп всех подключённых игроков в лог
-					debugLogStr("пул игроков (всего " .. online .. "), ищем: " .. tostring(found), false)
-					local cnt = 0
-					for i = 0, sampGetMaxPlayerId(false) do
-						if sampIsPlayerConnected(i) then
-							local n = sampGetPlayerNickname(i) or "?"
-							if string.lower(n) == string.lower(found) then
-								debugLogStr("СОВПАДЕНИЕ по пулу! id=" .. i .. " ник=" .. n, false)
-							end
-							debugLogStr(i .. "=" .. n, false)
-							cnt = cnt + 1
-							if cnt >= 300 then
-								debugLogStr("... дамп обрезан на " .. cnt, false)
-								break
-							end
-						end
-					end
+					-- Новый админ: добавляем в списки и отдельный файл, начинаем следить
+					saveNewAdmin(found, "Админ (по сообщению сервера)", os.date("%d.%m.%Y"))
+					chat_detected_list[found] = {reason = "Админ (по сообщению сервера)", date = os.date("%d.%m.%Y")}
+					sampAddChatMessage("Чит: админ " .. found .. " выявлен по сообщению сервера и добавлен в список", -1)
 				end
 			end
 		end
@@ -2807,15 +2825,19 @@ function renderAdminHUD()
     local x, y = admin_hud_pos.x, admin_hud_pos.y
     local line_h = 16
 
+    -- Счётчик админов (admin_list — разреженная таблица с ключами-идами, # неприменим)
+    local admin_cnt = 0
+    for _ in pairs(admin_list) do admin_cnt = admin_cnt + 1 end
+
     -- Фон
-    renderDrawBox(x - 5, y - 5, 280, 30 + #admin_list * line_h + #spectator_list * line_h, 0xCC000000)
+    renderDrawBox(x - 5, y - 5, 280, 30 + admin_cnt * line_h + #spectator_list * line_h, 0xCC000000)
     
     -- Заголовок
     renderFontDrawText(font, "[ADMIN DETECTION]", x, y, 0xFFFFFFFF)
     y = y + line_h + 2
     
     -- Админы
-    if #admin_list > 0 then
+    if admin_cnt > 0 then
         renderFontDrawText(font, "АДМИНЫ:", x, y, 0xFFFF0000)
         y = y + line_h
         for id, data in pairs(admin_list) do
