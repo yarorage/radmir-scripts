@@ -8,6 +8,19 @@ local MOUSEEVENTF_LEFTUP = 0x04
 
 local GAME_WINDOW_CLASS = "Grand theft auto San Andreas"
 
+-- Единый масштаб интерфейса (все разрешения, в т.ч. 4K, независимо от масштаба Windows)
+-- База 1920x1080: берём наименьшее отношение, клэп 0.6..3.0
+function M.get_ui_scale()
+    local sw, sh = getScreenResolution()
+    local s = math.min(sw / 1920.0, sh / 1080.0)
+    if s < 0.6 then s = 0.6 elseif s > 3.0 then s = 3.0 end
+    return s
+end
+
+function M.sc(v)
+    return math.floor(v * M.get_ui_scale() + 0.5)
+end
+
 function M.get_current_keyboard_layout_name()
     local fg = user32.GetForegroundWindow()
     local thread = user32.GetWindowThreadProcessId(fg, nil)

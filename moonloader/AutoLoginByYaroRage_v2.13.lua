@@ -1,8 +1,8 @@
--- AutoLoginByYaroRage v2.12
+-- AutoLoginByYaroRage v2.13
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("2.12")
+script_version("2.13")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -604,7 +604,8 @@ function onSendPacket(id, bs, priority, reliability, orderingChannel)
 end
 
 local function timer_render_thread()
-    local r_font = renderCreateFont("Arial", 14, 13)
+    local k = utils.get_ui_scale()
+    local r_font = renderCreateFont("Arial", math.floor(14 * k + 0.5), 13)
     while true do
         wait(0)
         if auth.is_password_form_visible() then
@@ -618,21 +619,23 @@ local function timer_render_thread()
                 local status_str = s.mafk_active and "{33FF33}Вкл" or "{FF3333}Выкл"
                 local msg_str = string.format("Anti-AFK: %s (Ctrl 1.5? /mafk)", status_str)
                 local m_w = renderGetFontDrawTextLength(r_font, msg_str)
-                local m_box_w = m_w + 24
+                local pad = math.floor(12 * k)
+                local m_box_w = m_w + pad * 2
                 local m_x = math.floor((sw - m_box_w) / 2)
                 local m_y = math.floor(sh * 0.70)
-                renderDrawBox(m_x - 12, m_y - 6, m_box_w, 26, 0xB0000000)
-                renderFontDrawText(r_font, msg_str, m_x + (m_box_w - 24 - m_w) / 2, m_y, 0xFFFFFFFF)
+                renderDrawBox(m_x - pad, m_y - math.floor(6 * k), m_box_w, math.floor(26 * k), 0xB0000000)
+                renderFontDrawText(r_font, msg_str, m_x + math.floor((m_box_w - pad * 2 - m_w) / 2), m_y, 0xFFFFFFFF)
             end
             if s.waiting_for_spawn_choice and s.spawn_timer_seconds > 0 then
                 local sw, sh = getScreenResolution()
                 local text_str = string.format("Спавн: авто-выбор через %d сек.", s.spawn_timer_seconds)
                 local text_w = renderGetFontDrawTextLength(r_font, text_str)
-                local box_w = text_w + 24
+                local pad = math.floor(12 * k)
+                local box_w = text_w + pad * 2
                 local posX = math.floor((sw - box_w) / 2)
                 local posY = 20
-                renderDrawBox(posX - 12, posY - 6, box_w, 28, 0xCC000000)
-                renderFontDrawText(r_font, text_str, posX + (box_w - 24 - text_w) / 2, posY, 0xFFFFFF00)
+                renderDrawBox(posX - pad, posY - math.floor(6 * k), box_w, math.floor(28 * k), 0xCC000000)
+                renderFontDrawText(r_font, text_str, posX + math.floor((box_w - pad * 2 - text_w) / 2), posY, 0xFFFFFF00)
             end
         end
     end

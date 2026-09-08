@@ -66,8 +66,9 @@ local C = {
 
 -- Поле пароля?
 local function get_scale()
+    local s = utils.get_ui_scale()
     local sw, sh = getScreenResolution()
-    return math.max(0.75, math.min(1.25, sh / 1080.0)), sw, sh
+    return s, sw, sh
 end
 local function sc(v)
     return math.floor(v * get_scale() + 0.5)
@@ -523,13 +524,15 @@ local current_tab = 1
 
 local function draw_settings_menu()
     if not show_settings then return end
-    
-    imgui.SetNextWindowSize(imgui.ImVec2(600, 500), imgui.Cond.FirstUseEver)
+
+    local u = utils.get_ui_scale()
+    imgui.SetNextWindowSize(imgui.ImVec2(sc(600), sc(500)), imgui.Cond.FirstUseEver)
     if imgui.Begin("AutoLoginByYaroRage - Настройки", show_settings, imgui.WindowFlags.NoCollapse) then
+        imgui.SetWindowFontScale(u)
         -- Tab buttons
         for i, tab in ipairs(settings_tabs) do
             if i > 1 then imgui.SameLine() end
-            if imgui.Button(tab, imgui.ImVec2(95, 25)) then
+            if imgui.Button(tab, imgui.ImVec2(sc(95), sc(25))) then
                 current_tab = i
             end
         end
@@ -576,13 +579,13 @@ function draw_autologin_tab()
     changed, pwd = imgui.InputText("##password", pwd, imgui.InputTextFlags.Password)
     if changed then s.password = pwd end
     
-    if imgui.Button("Сохранить пароль", imgui.ImVec2(150, 25)) then
+    if imgui.Button("Сохранить пароль", imgui.ImVec2(sc(150), sc(25))) then
         config.save()
         auth.on_password_saved()
         AL.chat_msg("{33FF33}Пароль сохранён!")
     end
     imgui.SameLine()
-    if imgui.Button("Показать форму", imgui.ImVec2(150, 25)) then
+    if imgui.Button("Показать форму", imgui.ImVec2(sc(150), sc(25))) then
         auth.force_show_password_form()
     end
     
@@ -653,7 +656,7 @@ function draw_telegram_tab()
     changed, chat_id = imgui.InputText("Chat ID", chat_id, 64)
     if changed then s.tg_chat_id = chat_id end
     
-    if imgui.Button("Сохранить и подключить", imgui.ImVec2(200, 25)) then
+    if imgui.Button("Сохранить и подключить", imgui.ImVec2(sc(200), sc(25))) then
         if #s.tg_bot_token > 0 and #s.tg_chat_id > 0 then
             s.tg_enabled = true
             telegram.send_message("Автологин подключён!")
@@ -663,7 +666,7 @@ function draw_telegram_tab()
         end
     end
     imgui.SameLine()
-    if imgui.Button("Тест", imgui.ImVec2(80, 25)) then
+    if imgui.Button("Тест", imgui.ImVec2(sc(80), sc(25))) then
         telegram.send_message("Тестовое сообщение: " .. os.date("%H:%M:%S"))
     end
     
@@ -692,7 +695,7 @@ function draw_admins_tab()
     
     local new_admin = ""
     changed, new_admin = imgui.InputText("Имя админа", new_admin, 32)
-    if imgui.Button("Добавить/Удалить", imgui.ImVec2(150, 25)) and #new_admin > 0 then
+    if imgui.Button("Добавить/Удалить", imgui.ImVec2(sc(150), sc(25))) and #new_admin > 0 then
         local found = false
         for i, name in ipairs(s.admin_names) do
             if name:lower() == new_admin:lower() then
@@ -740,7 +743,7 @@ function draw_reconnect_tab()
     imgui.Text("Cooldown до: " .. tostring(math.max(0, math.floor(s.reconnect_cooldown_until - os.clock()))))
     imgui.Text("Pause до: " .. tostring(math.max(0, math.floor(s.reconnect_pause_until - os.clock()))))
     
-    if imgui.Button("Сбросить счётчик", imgui.ImVec2(150, 25)) then
+    if imgui.Button("Сбросить счётчик", imgui.ImVec2(sc(150), sc(25))) then
         s.reconnect_attempt_count = 0
         s.reconnect_pause_until = 0
         s.reconnect_cooldown_until = 0
@@ -753,8 +756,8 @@ function draw_misc_tab()
     imgui.Text("Прочее")
     imgui.Separator()
     
-    if imgui.Button("Сбросить все настройки", imgui.ImVec2(200, 25)) then
-        if imgui.Button("ДА, СБРОСИТЬ", imgui.ImVec2(150, 25)) then
+    if imgui.Button("Сбросить все настройки", imgui.ImVec2(sc(200), sc(25))) then
+        if imgui.Button("ДА, СБРОСИТЬ", imgui.ImVec2(sc(150), sc(25))) then
             s.password = ""
             s.spawn_choice = true
             s.script_active = true
@@ -774,7 +777,7 @@ function draw_misc_tab()
     end
     
     imgui.Spacing()
-    imgui.Text("Версия: 2.0")
+    imgui.Text("Версия: 2.13")
     imgui.Text("Автор: YaroRage")
     imgui.Text("GitHub: yarorage.github.io")
 end
