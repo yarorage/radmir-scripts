@@ -1,10 +1,47 @@
--- Модуль Telegram AutoLoginByYaroRage
+-- Модуль Telegram + Discord AutoLoginByYaroRage
 local AL = require("AutoLoginByYaroRage.state")
 local M = {}
 
 local https = require("ssl.https")
 local ltn12 = require("ltn12")
 
+-- Discord webhook
+function M.discord_send(webhook_url, content, embeds)
+    if not webhook_url or #webhook_url == 0 then return false end
+    
+    local dkjson = require("dkjson")
+    local body = {content = content}
+    if embeds then body.embeds = embeds end
+    
+    local response_body = {}
+    local params = {
+        url = webhook_url,
+        method = "POST",
+        sink = ltn12.sink.table(response_body),
+        verify = "none",
+        headers = {
+            ["Content-Type"] = "application/json",
+        },
+        body = dkjson.encode(body),
+    }
+    
+    local ok, code = https.request(params)
+    return ok and code == 204
+end
+
+function M.discord_send_embed(webhook_url, title, description, color, fields, footer)
+    local embed = {
+        title = title,
+        description = description,
+        color = color or 3447003, -- default blue
+        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+    }
+    if fields then embed.fields = fields end
+    if footer then embed.footer = {text = footer} end
+    return M.discord_send(nil, nil, {embed})
+end
+
+-- Telegram API
 function M.http_request(method, endpoint, body)
     local s = AL.state
     local url = "https://api.telegram.org/bot" .. s.tg_bot_token .. "/" .. endpoint
@@ -106,10 +143,9 @@ end
 
 function M.poll_thread()
     local s = AL.state
-    AL.log("Telegram polling: старт (token=" .. (#s.tg_bot_token > 0 and "есть" or "пусто") .. ")")
+    AL.log("Telegram polling: запуск (token=" .. (#s.tg_bot_token > 0 and "задан" or "пустой") .. ")")
 
     while true do
-        wait(0)
         if s.tg_enabled and #s.tg_bot_token > 0 then
             local result = M.http_request("GET", "getUpdates?offset=" .. s.tg_last_update_id .. "&timeout=30")
             if result and result.ok then
@@ -121,8 +157,9 @@ function M.poll_thread()
                 AL.log("Telegram: ошибка получения update: " .. tostring(result))
                 wait(5000)
             end
+        else
+            wait(1000)
         end
-        wait(1000)
     end
 end
 

@@ -122,8 +122,8 @@ function M.mafk_hotkey_thread()
             if os.clock() - s.mafk_hold_start >= 1.5 then
                 s.mafk_active = not s.mafk_active
                 config.update_mafk_config()
-                local status = s.mafk_active and "{33FF33}ÂÊË" or "{FF3333}ÂÛÊË"
-                AL.chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} Ñòàòóñ: " .. status)
+                local status = s.mafk_active and "{33FF33}Âêë" or "{FF3333}Âûêë"
+                AL.chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} Ğåæèì: " .. status)
                 s.mafk_notify_until = os.clock() + 3
                 s.mafk_hold_start = 0
                 wait(500)
@@ -137,12 +137,15 @@ end
 function M.on_send_packet(id, bs)
     local s = AL.state
     if not s.anti_ticket_enabled then return end
-    local text = M.bitStreamStructure(bs)
-    if text:find("OnPlayerDeviceLost") then
-        return false
-    end
-    if (text:find('OnPlayerEnterArea') or text:find('OnPlayerLeaveArea')) and isCharInAnyCar(PLAYER_PED) then
-        return false
+    -- Only block OnPlayerDeviceLost/EnterArea/LeaveArea if explicitly enabled (off by default)
+    if s.block_device_area_packets then
+        local text = M.bitStreamStructure(bs)
+        if text:find("OnPlayerDeviceLost") then
+            return false
+        end
+        if (text:find('OnPlayerEnterArea') or text:find('OnPlayerLeaveArea')) and isCharInAnyCar(PLAYER_PED) then
+            return false
+        end
     end
 end
 
@@ -184,23 +187,23 @@ function M.register_commands()
         local s = AL.state
         s.mafk_active = not s.mafk_active
         config.update_mafk_config()
-        local status = s.mafk_active and "{33FF33}ÂÊË" or "{FF3333}ÂÛÊË"
-        AL.chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} Ñòàòóñ: " .. status)
+        local status = s.mafk_active and "{33FF33}Âêë" or "{FF3333}Âûêë"
+        AL.chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} Ğåæèì: " .. status)
     end)
 
-    sampRegisterChatCommand("afk", function(arg)
+    sampRegisterChatCommand("marsh", function(arg)
         local s = AL.state
         local mode = arg:lower()
         if mode == "mix" or mode == "" then
             s.afk_mode = 0
-            AL.chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} Ğåæèì: random mix")
+            AL.chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} ÀÔÊ: random mix")
         else
             local num = tonumber(mode)
             if num and num >= 1 and num <= 11 then
                 s.afk_mode = num
-                AL.chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} Ğåæèì: " .. num)
+                AL.chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} ÀÔÊ: " .. num)
             else
-                AL.chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} Íåâåğíûé ââîä: /afk [mix/1-11]")
+                AL.chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} Íåâåğíûé ğåæèì. Èñïîëüçîâàíèå: /afk [mix/1-11]")
             end
         end
     end)

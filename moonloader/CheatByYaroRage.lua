@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("2.0")
+script_version("0.4.1")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -33,80 +33,229 @@ local current_profile = 1
 -- ===== ADMIN DETECTION (Radmir CRMP) =====
 local admin_detection = imgui.ImBool(true)
 local auto_spectator_check = imgui.ImBool(false)  -- Автоматическая проверка слежки
-local admin_list = {}          -- {id = {nick, color, score, level}}
-local spectator_list = {}      -- {id = {nick, time}}
+local admin_list = {}          -- {id = {nick, color, score, reason(post), date, dist}}
+local chat_admins = {}         -- {ник = true} админы, выявленные по сообщениям сервера ("Администратор X ...")
+local chat_detected_list = {}  -- {ник = {reason=..., date=...}} список выявленных по чату админов (для показа оффлайн)
+local known_online = {}        -- {ник = pid} онлайн статус админов из списка known_admins
+local spectator_list = {}      -- {id = {nick, time, dist, reason, date}}
 local show_admin_hud = imgui.ImBool(false)
 local admin_hud_pos = {x = 10, y = 10}
-local admin_colors = {
-    [0xFFFF0000] = "Красный (Гл.админ)",     -- FF0000
-    [0xFF00FF00] = "Зелёный (Админ)",        -- 00FF00
-    [0xFFFFFF00] = "Жёлтый (Модер)",          -- FFFF00
-    [0xFF00FFFF] = "Бирюзовый (Хелпер)",      -- 00FFFF
-    [0xFFFFA500] = "Оранжевый (Куратор)",     -- FFA500
+local resource_path = "moonloader/CheatByYaroRage/resource/"
+
+-- Временный отладочный лог для диагностики детекта админов по чату
+function debugLogStr(txt, hex)
+    local fp = io.open("moonloader/CheatByYaroRage/resource/cheat_det_debug.log", "a")
+    if fp then
+        if hex then
+            fp:write(os.date("%H:%M:%S") .. " | HEX[")
+            for i = 1, #txt do
+                fp:write(string.format("%02X ", string.byte(txt, i)))
+            end
+            fp:write("]\n")
+        else
+            fp:write(os.date("%H:%M:%S") .. " | " .. txt .. "\n")
+        end
+        fp:close()
+    end
+end
+
+-- Точный список действующих администраторов (форум: RM RP 2.1 Список действующих администраторов)
+-- При каждом включении чекера список перечитывается из файла resource/CheatAdminList.txt,
+-- если файл повреждён или отсутствует — используется встроенный список ниже.
+local known_admins = {
+    -- Старшая администрация
+    {nick = "Denis_Madborn",   post = "Заместитель Главного Администратора", date = "12.02.2024"},
+    {nick = "Vadim_Kruvoshey", post = "Главный Администратор",               date = "04.01.2024"},
+    -- Следящая администрация
+    {nick = "Anyuta_Bennet",   post = "Зам. Главного Следящего за Криминальными структурами",     date = "13.11.2025"},
+    {nick = "Daniil_Umberto",  post = "Главный Следящий за Государственными структурами",         date = "10.05.2025"},
+    {nick = "Dmitriy_Carter",  post = "Зам. Главного Следящего за Государственными структурами",  date = "06.03.2026"},
+    -- Админы 4 уровня
+    {nick = "Alexey_Voskhod",      post = "Админ 4 уровня", date = "30.12.2025"},
+    {nick = "Arkady_Kotow",        post = "Админ 4 уровня", date = "01.12.2025"},
+    {nick = "Dover_Belly",         post = "Админ 4 уровня", date = "24.06.2026"},
+    {nick = "Fura_Escobarov",      post = "Админ 4 уровня", date = "16.08.2026"},
+    {nick = "Jaehaerys_Targaryen", post = "Админ 4 уровня", date = "05.11.2025"},
+    {nick = "Lukas_Na_Offroad",    post = "Админ 4 уровня", date = "30.08.2026"},
+    {nick = "Malloy_Mironov",      post = "Админ 4 уровня", date = "29.07.2026"},
+    {nick = "May_Wong",            post = "Админ 4 уровня", date = "21.06.2025"},
+    {nick = "Nekit_Morgan",        post = "Админ 4 уровня", date = "26.07.2025"},
+    {nick = "Robert_Orlov",        post = "Админ 4 уровня", date = "01.08.2026"},
+    {nick = "Santiago_Arxitektor", post = "Админ 4 уровня", date = "21.03.2026"},
+    {nick = "Yakuto_Nakamura",     post = "Админ 4 уровня", date = "16.08.2026"},
+    -- Админы 3 уровня
+    {nick = "Aleksandr_Raskalov",  post = "Админ 3 уровня", date = "16.08.2026"},
+    {nick = "Arina_Loving",        post = "Админ 3 уровня", date = "16.08.2026"},
+    {nick = "Kris_Malinka",        post = "Админ 3 уровня", date = "29.08.2026"},
+    {nick = "Lens_Loving",         post = "Админ 3 уровня", date = "16.08.2026"},
+    {nick = "Leonardo_Johnson",    post = "Админ 3 уровня", date = "21.08.2026"},
+    {nick = "Ria_Kubik",           post = "Админ 3 уровня", date = "12.07.2026"},
+    {nick = "Roman_McDonald",      post = "Админ 3 уровня", date = "16.08.2026"},
+    -- Админы 2 уровня
+    {nick = "Aleshqa_Absolut",   post = "Админ 2 уровня", date = "04.08.2026"},
+    {nick = "Alexander_Olimp",   post = "Админ 2 уровня", date = "31.07.2026"},
+    {nick = "Ave_Cezar",         post = "Админ 2 уровня", date = "23.07.2026"},
+    {nick = "Dima_Mafioznic",    post = "Админ 2 уровня", date = "16.08.2026"},
+    {nick = "Lia_Winston",       post = "Админ 2 уровня", date = "31.07.2026"},
+    {nick = "Matvei_Makeev",     post = "Админ 2 уровня", date = "04.08.2026"},
+    {nick = "Paulo_Eskabaro",    post = "Админ 2 уровня", date = "16.08.2026"},
+    {nick = "Sanya_Prorok",      post = "Админ 2 уровня", date = "16.08.2026"},
+    {nick = "Vitya_Malishok",    post = "Админ 2 уровня", date = "16.08.2026"},
+    {nick = "Well_Ts",           post = "Админ 2 уровня", date = "16.08.2026"},
+    -- Админы 1 уровня
+    {nick = "Alexey_Gordeev",    post = "Админ 1 уровня", date = "05.08.2026"},
+    {nick = "Asu_Carteles",      post = "Админ 1 уровня", date = "30.07.2026"},
+    {nick = "Cody_Extazyy",      post = "Админ 1 уровня", date = "17.08.2026"},
+    {nick = "Genadiy_Margiela",  post = "Админ 1 уровня", date = "12.08.2026"},
+    {nick = "Mishka_Shalun",    post = "Админ 1 уровня", date = "17.08.2026"},
+    {nick = "Vadim_De_Fellow",   post = "Админ 1 уровня", date = "18.08.2026"},
+    {nick = "Vitya_Malishok",    post = "Админ 1 уровня", date = "26.07.2026"},
+    {nick = "Walter_Malkov",     post = "Админ 1 уровня", date = "15.08.2026"},
+    {nick = "Willy_McLine",      post = "Админ 1 уровня", date = "21.08.2026"},
 }
 
--- Теги админов в нике (Radmir специфика)
-local admin_tags = {"[A]", "[ADMIN]", "[ADM]", "[GM]", "[MOD]", "[HELPER]", "[CURATOR]", "[DEV]", "[OWNER]", "*", "*", "*"}
-
--- Функция проверки, является ли игрок админом
-local function isPlayerAdmin(id)
-    if not sampIsPlayerConnected(id) then return false end
-    local nick = sampGetPlayerNickname(id)
-    local color = sampGetPlayerColor(id)
-    local score = sampGetPlayerScore(id)
-    
-    -- Проверка по тегам в нике
-    for _, tag in ipairs(admin_tags) do
-        if nick:find(tag, 1, true) then
-            return true, tag
+-- Загрузка внешнего списка админов из файла resource/CheatAdminList.txt
+local function loadAdminListFile()
+    local path = resource_path .. "CheatAdminList.txt"
+    local f = io.open(path, "r")
+    if not f then
+        sampAddChatMessage("Cheat: не найден файл списка админов, использую встроенный список", -1)
+        return false
+    end
+    local data = f:read("*a")
+    f:close()
+    local loaded = {}
+    local counter = 0
+    for line in data:gmatch("[^\r\n]+") do
+        local nick, post, date = line:match("^(.-)|(.-)|(.-)$")
+        if nick and #nick > 0 then
+            counter = counter + 1
+            table.insert(loaded, {nick = nick, post = post or "", date = date or ""})
         end
     end
-    
-    -- Проверка по цвету (Radmir: админы часто имеют специфические цвета)
-    if admin_colors[color] then
-        return true, admin_colors[color]
+    if counter > 0 then
+        known_admins = loaded
+        sampAddChatMessage("Cheat: список админов обновлён из файла (" .. counter .. ")" , -1)
+        return true
     end
-    
-    -- Проверка по скору (админы часто имеют высокий скор или спец. значения)
-    if score > 10000 then
-        return true, "High Score"
+    return false
+end
+
+-- Функция проверки, является ли игрок админом (по точному списку или приписке)
+local function isPlayerAdmin(id)
+    if not sampIsPlayerConnected(id) then return false, nil, nil end
+    local nick = sampGetPlayerNickname(id)
+
+    -- Точное совпадение с официальным списком действующих администраторов
+    for _, a in ipairs(known_admins) do
+        if nick == a.nick then
+            return true, a.post, a.date
+        end
     end
-    
-    return false, nil
+
+    -- Приписка "Администратор" / "Аdmin" в нике
+    local low = nick:lower()
+    if low:find("админ") or low:find("admin") then
+        return true, "Ник с припиской Администратор", nil
+    end
+
+    -- Админ, выявленный по системному сообщению сервера ("Администратор X ...")
+    if chat_admins[nick] then
+        return true, "Админ (по сообщению сервера)", nil
+    end
+
+    return false, nil, nil
+end
+
+-- Поиск игрока по нику без учёта регистра (для чат-детекта админов)
+function findPlayerByNickname(nick)
+    local target = string.lower(nick)
+    for i = 0, sampGetMaxPlayerId(false) do
+        if sampIsPlayerConnected(i) then
+            local n = sampGetPlayerNickname(i) or ""
+            if string.lower(n) == target then
+                return i, n
+            end
+        end
+    end
+    return nil, nil
 end
 
 -- Обновление списка админов
 function updateAdminList()
     admin_list = {}
+    known_online = {}
+    if not PLAYER_PED or not doesCharExist(PLAYER_PED) then
+        return
+    end
+
+    -- Карта пула игроков: lower(ник) -> id (для быстрого поиска)
+    local poolByNick = {}
     for i = 0, sampGetMaxPlayerId(false) do
         if sampIsPlayerConnected(i) then
-            local is_admin, reason = isPlayerAdmin(i)
+            local n = sampGetPlayerNickname(i) or ""
+            if n ~= "" then
+                local k = string.lower(n)
+                if not poolByNick[k] then poolByNick[k] = i end
+            end
+        end
+    end
+
+    -- Статус «онлайн» для админов из официального списка (без репортов)
+    for _, a in ipairs(known_admins) do
+        local pid = poolByNick[string.lower(a.nick)]
+        if pid and sampIsPlayerConnected(pid) then
+            known_online[a.nick] = pid
+        end
+    end
+
+    for i = 0, sampGetMaxPlayerId(false) do
+        if sampIsPlayerConnected(i) then
+            local is_admin, post, date = isPlayerAdmin(i)
             if is_admin then
-                admin_list[i] = {
+                local data = {
                     nick = sampGetPlayerNickname(i),
                     color = sampGetPlayerColor(i),
                     score = sampGetPlayerScore(i),
-                    reason = reason,
+                    reason = post,
+                    date = date,
                     dist = 0
                 }
                 -- Дистанция до нас
                 local _, my_id = sampGetPlayerIdByCharHandle(PLAYER_PED)
                 if my_id ~= i then
                     local _, ped = sampGetCharHandleBySampPlayerId(i)
-                    if ped then
+                    if ped and doesCharExist(ped) then
                         local mx, my, mz = getCharCoordinates(PLAYER_PED)
                         local px, py, pz = getCharCoordinates(ped)
-                        admin_list[i].dist = math.floor(getDistanceBetweenCoords3d(mx, my, mz, px, py, pz))
+                        data.dist = math.floor(getDistanceBetweenCoords3d(mx, my, mz, px, py, pz))
                     end
                 end
+                admin_list[i] = data
             end
         end
     end
-end
 
--- Проверка наблюдателей (время нахождения)
+    -- Дополнительно: выявленные по сообщениям сервера админы, найденные напрямую по нику
+    for nick in pairs(chat_admins) do
+        local pid = poolByNick[string.lower(nick)]
+        if pid and sampIsPlayerConnected(pid) and not admin_list[pid] then
+            admin_list[pid] = {
+                nick = nick,
+                color = sampGetPlayerColor(pid),
+                score = sampGetPlayerScore(pid),
+                reason = "Админ (по сообщению сервера)",
+                date = nil,
+                dist = 0
+            }
+        end
+    end
+end
 function checkSpectators()
     spectator_list = {}
+    if not PLAYER_PED or not doesCharExist(PLAYER_PED) then
+        return
+    end
     for id, admin_data in pairs(admin_list) do
         if sampIsPlayerConnected(id) then
             local _, ped = sampGetCharHandleBySampPlayerId(id)
@@ -122,7 +271,8 @@ function checkSpectators()
                             nick = admin_data.nick,
                             dist = math.floor(dist),
                             time = os.date("%H:%M:%S"),
-                            reason = admin_data.reason
+                            reason = admin_data.reason,
+                            date = admin_data.date
                         })
                     end
                 end
@@ -198,6 +348,10 @@ local nodamage = imgui.ImBool(false)
 local autokick = imgui.ImBool(false)
 local damageinf = imgui.ImBool(false)
 local capturebiz = imgui.ImBool(false)
+local messages = {}
+local buffer = {}
+local str = imgui.ImBuffer(2048)
+local fakeChatColor = -1
 local enginecar = imgui.ImBool(false)
 local legit = imgui.ImBool(false)
 local noReload = imgui.ImBool(false)
@@ -302,6 +456,12 @@ local mainIni = inicfg.load({
 		anti_roll = false,
 		anti_trailer = false,
 		anti_vortex = false,
+		admin_detection = true,
+		auto_spectator_check = false,
+		show_admin_hud = false,
+		theme = 0,
+		profile = 0,
+		menuTab = 1,
     }
 }, 'CheatByYaroRage/CheatByYaroRage.ini')
 
@@ -364,6 +524,38 @@ tdtext_dist_slider.v = mainIni.CheatByYaroRage.tdtext_dist or 8
 chatbubbles_dist_slider.v = mainIni.CheatByYaroRage.chatbubbles_dist or 6
 fog_dist_slider.v = mainIni.CheatByYaroRage.fog_dist or 350
 lods_dist_slider.v = mainIni.CheatByYaroRage.lods_dist or 150
+
+admin_detection.v = mainIni.CheatByYaroRage.admin_detection or true
+auto_spectator_check.v = mainIni.CheatByYaroRage.auto_spectator_check or false
+show_admin_hud.v = mainIni.CheatByYaroRage.show_admin_hud or false
+
+-- Справочник всех настраиваемых переменных для профилей (объявлен ДО save()).
+local profile_vars = {
+	godcar = godcar, NoAnimationMoney = NoAnimationMoney, clickwarp = clickwarp,
+	sbivx = sbivx, SpeedHack = SpeedHack, SpeedSmooth = SpeedSmooth,
+	fullskillgun = fullskillgun, pslide = pslide, trigger = trigger,
+	autokick = autokick, airbrake = airbrake, Speed = Speed,
+	ifastconnect = ifastconnect, enginecar = enginecar, noReload = noReload,
+	allowBunnyhop = allowBunnyhop, eyefish = eyefish, antistun = antistun,
+	shotmax = shotmax, Dist = Dist, silentmode = silentmode, Fov = Fov,
+	legit = legit, cbz5 = cbz5, nodamage = nodamage, capturebiz = capturebiz,
+	damageinf = damageinf, tfirst = tfirst, tsecond = tsecond,
+	triggermode = triggermode, flipcar = flipcar,
+	flycar = flycar, flycar_speed = flycar_speed, flycar_brake = flycar_brake,
+	esp_box = esp_box, esp_line = esp_line, esp_bones = esp_bones,
+	esp_tracers = esp_tracers, esp_distance = esp_distance,
+	coordmaster = coordmaster, coordmaster_step = coordmaster_step,
+	coordmaster_delay = coordmaster_delay, coordmaster_height = coordmaster_height,
+	autocapture = autocapture, autocapture_time = autocapture_time,
+	autocapture_ms = autocapture_ms,
+	anticrasher = anticrasher, anti_detonator = anti_detonator,
+	anti_roll = anti_roll, anti_trailer = anti_trailer, anti_vortex = anti_vortex,
+	nametags_dist = nametags_dist_slider, tdtext_dist = tdtext_dist_slider,
+	chatbubbles_dist = chatbubbles_dist_slider, fog_dist = fog_dist_slider,
+	lods_dist = lods_dist_slider,
+	admin_detection = admin_detection, auto_spectator_check = auto_spectator_check,
+	show_admin_hud = show_admin_hud,
+}
 
 ffi.cdef[[
     typedef struct _SYSTEMTIME {
@@ -433,7 +625,7 @@ local config = inicfg.load(nil, f_ini)
 function main()
     repeat wait(0) until isSampAvailable()
 
-	ywelcome("CheatByYaroRage", u8"Меню: /cheat или N (долгое нажатие 1 сек)")
+	ywelcome("CheatByYaroRage", "Меню: /cheat или N (долгое нажатие 1 сек)")
 
 	clearAnim()
 	lua_thread.create(ClickWP)
@@ -521,7 +713,7 @@ function main()
             hour, minute, second, ms = tonumber(hour), tonumber(minute), tonumber(second), tonumber(ms)
             active = true
         else
-            ywelcome("CheatByYaroRage", u8'Формат: ЧЧ:ММ:СС:МС')
+            ywelcome("CheatByYaroRage", 'Формат: ЧЧ:ММ:СС:МС')
         end
     end)
     time = ffi.new('SYSTEMTIME')
@@ -529,18 +721,18 @@ function main()
 	sampRegisterChatCommand('autorem', function()
 		autorem = not autorem
 		if autorem then
-			ywelcome("CheatByYaroRage", u8'Autorem - ВКЛ.')
+			ywelcome("CheatByYaroRage", 'Autorem - ВКЛ.')
 		else
-			ywelcome("CheatByYaroRage", u8'Autorem - ВЫКЛ.')
+			ywelcome("CheatByYaroRage", 'Autorem - ВЫКЛ.')
 		end
 	end)
 
 	sampRegisterChatCommand("wolic", function()
 		wolic = not wolic
 		if wolic then
-			ywelcome("CheatByYaroRage", u8'WOLIC - ВКЛ.')
+			ywelcome("CheatByYaroRage", 'WOLIC - ВКЛ.')
 		else
-			ywelcome("CheatByYaroRage", u8'WOLIC - ВЫКЛ.')
+			ywelcome("CheatByYaroRage", 'WOLIC - ВЫКЛ.')
 		end
 	end)
 
@@ -561,10 +753,10 @@ function main()
                 sampSetPlayerSkin(tonumber(playerId), tonumber(skinId))
                 sampSetPlayerColor(tonumber(playerId), getPlayerColor(tonumber(playercolor)))
             else
-                sampAddChatMessage(u8'Игрок с ID "'..tonumber(playerId)..'" не найден!', -1)
+                sampAddChatMessage('Игрок с ID "'..tonumber(playerId)..'" не найден!', -1)
             end
         else
-            sampAddChatMessage(u8'Неверный формат! /fakepl id, имя, цвет, скин', -1)
+            sampAddChatMessage('Неверный формат! /fakepl id, имя, цвет, скин', -1)
         end
     end)
 
@@ -579,11 +771,11 @@ function main()
 						ClanPlayer = ClanPlayer + 1
 					end
 				end
-				ywelcome("CheatByYaroRage", u8'Игроков в клане - '..ClanPlayer)
+				ywelcome("CheatByYaroRage", 'Игроков в клане - '..ClanPlayer)
 				ClanPlayer = 0
 			end)
 		else
-			ywelcome("CheatByYaroRage", u8'Ошибка! Укажите ID игрока.')
+			ywelcome("CheatByYaroRage", 'Ошибка! Укажите ID игрока.')
 		end
 	end)
 
@@ -640,12 +832,14 @@ function main()
 	while true do
 		wait(0)
 
-		-- Admin Detection обновление (каждые 2 сек)
-		if admin_detection.v then
+		-- Admin Detection обновление (каждые 2 сек, работает и без чекбокса детекции — для трекера онлайн)
+		do
 			local cur_time = os.clock()
 			if not last_admin_check or cur_time - last_admin_check >= 2.0 then
 				updateAdminList()
-				checkSpectators()
+				if admin_detection.v then
+					checkSpectators()
+				end
 				last_admin_check = cur_time
 			end
 		end
@@ -1009,12 +1203,25 @@ function main()
 		if mcheat.v then
 			imgui.ShowCursor = true
 			imgui.Process = true
+			imgui.DisableInput = false
 		elseif window.v then
 			imgui.Process = true
 			imgui.ShowCursor = true
-		else
-			imgui.Process = false
+			imgui.DisableInput = false
+		elseif show_admin_hud.v and admin_detection.v then
+			-- HUD рисуется через ImGui, поэтому держим кадры активными,
+			-- но без курсора и без перехвата ввода
+			imgui.Process = true
 			imgui.ShowCursor = false
+			imgui.DisableInput = true
+		else
+-- ImGui остаётся активным (для отрисовки HUD), но без курсора.
+	-- Переключение ShowCursor/DisableInput выполняется в главном цикле.
+	imgui.Process = true
+	imgui.ShowCursor = false
+	imgui.DisableInput = true
+			imgui.ShowCursor = false
+			imgui.DisableInput = false
 		end
 	end
 end
@@ -1048,7 +1255,7 @@ function cmd_stime()
                         inicfg.save(config, f_ini)
                         return true
                     else
-                        ywelcome("CheatByYaroRage", u8"Неверный формат числа!")
+                        ywelcome("CheatByYaroRage", "Неверный формат числа!")
                         return true
                     end
                 else
@@ -1066,7 +1273,7 @@ function cmd_stime()
                         inicfg.save(config, f_ini)
                         return true
                     else
-                        ywelcome("CheatByYaroRage", u8"Неверный формат цвета.")
+                        ywelcome("CheatByYaroRage", "Неверный формат цвета.")
                         return true
                     end
                 else
@@ -1084,7 +1291,7 @@ function cmd_stime()
                         inicfg.save(config, f_ini)
                         return true
                     else
-                        ywelcome("CheatByYaroRage", u8"Неверный формат цвета.")
+                        ywelcome("CheatByYaroRage", "Неверный формат цвета.")
                         return true
                     end
                 else
@@ -1094,7 +1301,7 @@ function cmd_stime()
 
             if list == 4 then
                 moving = true
-                ywelcome("CheatByYaroRage", u8"Переместите окно мышкой и нажмите ЛКМ.")
+                ywelcome("CheatByYaroRage", "Переместите окно мышкой и нажмите ЛКМ.")
             end
         end
     end)
@@ -1412,75 +1619,105 @@ end
 local search_text = imgui.ImBuffer(256)
 local theme_selector = imgui.ImInt(0)
 local themes = {
-    {name = u8"Классическая", colors = {}},
-    {name = u8"Тёмная", colors = {}},
-    {name = u8"Красная", colors = {}},
-    {name = u8"Фиолетовая", colors = {}},
-    {name = u8"Зелёная", colors = {}}
+    u8"Классическая",
+    u8"Тёмная",
+    u8"Красная",
+    u8"Фиолетовая",
+    u8"Зелёная"
 }
 local profile_selector = imgui.ImInt(0)
 local profile_name = imgui.ImBuffer(256)
+
+local menuTab = imgui.ImInt(1)
+
+-- Восстановление выбранной темы, профиля и вкладки после перезагрузки скрипта
+theme_selector.v = mainIni.CheatByYaroRage.theme or 0
+profile_selector.v = mainIni.CheatByYaroRage.profile or 0
+menuTab.v = mainIni.CheatByYaroRage.menuTab or 1
 
 function imgui.OnDrawFrame()
 	resX, resY = getScreenResolution()
 	fsc = resY / 1080
 	imgui.GetIO().FontGlobalScale = fsc
 	
-	local winW, winH = 600 * fsc, 500 * fsc
+	local winW, winH = 680 * fsc, 560 * fsc
 	
 	if mcheat.v then
 		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - winW / 2, resY / 2 - winH / 2), imgui.Cond.FirstUseEver)
 		imgui.SetNextWindowSize(imgui.ImVec2(winW, winH), imgui.Cond.FirstUseEver)
-		imgui.Begin(u8'CheatByYaroRage v2.0', mcheat, imgui.WindowFlags.NoCollapse)
+		imgui.Begin(u8'CheatByYaroRage', mcheat, imgui.WindowFlags.NoCollapse)
+
+		-- Вкладки в одну строку в шапке окна
+		local tabs = {
+			fa.ICON_FA_CROSSHAIRS .. u8' Аимбот',
+			fa.ICON_FA_CAR .. u8' Машины',
+			fa.ICON_FA_USER .. u8' Игрок',
+			fa.ICON_FA_EYE .. u8' Визуал',
+			fa.ICON_FA_BRIEFCASE .. u8' Бизнес',
+			fa.ICON_FA_PLANE .. u8' FlyCar',
+			fa.ICON_FA_EYE .. u8' ESP',
+			fa.ICON_FA_MAP_MARKER_ALT .. u8' CoordMaster',
+			fa.ICON_FA_CLOCK .. u8' AutoCapture',
+			fa.ICON_FA_SHIELD_ALT .. u8' Anti-Crasher',
+			fa.ICON_FA_USER_SHIELD .. u8' Admin',
+		}
+		local tabCount = #tabs
+		local perRow = 4
+		for i = 1, tabCount do
+			local tabActive = menuTab.v == i
+			if tabActive then
+				imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(1.15, 0.28, 0.22, 1))
+				imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
+			end
+			if imgui.Button(tabs[i], imgui.ImVec2(150 * fsc, 30 * fsc)) then menuTab.v = i end
+			if tabActive then
+				imgui.PopStyleColor(2)
+			end
+			if i < tabCount then
+				if i % perRow == 0 then imgui.NewLine() else imgui.SameLine() end
+			end
+		end
+		imgui.Separator()
 		
-		-- Верхняя панель: поиск, профиль, тема, обновление
-		imgui.PushItemWidth(150 * fsc)
-		imgui.InputText(u8"##search", search_text, imgui.InputTextFlags.EnterReturnsTrue)
-		imgui.PopItemWidth()
-		imgui.SameLine()
-		if imgui.Button(u8" Поиск", imgui.ImVec2(80 * fsc, 25 * fsc)) then end
-		imgui.SameLine()
-		imgui.Dummy(imgui.ImVec2(10, 0))
-		imgui.SameLine()
+		-- Верхняя панель: профиль, тема, автоапдейтер (без нерабочего поиска)
 		imgui.Text(u8"Профиль:")
 		imgui.SameLine()
-		imgui.PushItemWidth(100 * fsc)
+		imgui.PushItemWidth(110 * fsc)
 		if imgui.Combo(u8"##profile", profile_selector, profiles) then
 			loadProfile(profiles[profile_selector.v + 1])
 		end
 		imgui.PopItemWidth()
 		imgui.SameLine()
-		if imgui.Button(u8"Сохранить", imgui.ImVec2(70 * fsc, 25 * fsc)) then
+		if imgui.Button(u8"Сохранить", imgui.ImVec2(86 * fsc, 25 * fsc)) then
 			saveProfile(profiles[profile_selector.v + 1])
 		end
 		imgui.SameLine()
 		imgui.Text(u8"Тема:")
 		imgui.SameLine()
-		imgui.PushItemWidth(100 * fsc)
-		if imgui.Combo(u8"##theme", theme_selector, {"Классическая", "Тёмная", "Красная", "Фиолетовая", "Зелёная"}) then
+		imgui.PushItemWidth(110 * fsc)
+		if imgui.Combo(u8"##theme", theme_selector, themes) then
 			applyTheme(theme_selector.v)
+			save()
 		end
 		imgui.PopItemWidth()
 		imgui.SameLine()
-		if imgui.Button(u8"Запустить автоапдейтер", imgui.ImVec2(140 * fsc, 25 * fsc)) then
+		if imgui.Button(u8"Автоапдейтер", imgui.ImVec2(110 * fsc, 25 * fsc)) then
 			os.execute('start "" "..\\..\\autoupdateryr.exe"')
 		end
 		imgui.Separator()
-		
-		-- TabBar
-		if imgui.BeginTabBar("##MainTabBar") then
-			-- Вкладки вынесены в отдельные функции (обход лимита 60 upvalues)
-			drawAimTab()
-			drawVehicleTab()
-			drawPlayerTab()
-			drawVisualTab()
-			drawBizTab()
-			drawFlyTab()
-			drawEspTab()
-			drawCoordTab()
-			drawAutoCaptureTab()
-			drawAntiCrasherTab()
-			drawAdminTab()
+
+		-- Активная вкладка
+		if menuTab.v == 1 then drawAimTab()
+		elseif menuTab.v == 2 then drawVehicleTab()
+		elseif menuTab.v == 3 then drawPlayerTab()
+		elseif menuTab.v == 4 then drawVisualTab()
+		elseif menuTab.v == 5 then drawBizTab()
+		elseif menuTab.v == 6 then drawFlyTab()
+		elseif menuTab.v == 7 then drawEspTab()
+		elseif menuTab.v == 8 then drawCoordTab()
+		elseif menuTab.v == 9 then drawAutoCaptureTab()
+		elseif menuTab.v == 10 then drawAntiCrasherTab()
+		elseif menuTab.v == 11 then drawAdminTab()
 		end
 		
 		imgui.End()
@@ -1501,12 +1738,12 @@ function imgui.OnDrawFrame()
                 end
             end
         end
-        if imgui.Button(u8(buffer[2])) then
+        if buffer[2] and imgui.Button(u8(buffer[2])) then
             str.v = u8(buffer[2])
-            color = buffer[1]
+            fakeChatColor = buffer[1]
         end
         if imgui.Button(u8"Отправить") then
-            sampAddChatMessage(u8:decode(str.v), color)
+            sampAddChatMessage(u8:decode(str.v), fakeChatColor)
         end
         imgui.PopItemWidth()
         imgui.End()
@@ -1517,13 +1754,14 @@ end
 
 function drawAimTab()
 			-- ВКЛАДКА: АИМБОТ
-			if imgui.BeginTabItem(fa.ICON_FA_CROSSHAIRS .. u8' Аимбот') then
+			do
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_CROSSHAIRS .. u8' Аимбот')
 				imgui.BeginChild("##AimChild", imgui.ImVec2(0, 0), true)
 				imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"Настройки AimBot")
 				imgui.Separator()
 				
 				sbox(u8'Legit AimBot (LMB)', cbz5)
-				imgui.TextQuestion(u8'Плавное наведение на ЛКМ')
+				imgui.TextDisabled(u8'Плавное наведение на ЛКМ')
 				if imgui.SliderFloat(u8"Скорость##aim", Speed, 0.1, 50.0, '%.1f') then save() end
 				if imgui.SliderFloat(u8"Дистанция##aim", Dist, 1.0, 200.0, '%.1f') then save() end
 				if imgui.SliderFloat(u8"FOV##aim", Fov, 0.1, 30.0, '%.1f') then save() end
@@ -1531,84 +1769,86 @@ function drawAimTab()
 				imgui.NewLine()
 				imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"Silent Aim")
 				imgui.Separator()
-				if imgui.RadioButton(u8'LITE', silentmode, 1) then silentmode.v = 1; save() end
+				if imgui.Button(u8'LITE', silentmode, 1) then silentmode.v = 1; save() end
 				imgui.SameLine()
-				if imgui.RadioButton(u8'RAGE', silentmode, 2) then silentmode.v = 2; save() end
+				if imgui.Button(u8'RAGE', silentmode, 2) then silentmode.v = 2; save() end
 				imgui.SameLine()
-				if imgui.RadioButton(u8'ВЫКЛ', silentmode, 3) then silentmode.v = 3; save() end
+				if imgui.Button(u8'ВЫКЛ', silentmode, 3) then silentmode.v = 3; save() end
 				
 				imgui.NewLine()
 				imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"TriggerBot")
 				imgui.Separator()
-				if imgui.RadioButton(u8'Режим 1 (наведение)', triggermode, 1) then triggermode.v = 1; save() end
-				if imgui.RadioButton(u8'Режим 2 (автострелба)', triggermode, 2) then triggermode.v = 2; save() end
-				if imgui.RadioButton(u8'ВЫКЛ', triggermode, 3) then triggermode.v = 3; save() end
+				if imgui.Button(u8'Режим 1 (наведение)') then triggermode.v = 1; save() end
+				imgui.SameLine()
+				if imgui.Button(u8'Режим 2 (автострелба)') then triggermode.v = 2; save() end
+				imgui.SameLine()
+				if imgui.Button(u8'ВЫКЛ') then triggermode.v = 3; save() end
 				
 				imgui.NewLine()
 				sbox(u8'NoSpread', nodamage)
-				imgui.TextQuestion(u8'Убрать разброс пуль (требует перезахода)')
+				imgui.TextDisabled(u8'Убрать разброс пуль (требует перезахода)')
 				sbox(u8'NoReload', noReload)
-				imgui.TextQuestion(u8'Без перезарядки')
+				imgui.TextDisabled(u8'Без перезарядки')
 				sbox(u8'FastDeagle', pslide)
-				imgui.TextQuestion(u8'Быстрая стрельба из Дигла (ПКМ)')
+				imgui.TextDisabled(u8'Быстрая стрельба из Дигла (ПКМ)')
 				
 				imgui.EndChild()
-				imgui.EndTabItem()
 			end
 end
 
 function drawVehicleTab()
 			-- ВКЛАДКА: ТРАНСПОРТ
-			if imgui.BeginTabItem(fa.ICON_FA_CAR .. u8' Транспорт') then
+			do
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_CAR .. u8' Транспорт')
 				imgui.BeginChild("##VehChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'AirBrake', airbrake)
-				imgui.TextQuestion(u8'Полет/ходьба в воздухе (RShift)')
+				imgui.TextDisabled(u8'Полет/ходьба в воздухе (RShift)')
 				sbox(u8'FlipCar (Del)', flipcar)
-				imgui.TextQuestion(u8'Переворот машины клавишей Del (удержание 0.5с)')
+				imgui.TextDisabled(u8'Переворот машины клавишей Del (удержание 0.5с)')
 				sbox(u8'GM Car', godcar)
-				imgui.TextQuestion(u8'Неуязвимая машина')
+				imgui.TextDisabled(u8'Неуязвимая машина')
 				sbox(u8'EngineCar', enginecar)
-				imgui.TextQuestion(u8'Всегда заведенный двигатель')
+				imgui.TextDisabled(u8'Всегда заведенный двигатель')
 				sbox(u8'SpeedHack (Alt)', SpeedHack)
-				imgui.TextQuestion(u8'Ускорение машины на Alt')
+				imgui.TextDisabled(u8'Ускорение машины на Alt')
 				if imgui.SliderInt(u8'Смут##speed', SpeedSmooth, 1, 100) then save() end
 				
 				imgui.EndChild()
-				imgui.EndTabItem()
 			end
 end
 
 function drawPlayerTab()
 			-- ВКЛАДКА: ИГРОК
-			if imgui.BeginTabItem(fa.ICON_FA_USER .. u8' Игрок') then
+			do
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_USER .. u8' Игрок')
 				imgui.BeginChild("##PlayerChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'FullSkillGun', fullskillgun)
-				imgui.TextQuestion(u8'Максимальный скилл оружия')
+				imgui.TextDisabled(u8'Максимальный скилл оружия')
 				sbox(u8'AntiStun', antistun)
-				imgui.TextQuestion(u8'Анти-стан от ударов')
+				imgui.TextDisabled(u8'Анти-стан от ударов')
 				sbox(u8'AntiBunnyhop', allowBunnyhop)
-				imgui.TextQuestion(u8'Разрешить баннихоп')
+				imgui.TextDisabled(u8'Разрешить баннихоп')
 				sbox(u8'EyeFish', eyefish)
-				imgui.TextQuestion(u8'Зум прицела (ПКМ на снайперке)')
+				imgui.TextDisabled(u8'Зум прицела (ПКМ на снайперке)')
 				sbox(u8'FastConnect', ifastconnect)
-				imgui.TextQuestion(u8'Быстрое подключение к серверу')
+				imgui.TextDisabled(u8'Быстрое подключение к серверу')
 				sbox(u8'NoAnimationMoney', NoAnimationMoney)
-				imgui.TextQuestion(u8'Без анимации отдачи денег')
+				imgui.TextDisabled(u8'Без анимации отдачи денег')
 				sbox(u8'ShotMax', shotmax)
-				imgui.TextQuestion(u8'Максимальный урон (дробовик -> 48 урона)')
+				imgui.TextDisabled(u8'Максимальный урон (дробовик -> 48 урона)')
 				sbox(u8'Damage Informer', damageinf)
-				imgui.TextQuestion(u8'Показывать урон в 3D тексте')
+				imgui.TextDisabled(u8'Показывать урон в 3D тексте')
 				
 				imgui.EndChild()
-				imgui.EndTabItem()
 			end
 end
 
 function drawVisualTab()
 			-- ВКЛАДКА: ВИЗУАЛЫ
-			if imgui.BeginTabItem(fa.ICON_FA_EYE .. u8' Визуалы') then
+			do
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_EYE .. u8' Визуалы')
 				imgui.BeginChild("##VisualChild", imgui.ImVec2(0, 0), true)
 				
 				imgui.TextColored(imgui.ImVec4(0.3, 1, 0.3, 1), u8"Дистанции отрисовки")
@@ -1619,25 +1859,26 @@ function drawVisualTab()
 				if imgui.SliderInt(u8'Chat Bubbles', chatbubbles_dist_slider, 0, 50) then set_dist(2, chatbubbles_dist_slider.v); save() end
 				if imgui.SliderInt(u8'LODs', lods_dist_slider, 0, 2000) then set_dist(4, lods_dist_slider.v); save() end
 				if imgui.SliderInt(u8'Fog', fog_dist_slider, 0, 5000) then set_dist(3, fog_dist_slider.v); save() end
+				imgui.PopItemWidth()
 				
 				imgui.NewLine()
 				sbox(u8'SbivX (B)', sbivx)
-				imgui.TextQuestion(u8'Очистка анимаций (клавиша B)')
+				imgui.TextDisabled(u8'Очистка анимаций (клавиша B)')
 				
 				imgui.EndChild()
-				imgui.EndTabItem()
 			end
 end
 
 function drawBizTab()
 			-- ВКЛАДКА: БИЗНЕС
-			if imgui.BeginTabItem(fa.ICON_FA_BRIEFCASE .. u8' Бизнес') then
+			do
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_BRIEFCASE .. u8' Бизнес')
 				imgui.BeginChild("##BizChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'AutoCapture Biz', capturebiz)
-				imgui.TextQuestion(u8'Автозахват биза по таймеру')
+				imgui.TextDisabled(u8'Автозахват биза по таймеру')
 				sbox(u8'Autorem', tfirst)
-				imgui.TextQuestion(u8'Авто /rem при входе в машину')
+				imgui.TextDisabled(u8'Авто /rem при входе в машину')
 				
 				if imgui.Button(u8'FIX Машину', imgui.ImVec2(70 * fsc, 35 * fsc)) then sampProcessChatInput('/fix') end
 				imgui.SameLine()
@@ -1646,128 +1887,171 @@ function drawBizTab()
 				if imgui.Button(u8'Fake Chat', imgui.ImVec2(70 * fsc, 35 * fsc)) then sampProcessChatInput('/fake'); mcheat.v = false end
 				
 				imgui.EndChild()
-				imgui.EndTabItem()
 			end
 end
 
 function drawFlyTab()
 			-- ВКЛАДКА: FLYCAR
-			if imgui.BeginTabItem(fa.ICON_FA_PLANE .. u8' FlyCar') then
+			do
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_PLANE .. u8' FlyCar')
 				imgui.BeginChild("##FlyChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'FlyCar', flycar)
-				imgui.TextQuestion(u8'Полет на машине (W/S/Space/LShift)')
+				imgui.TextDisabled(u8'Полет на машине (W/S/Space/LShift)')
 				if imgui.SliderFloat(u8'Скорость полета', flycar_speed, 1.0, 200.0, '%.1f') then save() end
 				if imgui.SliderFloat(u8'Торможение', flycar_brake, 0.1, 10.0, '%.1f') then save() end
 				
 				imgui.EndChild()
-				imgui.EndTabItem()
 			end
 end
 
 function drawEspTab()
 			-- ВКЛАДКА: ESP
-			if imgui.BeginTabItem(fa.ICON_FA_EYE .. u8' ESP') then
+			do
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_EYE .. u8' ESP')
 				imgui.BeginChild("##ESPChild", imgui.ImVec2(0, 0), true)
 				
 				imgui.TextColored(imgui.ImVec4(0.3, 1, 0.3, 1), u8"Настройки ESP")
 				imgui.Separator()
 				sbox(u8'Box ESP', esp_box)
-				imgui.TextQuestion(u8'Коробки вокруг игроков')
+				imgui.TextDisabled(u8'Коробки вокруг игроков')
 				sbox(u8'Line ESP', esp_line)
-				imgui.TextQuestion(u8'Линии к игрокам')
+				imgui.TextDisabled(u8'Линии к игрокам')
 				sbox(u8'Bones ESP', esp_bones)
-				imgui.TextQuestion(u8'Скелеты игроков')
+				imgui.TextDisabled(u8'Скелеты игроков')
 				sbox(u8'Tracers', esp_tracers)
-				imgui.TextQuestion(u8'Трассеры пуль/линии прицела')
+				imgui.TextDisabled(u8'Трассеры пуль/линии прицела')
 				if imgui.SliderFloat(u8'Дистанция ESP', esp_distance, 50.0, 500.0, '%.1f') then save() end
 				
 				imgui.EndChild()
-				imgui.EndTabItem()
 			end
 end
 
 function drawCoordTab()
 			-- ВКЛАДКА: COORDMASTER
-			if imgui.BeginTabItem(fa.ICON_FA_MAP_MARKER_ALT .. u8' CoordMaster') then
+			do
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_MAP_MARKER_ALT .. u8' CoordMaster')
 				imgui.BeginChild("##CoordChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'CoordMaster (F5)', coordmaster)
-				imgui.TextQuestion(u8'Телепорт к маркеру на карте по F5')
+				imgui.TextDisabled(u8'Телепорт к маркеру на карте по F5')
 				if imgui.SliderFloat(u8'Шаг', coordmaster_step, 1.0, 20.0, '%.1f') then save() end
 				if imgui.SliderInt(u8'Задержка (мс)', coordmaster_delay, 10, 100) then save() end
 				if imgui.SliderFloat(u8'Высота', coordmaster_height, 50.0, 500.0, '%.1f') then save() end
 				
 				imgui.EndChild()
-				imgui.EndTabItem()
 			end
 end
 
 function drawAutoCaptureTab()
 			-- ВКЛАДКА: AUTO CAPTURE
-			if imgui.BeginTabItem(fa.ICON_FA_CLOCK .. u8' AutoCapture') then
+			do
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_CLOCK .. u8' AutoCapture')
 				imgui.BeginChild("##AutoCapChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'AutoCapture Biz', autocapture)
-				imgui.TextQuestion(u8'Автозахват биза по точному времени')
+				imgui.TextDisabled(u8'Автозахват биза по точному времени')
 				imgui.PushItemWidth(100 * fsc)
 				if imgui.InputText(u8'Время##autocap', autocapture_time) then save() end
-				imgui.TextQuestion(u8'Формат: ЧЧ:ММ:СС')
+				imgui.TextDisabled(u8'Формат: ЧЧ:ММ:СС')
 				if imgui.SliderInt(u8'Миллисекунды', autocapture_ms, 0, 999) then save() end
+				imgui.PopItemWidth()
 				
 				imgui.EndChild()
-				imgui.EndTabItem()
 			end
 end
 
 function drawAntiCrasherTab()
 			-- ВКЛАДКА: ANTI-CRASHER
-			if imgui.BeginTabItem(fa.ICON_FA_SHIELD_ALT .. u8' Anti-Crasher') then
+			do
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_SHIELD_ALT .. u8' Anti-Crasher')
 				imgui.BeginChild("##AntiCrashChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'Вкл. защиту', anticrasher)
-				imgui.TextQuestion(u8'Глобальное включение анти-крашеров')
+				imgui.TextDisabled(u8'Глобальное включение анти-крашеров')
 				if anticrasher.v then
 					sbox(u8'Anti Detonator', anti_detonator)
-					imgui.TextQuestion(u8'Защита от крашера детонатором')
+					imgui.TextDisabled(u8'Защита от крашера детонатором')
 					sbox(u8'Anti Roll', anti_roll)
-					imgui.TextQuestion(u8'Защита от Roll крашера')
+					imgui.TextDisabled(u8'Защита от Roll крашера')
 					sbox(u8'Anti Trailer', anti_trailer)
-					imgui.TextQuestion(u8'Защита от трейлер крашера')
+					imgui.TextDisabled(u8'Защита от трейлер крашера')
 					sbox(u8'Anti Vortex', anti_vortex)
-					imgui.TextQuestion(u8'Защита от вихря крашера')
+					imgui.TextDisabled(u8'Защита от вихря крашера')
 				end
 				
 				imgui.EndChild()
-				imgui.EndTabItem()
 			end
 end
 
 function drawAdminTab()
 			-- ВКЛАДКА: ADMIN DETECTION (Radmir CRMP)
-			if imgui.BeginTabItem(fa.ICON_FA_USER_SHIELD .. u8' Admin Detection') then
+			do
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_USER_SHIELD .. u8' Admin Detection')
 				imgui.BeginChild("##AdminDetectChild", imgui.ImVec2(0, 0), true)
 				
-				sbox(u8'Вкл. детекцию админов', admin_detection)
-				imgui.TextQuestion(u8'Автоматический поиск админов на сервере')
+if imgui.Checkbox(u8'Вкл. детекцию админов', admin_detection) then
+					if admin_detection.v then
+						loadAdminListFile()
+						updateAdminList()
+					end
+					save()
+				end
+				imgui.TextDisabled(u8'Поиск по точному списку администраторов (список проверяется при включении)')
 				sbox(u8'Авто-проверка слежки', auto_spectator_check)
-				imgui.TextQuestion(u8'Автоматически проверять слежку каждые 5 сек')
+				imgui.TextDisabled(u8'Автоматически проверять слежку каждые 5 сек')
 				sbox(u8'Показать HUD админов', show_admin_hud)
-				imgui.TextQuestion(u8'Отображать список админов на экране')
+				imgui.TextDisabled(u8'Отображать список админов на экране')
 				
 				imgui.Separator()
-				imgui.TextColored(imgui.ImVec4(1, 0.5, 0.5, 1), u8"Найденные админы:")
+				imgui.TextColored(imgui.ImVec4(1, 0.5, 0.5, 1), u8"Найденные админы (должность | ник | дата назначения):")
 				
 				if #admin_list > 0 then
-					for id, data in pairs(admin_list) do
-						local color_hex = string.format("%08X", data.color)
-						imgui.Text(string.format(u8"  %s [%d] | %s | %dm | %s", data.nick, id, color_hex, data.dist, data.reason))
+					for _, data in pairs(admin_list) do
+						imgui.Text(string.format(u8"  %s | %s | %s", data.reason or "-", data.nick, data.date or "-"))
 					end
 				else
 					imgui.TextColored(imgui.ImVec4(0.5, 0.5, 0.5, 1), u8"  Админы не найдены")
 				end
-				
-				if imgui.Button(u8"Обновить список", imgui.ImVec2(120 * fsc, 25 * fsc)) then
+
+				if next(chat_detected_list) then
+					imgui.Separator()
+					imgui.TextColored(imgui.ImVec4(1, 0.7, 0.5, 1), u8"Выявленные по сообщениям сервера (не найденные среди игроков):")
+					for nick, det in pairs(chat_detected_list) do
+						imgui.Text(string.format(u8"  %s | %s | %s", det.reason or "-", nick, det.date or "-"))
+					end
+				end
+
+				imgui.Separator()
+				local online_cnt = 0
+				for _ in pairs(known_online) do online_cnt = online_cnt + 1 end
+				imgui.TextColored(imgui.ImVec4(1, 1, 0.5, 1), string.format(u8"Онлайн админов из списка: %d / %d", online_cnt, #known_admins))
+				imgui.BeginChild("##AdminOnlineChild", imgui.ImVec2(0, 200 * fsc), true)
+				for _, a in ipairs(known_admins) do
+					if known_online[a.nick] then
+						imgui.TextColored(imgui.ImVec4(0.4, 1, 0.4, 1), string.format("[Он] %s | %s", a.nick, a.post or "-"))
+					end
+				end
+				imgui.TextDisabled(u8"-- оффлайн --")
+				for _, a in ipairs(known_admins) do
+					if not known_online[a.nick] then
+						imgui.TextDisabled(string.format(u8"  %s | %s", a.nick, a.post or "-"))
+					end
+				end
+				imgui.EndChild()
+
+				imgui.TextDisabled(u8"В базе админов: " .. #known_admins)
+				if imgui.Button(u8"Пересобрать список с форума", imgui.ImVec2(220 * fsc, 25 * fsc)) then
+					local ok = os.execute('start "" /min powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\\Документы\\Default Project\\admin_parser\\admin_update.ps1"')
+					if ok then
+						sampAddChatMessage("Чит: обновление списка админов запущено, дождитесь завершения парсера.", -1)
+					else
+						sampAddChatMessage("Чит: не удалось запустить обновление списка админов.", -1)
+					end
+				end
+				imgui.SameLine()
+				if imgui.Button(u8"Перечитать список из файла", imgui.ImVec2(210 * fsc, 25 * fsc)) then
+					loadAdminListFile()
 					updateAdminList()
 				end
 				imgui.SameLine()
@@ -1787,7 +2071,6 @@ function drawAdminTab()
 				end
 				
 				imgui.EndChild()
-				imgui.EndTabItem()
 			end
 end
 
@@ -1902,7 +2185,7 @@ function apply_custom_style()
 
 	colors[clr.Text] = ImVec4(0.95, 0.96, 0.98, 1)
 	colors[clr.TextDisabled] = ImVec4(0.36, 0.42, 0.47, 1)
-	colors[clr.WindowBg] = ImVec4(0.15, 0.18, 0.22, 0)
+	colors[clr.WindowBg] = ImVec4(0.15, 0.18, 0.22, 1)
 	colors[clr.ChildWindowBg] = ImVec4(0.15, 0.18, 0.22, 1)
 	colors[clr.PopupBg] = ImVec4(0.08, 0.08, 0.08, 0.94)
 	colors[clr.Border] = ImVec4(0.43, 0.43, 0.5, 0.5)
@@ -1995,6 +2278,7 @@ function ClickWP()
 	initializeRender()
 
 	while true do
+		wait(1)
 		while isPauseMenuActive() do
 			if cursorEnabled then
 				showCursor(false)
@@ -2168,6 +2452,59 @@ function ev.onServerMessage(color, text)
 				end
 			end
 		end
+
+		-- Детект администраторов по системным сообщениям сервера
+		if admin_detection.v then
+			local probe = text
+			local found = nil
+			for k = 1, 2 do
+				local nick = probe:match("Администратор%s+([A-Za-z0-9_]+)")
+				if nick then
+					found = nick
+					break
+				end
+				local ok, decoded = pcall(function() return u8:decode(text) end)
+				if not ok then break end
+				probe = decoded
+			end
+			if found and not chat_admins[found] then
+				chat_admins[found] = true
+				chat_detected_list[found] = {reason = "Админ (по сообщению сервера)", date = nil}
+				debugLogStr("найден ник: " .. tostring(found), false)
+				debugLogStr(found, true)
+				debugLogStr(chat_detected_list[found].reason, true)
+				debugLogStr(string.sub(text, 1, 40), true)
+				updateAdminList()
+				sampAddChatMessage("Чит: админ " .. found .. " выявлен по сообщению сервера", -1)
+				local pid = findPlayerByNickname(found)
+				if pid and sampIsPlayerConnected(pid) then
+					sampAddChatMessage("Чит: админ " .. found .. " найден среди игроков (ID " .. pid .. ")", -1)
+				else
+					local online = 0
+					for i = 0, sampGetMaxPlayerId(false) do
+						if sampIsPlayerConnected(i) then online = online + 1 end
+					end
+					sampAddChatMessage("Чит: админ " .. found .. " отсутствует в списке игроков (онлайн всего: " .. online .. ")", -1)
+					-- Диагностика: дамп всех подключённых игроков в лог
+					debugLogStr("пул игроков (всего " .. online .. "), ищем: " .. tostring(found), false)
+					local cnt = 0
+					for i = 0, sampGetMaxPlayerId(false) do
+						if sampIsPlayerConnected(i) then
+							local n = sampGetPlayerNickname(i) or "?"
+							if string.lower(n) == string.lower(found) then
+								debugLogStr("СОВПАДЕНИЕ по пулу! id=" .. i .. " ник=" .. n, false)
+							end
+							debugLogStr(i .. "=" .. n, false)
+							cnt = cnt + 1
+							if cnt >= 300 then
+								debugLogStr("... дамп обрезан на " .. cnt, false)
+								break
+							end
+						end
+					end
+				end
+			end
+		end
 	end)
 
 	table.insert(messages, {bit.rshift(color, 8), text})
@@ -2321,74 +2658,21 @@ function onScriptTerminate(script, quit)
 	if script == thisScript() then
 		imgui.Process = false
 		imgui.ShowCursor = false
+		imgui.DisableInput = false
 		showCursor(false, false)
 	end
 end
 
 -- СОХРАНЕНИЕ НАСТРОЕК В INI
 function save()
-    inicfg.save({
-        CheatByYaroRage =
-        {
-			clickwarp = clickwarp.v,
-			sbivx = sbivx.v,
-			SpeedHack = SpeedHack.v,
-			SpeedSmooth = SpeedSmooth.v,
-			fullskillgun = fullskillgun.v,
-			trigger = trigger.v,
-			airbrake = airbrake.v,
-			triggermode = triggermode.v,
-			flipcar = flipcar.v,
-			tfirst = tfirst.v,
-			tsecond = tsecond.v,
-			Speed = Speed.v,
-			silentmode = silentmode.v,
-			pslide = pslide.v,
-			legit = legit.v,
-			cbz5 = cbz5.v,
-			nodamage = nodamage.v,
-			capturebiz = capturebiz.v,
-			eyefish = eyefish.v,
-			ifastconnect = ifastconnect.v,
-			autokick = autokick.v,
-			enginecar = enginecar.v,
-			noReload = noReload.v,
-			godcar = godcar.v,
-			NoAnimationMoney = NoAnimationMoney.v,
-			antistun = antistun.v,
-			allowBunnyhop = allowBunnyhop.v,
-			shotmax = shotmax.v,
-			Dist = Dist.v,
-			Fov = Fov.v,
-			damageinf = damageinf.v,
-			nametags_dist = nametags_dist_slider.v,
-			tdtext_dist = tdtext_dist_slider.v,
-			chatbubbles_dist = chatbubbles_dist_slider.v,
-			fog_dist = fog_dist_slider.v,
-			lods_dist = lods_dist_slider.v,
-			-- Новые
-			flycar = flycar.v,
-			flycar_speed = flycar_speed.v,
-			flycar_brake = flycar_brake.v,
-			esp_box = esp_box.v,
-			esp_line = esp_line.v,
-			esp_bones = esp_bones.v,
-			esp_tracers = esp_tracers.v,
-			esp_distance = esp_distance.v,
-			coordmaster = coordmaster.v,
-			coordmaster_step = coordmaster_step.v,
-			coordmaster_delay = coordmaster_delay.v,
-			coordmaster_height = coordmaster_height.v,
-			autocapture = autocapture.v,
-			autocapture_time = autocapture_time.v,
-			autocapture_ms = autocapture_ms.v,
-			anticrasher = anticrasher.v,
-			anti_detonator = anti_detonator.v,
-			anti_roll = anti_roll.v,
-			anti_trailer = anti_trailer.v,
-			anti_vortex = anti_vortex.v,
-        }
-    }, 'CheatByYaroRage/CheatByYaroRage.ini')
+    local data = {}
+    for k, v in pairs(profile_vars) do
+        data[k] = v.v
+    end
+    data.theme = theme_selector.v
+    data.profile = profile_selector.v
+    data.menuTab = menuTab.v
+    inicfg.save({CheatByYaroRage = data}, 'CheatByYaroRage/CheatByYaroRage.ini')
 end
 
 function samp_create_sync_data(sync_type, copy_from_player)
@@ -2501,24 +2785,24 @@ function loadProfile(name)
     }, 'CheatByYaroRage/profiles/' .. name .. '.ini')
     if profile_ini and profile_ini.CheatByYaroRage then
         for k, v in pairs(profile_ini.CheatByYaroRage) do
-            if _G[k] and type(_G[k]) == "table" and _G[k].v ~= nil then
-                _G[k].v = v
+            if profile_vars[k] then
+                profile_vars[k].v = v
             end
         end
         save()
-        ywelcome("CheatByYaroRage", u8"Профиль '" .. name .. u8"' загружен!")
+        ywelcome("CheatByYaroRage", "Профиль '" .. name .. "' загружен!")
+    else
+        ywelcome("CheatByYaroRage", "Профиль '" .. name .. "' не найден!")
     end
 end
 
 function saveProfile(name)
     local profile_data = {}
-    for k, v in pairs(_G) do
-        if type(v) == "table" and v.v ~= nil and (type(v.v) == "boolean" or type(v.v) == "number" or type(v.v) == "string") then
-            profile_data[k] = v.v
-        end
+    for k, v in pairs(profile_vars) do
+        profile_data[k] = v.v
     end
     inicfg.save({CheatByYaroRage = profile_data}, 'CheatByYaroRage/profiles/' .. name .. '.ini')
-    ywelcome("CheatByYaroRage", u8"Профиль '" .. name .. u8"' сохранен!")
+    ywelcome("CheatByYaroRage", "Профиль '" .. name .. "' сохранен!")
 end
 
 -- ESP Rendering
@@ -2569,8 +2853,8 @@ function renderESP()
                                 {1, 14}, {14, 15}, {15, 16} -- Right leg
                             }
                             for _, bone in ipairs(bones) do
-                                local b1X, b1Y, b1Z = getBonePosition(bone[1], handle)
-                                local b2X, b2Y, b2Z = getBonePosition(bone[2], handle)
+                                local b1X, b1Y, b1Z = GetBodyPartCoordinates(bone[1], handle)
+                                local b2X, b2Y, b2Z = GetBodyPartCoordinates(bone[2], handle)
                                 local s1X, s1Y = convert3DCoordsToScreen(b1X, b1Y, b1Z)
                                 local s2X, s2Y = convert3DCoordsToScreen(b2X, b2Y, b2Z)
                                 if s1X and s1Y and s2X and s2Y then
@@ -2592,7 +2876,7 @@ imgui.OnDrawFrame = function()
     if mcheat.v then
         renderESP()
     end
-    -- Admin HUD
+    -- Admin HUD (рисуется каждый кадр, пока включён)
     if show_admin_hud.v and admin_detection.v then
         renderAdminHUD()
     end
@@ -2603,38 +2887,41 @@ function renderAdminHUD()
     local resX, resY = getScreenResolution()
     local x, y = admin_hud_pos.x, admin_hud_pos.y
     local line_h = 16
-    
+
     -- Фон
     renderDrawBox(x - 5, y - 5, 280, 30 + #admin_list * line_h + #spectator_list * line_h, 0xCC000000)
     
     -- Заголовок
-    renderFontDrawText(font, u8"[ADMIN DETECTION]", x, y, 0xFFFFFFFF)
+    renderFontDrawText(font, "[ADMIN DETECTION]", x, y, 0xFFFFFFFF)
     y = y + line_h + 2
     
     -- Админы
     if #admin_list > 0 then
-        renderFontDrawText(font, u8"АДМИНЫ:", x, y, 0xFFFF0000)
+        renderFontDrawText(font, "АДМИНЫ:", x, y, 0xFFFF0000)
         y = y + line_h
         for id, data in pairs(admin_list) do
-            local txt = string.format(u8"  %s [%d] | %dm | %s", data.nick, id, data.dist, data.reason)
+            local txt = string.format("  %s | %s | %s", data.reason or "-", data.nick, data.date or "-")
             renderFontDrawText(font, txt, x, y, data.color)
             y = y + line_h
         end
-    else
-        renderFontDrawText(font, u8"АДМИНЫ: нет", x, y, 0xFF888888)
+else
+        renderFontDrawText(font, "АДМИНЫ: нет", x, y, 0xFF888888)
         y = y + line_h
     end
-    
+
     y = y + 5
     
     -- Наблюдатели
     if #spectator_list > 0 then
-        renderFontDrawText(font, u8"НАБЛЮДАТЕЛИ:", x, y, 0xFFFF6600)
+        renderFontDrawText(font, "НАБЛЮДАТЕЛИ:", x, y, 0xFFFF6600)
         y = y + line_h
         for _, data in ipairs(spectator_list) do
-            local txt = string.format(u8"  %s [%d] | %dm | %s", data.nick, data.id, data.dist, data.time)
+            local txt = string.format("  %s [%d] | %dm | %s", data.nick, data.id, data.dist, data.time)
             renderFontDrawText(font, txt, x, y, 0xFFFFFF00)
             y = y + line_h
         end
     end
 end
+
+-- Применение сохранённой темы сразу при загрузке (иначе окно полупрозрачное)
+applyTheme(mainIni.CheatByYaroRage.theme or 0)
