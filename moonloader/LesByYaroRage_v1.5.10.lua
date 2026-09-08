@@ -1135,6 +1135,18 @@ function imgui.OnDrawFrame()
             imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.60, 0.60, 0.60, 1.0))
             imgui.Text(u8"Les - ESP, Аим, Авто Y")
             imgui.PopStyleColor(1)
+            -- Кнопка сохранения конфига в шапке: уменьшена, прижата вправо, отцентрована по вертикали
+            local _tH = imgui.GetTextLineHeightWithSpacing()
+            local _origY = imgui.GetCursorPosY()
+            local _bW = 120 * fsc
+            local _bH = 20 * fsc
+            imgui.SetCursorPosX(imgui.GetWindowWidth() - _bW - 10 * fsc)
+            imgui.SetCursorPosY(_origY - _tH - _bH * 0.5)
+            if imgui.Button(u8"Сохранить конфиг", ImVec2(_bW, _bH)) then
+                saveConfig(gatherConfig(), true)
+                print("[Les] Конфиг сохранён")
+            end
+            imgui.SetCursorPos(ImVec2(0.0, _origY))
             imgui.Separator()
 
             -- Вкладки: одна строка, компактные кнопки
@@ -1323,10 +1335,6 @@ function imgui.OnDrawFrame()
                     if imgui.IsItemHovered() then imgui.SetTooltip(u8"Сканер ID моделей окружения, лог в les_dbg.txt (F6/F7 ID, F8 скан)") end
 
                     imgui.Separator()
-                    if imgui.Button(u8"Сохранить конфиг", ImVec2(-1, 25)) then
-                        saveConfig(gatherConfig(), true)
-                        print("[Les] Конфиг сохранён")
-                    end
                     imgui.TextColored(imgui.ImVec4(0.55, 0.55, 0.55, 1.0), u8"/les - меню, /lesr - перезагрузка")
                 end
 
