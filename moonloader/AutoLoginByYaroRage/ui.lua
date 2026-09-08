@@ -777,7 +777,7 @@ function draw_misc_tab()
     end
     
     imgui.Spacing()
-    imgui.Text("Версия: 2.13")
+    imgui.Text("Версия: 2.14.0")
     imgui.Text("Автор: YaroRage")
     imgui.Text("GitHub: yarorage.github.io")
 end
