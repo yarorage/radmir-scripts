@@ -1706,7 +1706,7 @@ function imgui.OnDrawFrame()
 	fsc = baseScale * dpiFactor
 	imgui.GetIO().FontGlobalScale = fsc
 	
-	local winW, winH = 800 * fsc, 560 * fsc
+	local winW, winH = math.min(800 * fsc, resX - 20), math.min(560 * fsc, resY - 40)
 	
 	if mcheat.v then
 		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - winW / 2, resY / 2 - winH / 2), imgui.Cond.FirstUseEver)
@@ -1727,7 +1727,7 @@ function imgui.OnDrawFrame()
 			u8'Admin',
 		}
 		local tabCount = #tabs
-		local perRow = 5
+		local perRow = math.max(1, math.floor((winW - 16 * fsc) / (148 * fsc + 8 * fsc)))
 		for i = 1, tabCount do
 			local tabActive = menuTab.v == i
 			if tabActive then

@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.0",
     "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-09 01:20",
+    "updatedAt":  "2026-09-09 01:45",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -107,9 +107,9 @@
                       "dest":  "base"
                   },
                   {
-                      "path":  "moonloader/AutoLoginByYaroRage_v2.14.2.lua",
-                      "sha256":  "cba2b9febfc32fe58215c51f0c1eaa0908a21003ae1ca3d8be19bc9c9b9f9d12",
-                      "size":  40665,
+                      "path":  "moonloader/AutoLoginByYaroRage_v2.14.4.lua",
+                      "sha256":  "97c9eaa1b9ac5e6bda7310decdd820a25216fa79f37b3ced8af09d954697b121",
+                      "size":  42166,
                       "dest":  "gameRoot"
                   },
                   {
@@ -125,15 +125,15 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/CheatByYaroRage_v0.4.7.lua",
-                      "sha256":  "ceaafdd69100e29603f882bb3b4e236e4a79992929722e69df8f8f49777eedcb",
-                      "size":  101593,
+                      "path":  "moonloader/CheatByYaroRage_v0.4.8.lua",
+                      "sha256":  "0ed81692d19c31657791b42bd45a8a959e4c813d403ee2d8af4da6e86315b257",
+                      "size":  101700,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/LesByYaroRage_v1.5.10.lua",
-                      "sha256":  "8b113b1f073ce11d0ca1069fc29255d3170c55ccb6360bbf19618ec1ef844356",
-                      "size":  94866,
+                      "sha256":  "6114677136ba5b1de702faa9a0b4ce943c791df75c8bfd078f4df674d93a549a",
+                      "size":  95299,
                       "dest":  "gameRoot"
                   },
                   {
@@ -180,14 +180,20 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/reconnect.lua",
-                      "sha256":  "9c75638e29a5a6ccd79dd4c59ef71f3f2ea805163175da352ae54231e2744d98",
-                      "size":  11163,
+                      "sha256":  "9dd785382380a27be472304f51104a47ffaf1c5522b1c836c2d638ac9ef8c323",
+                      "size":  11256,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/AutoLoginByYaroRage/restore.lua",
+                      "sha256":  "25d588d1d99514edf56658670f16095652bf634f5866f36d4ad355f385800650",
+                      "size":  6894,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/state.lua",
-                      "sha256":  "78d56756cf3e29eb1a4019ee890878c230893a787a197019ec1c0c4f1ba0fe1d",
-                      "size":  9034,
+                      "sha256":  "08c3534433bff07080f94f362c6b203b9c773f36b3cd7764e1b04f719875c10c",
+                      "size":  9412,
                       "dest":  "gameRoot"
                   },
                   {
@@ -198,7 +204,7 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/ui.lua",
-                      "sha256":  "d22b2b946b59ad480e0cf584ebeee4031691eae7c5569bec9664ff609761b61c",
+                      "sha256":  "07f77b9b58bd6313c2b5e0af0421fbdb75f2ba0eb78c295df6f867629c67370f",
                       "size":  28754,
                       "dest":  "gameRoot"
                   },
@@ -239,6 +245,12 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/CefPacketAnalyzer/known_packets.json",
+                      "sha256":  "22a2c7a7f5f7045b65b7d20bddaeda417c258319d403f1cd69f5a1f087a6a812",
+                      "size":  233336,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/CefPacketAnalyzer/output.lua",
                       "sha256":  "3f0fc594ddc50be7b309d6a1888a04585ddb060e4143d164556ce05b464fdd36",
                       "size":  23595,
@@ -254,12 +266,6 @@
                       "path":  "moonloader/CefPacketAnalyzer/upload.lua",
                       "sha256":  "743ab43bc2dbf20fe0c433bbbaaa36b8687a3b9f9edf7aa52811680dcdbace05",
                       "size":  12316,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/CefPacketAnalyzer/known_packets.json",
-                      "sha256":  "3b3fff73f038bd0691e896e5112c2b25e424db7e3d1d60ef64debea6ada3607e",
-                      "size":  233337,
                       "dest":  "gameRoot"
                   },
                   {
