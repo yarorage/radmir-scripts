@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.0",
     "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-08 13:58",
+    "updatedAt":  "2026-09-08 14:12",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -140,24 +140,6 @@
                       "path":  "moonloader/CheatByYaroRage.lua",
                       "sha256":  "641d92ee95903e2663d340d9b9b0016478d7f990fae3066137791332dfe991d9",
                       "size":  107477,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/check_syntax3.py",
-                      "sha256":  "45c00064c7f33cdab34716d025d158b69ff7b97033125aed1c44dceff8166f95",
-                      "size":  1202,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/fix_encoding.ps1",
-                      "sha256":  "92e6696eaebcb45af20e9fb27a7c47d31f383aa17471533b7d864e4427f7a3ef",
-                      "size":  611,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/Les.lua",
-                      "sha256":  "86f2dcdc526b2271b919bfeed798f3c8aa31808b2935c5356b7ee9a75591829f",
-                      "size":  53750,
                       "dest":  "gameRoot"
                   },
                   {
@@ -779,12 +761,6 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/socket.html",
-                      "sha256":  "c1db42381acf960bb46d101945eeb047f38ee10b905b55580f635b808db77a5d",
-                      "size":  13866,
-                      "dest":  "gameRoot"
-                  },
-                  {
                       "path":  "moonloader/lib/socket.lua",
                       "sha256":  "332871e3beeaccf8bff18cde1509e81c2bd16beb511b1fe586c12862dc7667b2",
                       "size":  4451,
@@ -935,30 +911,6 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/decorator/592b0b272697615c502390f6.png",
-                      "sha256":  "84ea7ea49a8a6b35198a3b52e41d01ad615c5ae601c4f7111c1711572066c7cd",
-                      "size":  4202180,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/decorator/decent memes PNG.png",
-                      "sha256":  "8be51449422d8327b05ae5bf06543d62e33391fac962a7aed94fb4e2e519d9cb",
-                      "size":  285842,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/decorator/iSU9eNJb.png",
-                      "sha256":  "a17995ae8feae4aa5e756550e18940d4433d0a4d4b47ebb93b16d76c6cbf6c50",
-                      "size":  359520,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/decorator/unnamed.png",
-                      "sha256":  "28e49ec34db21d3b1e79f1a2be0cea56f456bd8b74ad7bd49ee400ed86140e1c",
-                      "size":  717135,
-                      "dest":  "gameRoot"
-                  },
-                  {
                       "path":  "moonloader/lib/events/bitstream_io.lua",
                       "sha256":  "00e85ade0fc4ea4c868bb42b27c3b93cc12f5c8feee7c2528454c5ea87e03dfa",
                       "size":  6145,
@@ -1058,12 +1010,6 @@
                       "path":  "moonloader/lib/lanes/core.dll",
                       "sha256":  "aaf492a38689d1b2c24dbc966b3c23727e6d1d961ddd513a5b4942283fd95559",
                       "size":  174592,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/lanes/index.html",
-                      "sha256":  "37c98aa68055f8b4b70157f36c36790931f15da03c49e25d70849a70f2e3deb9",
-                      "size":  27975,
                       "dest":  "gameRoot"
                   },
                   {
@@ -1169,12 +1115,6 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/luasql/myqql.lua",
-                      "sha256":  "5e308df1b0626548bd32f3567a3e3b95857fea9ad9661369ae48e5b51fda035f",
-                      "size":  518,
-                      "dest":  "gameRoot"
-                  },
-                  {
                       "path":  "moonloader/lib/luasql/mysql.dll",
                       "sha256":  "61d0a19f3cd0f0985726540d5ad06f72e808500f72d9ff27cc400a98c60efc95",
                       "size":  3886592,
@@ -1277,19 +1217,7 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/mimgui/cdefs.lua~",
-                      "sha256":  "55b10a5b13590a076ffaf3a109f4748be305a76943313ddf22c9d9a5761bcaad",
-                      "size":  116058,
-                      "dest":  "gameRoot"
-                  },
-                  {
                       "path":  "moonloader/lib/mimgui/cimguidx9.dll",
-                      "sha256":  "1a7a059974c33095edc2f2da880d7c79c99d7e3b3c189e2f51036bb7e519d88b",
-                      "size":  543744,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/mimgui/cimguidx9.dll~",
                       "sha256":  "1a7a059974c33095edc2f2da880d7c79c99d7e3b3c189e2f51036bb7e519d88b",
                       "size":  543744,
                       "dest":  "gameRoot"
@@ -1301,19 +1229,7 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/lib/mimgui/dx9.lua~",
-                      "sha256":  "94522c3ea629b7e1daf92ce64376097ad222a62b67f5ed1adf7f8879f1b46f2f",
-                      "size":  6734,
-                      "dest":  "gameRoot"
-                  },
-                  {
                       "path":  "moonloader/lib/mimgui/imgui.lua",
-                      "sha256":  "a55619546334392b1c654c9c0d9034dd971049906f277a60f27dd77bf7ae2cc6",
-                      "size":  101558,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/mimgui/imgui.lua~",
                       "sha256":  "a55619546334392b1c654c9c0d9034dd971049906f277a60f27dd77bf7ae2cc6",
                       "size":  101558,
                       "dest":  "gameRoot"
@@ -1322,12 +1238,6 @@
                       "path":  "moonloader/lib/mimgui/init.lua",
                       "sha256":  "409aff7d36baee909fadb0ebd2bbfe110b68ecf644be7a03c325a87209aa7ad5",
                       "size":  14182,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/mimgui/init.lua~",
-                      "sha256":  "01b6eeed97631c7a350b7f8b23b924432d5b78116a0e426fe70ab6f8b7421f73",
-                      "size":  11674,
                       "dest":  "gameRoot"
                   },
                   {
@@ -2498,18 +2408,6 @@
                       "path":  "moonloader/lib/socket/url.lua",
                       "sha256":  "7290952cba25a671e0434a01b5693855cb5d19ba777adb302779b050d8b0d3c7",
                       "size":  11036,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/socket/xml/win32/911.png",
-                      "sha256":  "a72b79f0da720906aa029220096675d87cd54b06dbf19b799e6ceb0ce533a5e7",
-                      "size":  20020,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/lib/socket/xml/win32/police1.png",
-                      "sha256":  "bfb70c26685c9631f0b24484e47450415b37b6bc9c566fee59752636595e354e",
-                      "size":  31,
                       "dest":  "gameRoot"
                   },
                   {
