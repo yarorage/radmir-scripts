@@ -1,18 +1,18 @@
--- Захват и разбор пакетов CefPacketAnalyzer
--- Слушает события lib.samp.events: onReceivePacket / onSendPacket / onServerMessage /
--- onGameText / onConnectionClosed / onConnectionLost. Читает байты RakNet-потока,
--- определяет текстовость, снимает контекст (позиция, курсор) и обновляет фазу игры.
+-- Р—Р°С…РІР°С‚ Рё СЂР°Р·Р±РѕСЂ РїР°РєРµС‚РѕРІ CefPacketAnalyzer
+-- РЎР»СѓС€Р°РµС‚ СЃРѕР±С‹С‚РёСЏ lib.samp.events: onReceivePacket / onSendPacket / onServerMessage /
+-- onGameText / onConnectionClosed / onConnectionLost. Р§РёС‚Р°РµС‚ Р±Р°Р№С‚С‹ RakNet-РїРѕС‚РѕРєР°,
+-- РѕРїСЂРµРґРµР»СЏРµС‚ С‚РµРєСЃС‚РѕРІРѕСЃС‚СЊ, СЃРЅРёРјР°РµС‚ РєРѕРЅС‚РµРєСЃС‚ (РїРѕР·РёС†РёСЏ, РєСѓСЂСЃРѕСЂ) Рё РѕР±РЅРѕРІР»СЏРµС‚ С„Р°Р·Сѓ РёРіСЂС‹.
 local state = require("CefPacketAnalyzer.state")
 local classify = require("CefPacketAnalyzer.classify")
 local encUtils = require("CefPacketAnalyzer.enc_utils")
 
--- Маркеры фаз (литералы движка в CP1251) переводятся в UTF-8,
--- потому что record.text мы храним в UTF-8.
-local MARK_LOADING = encUtils.bytesCpToUtf8("загрузк")
-local MARK_SPAWN   = encUtils.bytesCpToUtf8("спавн")
-local MARK_INGAME  = encUtils.bytesCpToUtf8("вошли в игру")
+-- РњР°СЂРєРµСЂС‹ С„Р°Р· (Р»РёС‚РµСЂР°Р»С‹ РґРІРёР¶РєР° РІ CP1251) РїРµСЂРµРІРѕРґСЏС‚СЃСЏ РІ UTF-8,
+-- РїРѕС‚РѕРјСѓ С‡С‚Рѕ record.text РјС‹ С…СЂР°РЅРёРј РІ UTF-8.
+local MARK_LOADING = encUtils.bytesCpToUtf8("Р·Р°РіСЂСѓР·Рє")
+local MARK_SPAWN   = encUtils.bytesCpToUtf8("СЃРїР°РІРЅ")
+local MARK_INGAME  = encUtils.bytesCpToUtf8("РІРѕС€Р»Рё РІ РёРіСЂСѓ")
 
--- Таблица CP1251 0x80..0xBF -> кодовая точка Unicode (кавычки, тире, ё и пр.)
+-- РўР°Р±Р»РёС†Р° CP1251 0x80..0xBF -> РєРѕРґРѕРІР°СЏ С‚РѕС‡РєР° Unicode (РєР°РІС‹С‡РєРё, С‚РёСЂРµ, С‘ Рё РїСЂ.)
 local CP_HI = {
     [0x80]=0x0402,[0x81]=0x0403,[0x82]=0x201A,[0x83]=0x0453,[0x84]=0x201E,
     [0x85]=0x2026,[0x86]=0x2020,[0x87]=0x2021,[0x88]=0x20AC,[0x89]=0x2030,
@@ -29,7 +29,7 @@ local CP_HI = {
     [0xBC]=0x0458,[0xBD]=0x0405,[0xBE]=0x0455,[0xBF]=0x0457,
 }
 
--- Кодирование кодовой точки Unicode в UTF-8 (1-3 байта)
+-- РљРѕРґРёСЂРѕРІР°РЅРёРµ РєРѕРґРѕРІРѕР№ С‚РѕС‡РєРё Unicode РІ UTF-8 (1-3 Р±Р°Р№С‚Р°)
 local function utf8Char(cp)
     if cp < 0x80 then
         return string.char(cp)
@@ -47,7 +47,7 @@ local function utf8Char(cp)
     end
 end
 
--- Преобразование байта CP1251 в символ UTF-8 (кириллица и спецсимволы)
+-- РџСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ Р±Р°Р№С‚Р° CP1251 РІ СЃРёРјРІРѕР» UTF-8 (РєРёСЂРёР»Р»РёС†Р° Рё СЃРїРµС†СЃРёРјРІРѕР»С‹)
 local function cpToUtf8(b)
     if b < 0x80 then
         return string.char(b)
@@ -58,14 +58,14 @@ local function cpToUtf8(b)
         end
         return string.format("\\x%02X", b)
     else
-        -- 0xC0..0xFF: кириллица CP1251 (А..Я, а..я)
+        -- 0xC0..0xFF: РєРёСЂРёР»Р»РёС†Р° CP1251 (Рђ..РЇ, Р°..СЏ)
         local code = b - 0xC0
         return utf8Char(0x410 + code)
     end
 end
 
--- Приемлемые диапазоны Unicode для решения, что пара байтов — это UTF-8,
--- а не две буквы CP1251 (кириллица, типы типографики, деньги и латиница).
+-- РџСЂРёРµРјР»РµРјС‹Рµ РґРёР°РїР°Р·РѕРЅС‹ Unicode РґР»СЏ СЂРµС€РµРЅРёСЏ, С‡С‚Рѕ РїР°СЂР° Р±Р°Р№С‚РѕРІ вЂ” СЌС‚Рѕ UTF-8,
+-- Р° РЅРµ РґРІРµ Р±СѓРєРІС‹ CP1251 (РєРёСЂРёР»Р»РёС†Р°, С‚РёРїС‹ С‚РёРїРѕРіСЂР°С„РёРєРё, РґРµРЅСЊРіРё Рё Р»Р°С‚РёРЅРёС†Р°).
 local function looksLikeUtf8(cp)
     if cp >= 0xA0 and cp <= 0x2AF then
         return true
@@ -79,8 +79,8 @@ local function looksLikeUtf8(cp)
     return false
 end
 
--- Умный декодер тела: пакеты Radmir несут часть строк уже в UTF-8, часть в CP1251
--- (движок). Читаем байты по одному, распознавая оба варианта.
+-- РЈРјРЅС‹Р№ РґРµРєРѕРґРµСЂ С‚РµР»Р°: РїР°РєРµС‚С‹ Radmir РЅРµСЃСѓС‚ С‡Р°СЃС‚СЊ СЃС‚СЂРѕРє СѓР¶Рµ РІ UTF-8, С‡Р°СЃС‚СЊ РІ CP1251
+-- (РґРІРёР¶РѕРє). Р§РёС‚Р°РµРј Р±Р°Р№С‚С‹ РїРѕ РѕРґРЅРѕРјСѓ, СЂР°СЃРїРѕР·РЅР°РІР°СЏ РѕР±Р° РІР°СЂРёР°РЅС‚Р°.
 local function decodeBody(rawStr)
     local parts = {}
     local i, n = 1, #rawStr
@@ -88,7 +88,7 @@ local function decodeBody(rawStr)
         local b = rawStr:byte(i)
         local b2 = rawStr:byte(i + 1)
         if b >= 0xC2 and b <= 0xDF and b2 and b2 >= 0x80 and b2 <= 0xBF then
-            -- возможный двухбайтовый UTF-8
+            -- РІРѕР·РјРѕР¶РЅС‹Р№ РґРІСѓС…Р±Р°Р№С‚РѕРІС‹Р№ UTF-8
             local cp = (b - 0xC0) * 0x40 + (b2 - 0x80)
             if looksLikeUtf8(cp) then
                 parts[#parts + 1] = utf8Char(cp)
@@ -120,17 +120,17 @@ local function decodeBody(rawStr)
     return table.concat(parts)
 end
 
--- Перевод произвольной строки (UTF-8 на входе движка) в строку без ломаных байт
+-- РџРµСЂРµРІРѕРґ РїСЂРѕРёР·РІРѕР»СЊРЅРѕР№ СЃС‚СЂРѕРєРё (UTF-8 РЅР° РІС…РѕРґРµ РґРІРёР¶РєР°) РІ СЃС‚СЂРѕРєСѓ Р±РµР· Р»РѕРјР°РЅС‹С… Р±Р°Р№С‚
 local function sanitizeUtf8(s)
     if not s then return "" end
-    -- заменяем управляющие символы (байт 0 выносим отдельно: \0 ломает класс паттерна Lua)
+    -- Р·Р°РјРµРЅСЏРµРј СѓРїСЂР°РІР»СЏСЋС‰РёРµ СЃРёРјРІРѕР»С‹ (Р±Р°Р№С‚ 0 РІС‹РЅРѕСЃРёРј РѕС‚РґРµР»СЊРЅРѕ: \0 Р»РѕРјР°РµС‚ РєР»Р°СЃСЃ РїР°С‚С‚РµСЂРЅР° Lua)
     s = s:gsub("%z", " ")
     s = s:gsub("[\1\2\3\4\5\6\7\8\9\11\12\13\14\15\16\17\18\19\20\21\22\23\24\25\26\27\28\29\30\31]", " ")
-    -- удаляем некорректные продолжения (например, 0x80..0xBF после ASCII) - оставляем как есть
+    -- СѓРґР°Р»СЏРµРј РЅРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РїСЂРѕРґРѕР»Р¶РµРЅРёСЏ (РЅР°РїСЂРёРјРµСЂ, 0x80..0xBF РїРѕСЃР»Рµ ASCII) - РѕСЃС‚Р°РІР»СЏРµРј РєР°Рє РµСЃС‚СЊ
     return s
 end
 
--- Читаем тело пакета из bitstream и возвращаем текст + массив байт
+-- Р§РёС‚Р°РµРј С‚РµР»Рѕ РїР°РєРµС‚Р° РёР· bitstream Рё РІРѕР·РІСЂР°С‰Р°РµРј С‚РµРєСЃС‚ + РјР°СЃСЃРёРІ Р±Р°Р№С‚
 local function readPacketBody(bs)
     local n = raknetBitStreamGetNumberOfBytesUsed(bs)
     if not n or n < 0 then
@@ -145,7 +145,7 @@ local function readPacketBody(bs)
             bytes[i] = 0
         end
     end
-    -- сбрасываем указатель чтения
+    -- СЃР±СЂР°СЃС‹РІР°РµРј СѓРєР°Р·Р°С‚РµР»СЊ С‡С‚РµРЅРёСЏ
     pcall(raknetBitStreamResetReadPointer, bs)
     local raw = {}
     for i = 1, #bytes do
@@ -155,7 +155,7 @@ local function readPacketBody(bs)
     return rawStr, #bytes, n
 end
 
--- Определяем, является ли тело пакета "текстовым" (длинные печатные последовательности)
+-- РћРїСЂРµРґРµР»СЏРµРј, СЏРІР»СЏРµС‚СЃСЏ Р»Рё С‚РµР»Рѕ РїР°РєРµС‚Р° "С‚РµРєСЃС‚РѕРІС‹Рј" (РґР»РёРЅРЅС‹Рµ РїРµС‡Р°С‚РЅС‹Рµ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕСЃС‚Рё)
 local function isTextBody(rawStr, minRun)
     local run = 0
     for i = 1, #rawStr do
@@ -172,10 +172,10 @@ local function isTextBody(rawStr, minRun)
     return false
 end
 
--- Декодируем байты в UTF-8-строку для отчёта (смесь UTF-8 и CP1251)
+-- Р”РµРєРѕРґРёСЂСѓРµРј Р±Р°Р№С‚С‹ РІ UTF-8-СЃС‚СЂРѕРєСѓ РґР»СЏ РѕС‚С‡С‘С‚Р° (СЃРјРµСЃСЊ UTF-8 Рё CP1251)
 local decodeBytesForReport = decodeBody
 
--- Получить координаты игрока безопасно
+-- РџРѕР»СѓС‡РёС‚СЊ РєРѕРѕСЂРґРёРЅР°С‚С‹ РёРіСЂРѕРєР° Р±РµР·РѕРїР°СЃРЅРѕ
 local function getPlayerPos()
     local px, py, pz = 0, 0, 0
     local ok = pcall(function()
@@ -189,7 +189,7 @@ local function getPlayerPos()
     return px or 0, py or 0, pz or 0
 end
 
--- Получить положение курсора безопасно
+-- РџРѕР»СѓС‡РёС‚СЊ РїРѕР»РѕР¶РµРЅРёРµ РєСѓСЂСЃРѕСЂР° Р±РµР·РѕРїР°СЃРЅРѕ
 local function getCursorState()
     local on = false
     local x, y = 0, 0
@@ -204,7 +204,7 @@ local function getCursorState()
     return on, x or 0, y or 0
 end
 
--- Снимок контекста для записи
+-- РЎРЅРёРјРѕРє РєРѕРЅС‚РµРєСЃС‚Р° РґР»СЏ Р·Р°РїРёСЃРё
 local function snapshotContext()
     local px, py, pz = getPlayerPos()
     local cur, cx, cy = getCursorState()
@@ -218,7 +218,7 @@ local function snapshotContext()
     }
 end
 
--- Обновление фазы игры по пакету (дополнительно к базе знаний)
+-- РћР±РЅРѕРІР»РµРЅРёРµ С„Р°Р·С‹ РёРіСЂС‹ РїРѕ РїР°РєРµС‚Сѓ (РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕ Рє Р±Р°Р·Рµ Р·РЅР°РЅРёР№)
 local function updatePhase(record)
     local lowBody = tostring(record.text or ""):lower()
     local phase = state.state.phase
@@ -240,11 +240,11 @@ local function updatePhase(record)
     end
 end
 
--- Пользовательская заглушка: вызывается для каждой захваченной записи.
+-- РџРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєР°СЏ Р·Р°РіР»СѓС€РєР°: РІС‹Р·С‹РІР°РµС‚СЃСЏ РґР»СЏ РєР°Р¶РґРѕР№ Р·Р°С…РІР°С‡РµРЅРЅРѕР№ Р·Р°РїРёСЃРё.
 local emitCallback = nil
 
--- Основной обработчик захваченного пакета
--- dir: "RX"/"TX"; id: номер пакета; bs: bitstream; extra: строка-дополнение (для серверных сообщений)
+-- РћСЃРЅРѕРІРЅРѕР№ РѕР±СЂР°Р±РѕС‚С‡РёРє Р·Р°С…РІР°С‡РµРЅРЅРѕРіРѕ РїР°РєРµС‚Р°
+-- dir: "RX"/"TX"; id: РЅРѕРјРµСЂ РїР°РєРµС‚Р°; bs: bitstream; extra: СЃС‚СЂРѕРєР°-РґРѕРїРѕР»РЅРµРЅРёРµ (РґР»СЏ СЃРµСЂРІРµСЂРЅС‹С… СЃРѕРѕР±С‰РµРЅРёР№)
 local function onCapture(dir, id, bs, extra)
     local st = state.state
 
@@ -259,7 +259,7 @@ local function onCapture(dir, id, bs, extra)
     if bs then
         rawStr, bodyLen, totalBytes = readPacketBody(bs)
         if bodyLen > 0 then
-            -- преобразуем байты для чтения текста
+            -- РїСЂРµРѕР±СЂР°Р·СѓРµРј Р±Р°Р№С‚С‹ РґР»СЏ С‡С‚РµРЅРёСЏ С‚РµРєСЃС‚Р°
             local realBytes = {}
             for i = 1, bodyLen do
                 realBytes[i] = rawStr:byte(i) or 0
@@ -280,13 +280,13 @@ local function onCapture(dir, id, bs, extra)
         text = sanitizeUtf8(text)
     end
 
-    -- Определяем, текстовый ли это пакет (для потока и отбора)
+    -- РћРїСЂРµРґРµР»СЏРµРј, С‚РµРєСЃС‚РѕРІС‹Р№ Р»Рё СЌС‚Рѕ РїР°РєРµС‚ (РґР»СЏ РїРѕС‚РѕРєР° Рё РѕС‚Р±РѕСЂР°)
     local isText = isTextBody(rawStr, st.minTextRun)
     if #text >= st.minTextRun then
         isText = true
     end
 
-    -- Ограничиваем тело
+    -- РћРіСЂР°РЅРёС‡РёРІР°РµРј С‚РµР»Рѕ
     local bodyForStore = text
     if #bodyForStore > st.maxBodyLen then
         bodyForStore = bodyForStore:sub(1, st.maxBodyLen)
@@ -318,12 +318,12 @@ local function onCapture(dir, id, bs, extra)
         ctx = ctx,
         phaseAtCapture = st.phase,
         phaseName = state.phaseName(),
-        -- Подпись для дедупликации в итоговой таблице
+        -- РџРѕРґРїРёСЃСЊ РґР»СЏ РґРµРґСѓРїР»РёРєР°С†РёРё РІ РёС‚РѕРіРѕРІРѕР№ С‚Р°Р±Р»РёС†Рµ
         sig = classify.signature(bodyForStore),
     }
     record.dedupKey = dir .. "|" .. tostring(id) .. "|" .. record.sig
 
-    -- Классификация из базы знаний
+    -- РљР»Р°СЃСЃРёС„РёРєР°С†РёСЏ РёР· Р±Р°Р·С‹ Р·РЅР°РЅРёР№
     local cls = classify.classify(record)
     record.category = cls.category
     record.categoryTitle = cls.categoryTitle
@@ -343,17 +343,24 @@ local function onCapture(dir, id, bs, extra)
     record.dataKeys = cls.dataKeys
     record.nick = cls.nick
     record.fn = cls.fn
-    -- Полный hex тела TX-пакета интерфейса (id=215): точные байты без
-    -- влияния текстового декодера. Нужен для разбора бинарной структуры
-    -- пакета при реальном входе (например OnAuthorizationStart).
+    -- РўРѕС‡РЅС‹Рµ Р±Р°Р№С‚С‹ С‚РµР»Р° (HEX) РґР»СЏ Р’РЎР•РҐ РїР°РєРµС‚РѕРІ: РЅСѓР¶РЅС‹ РґР»СЏ СЂР°Р·Р±РѕСЂР° Рё Р°РЅР°Р»РёР·Р°
+    -- Р±РёРЅР°СЂРЅС‹С… РїР°РєРµС‚РѕРІ СЃРєСЂРёРїС‚Р°РјРё. Р”Р»СЏ РґР»РёРЅРЅС‹С… С‚РµР» СЃРѕС…СЂР°РЅСЏРµРј РїРµСЂРІС‹Рµ 512 Р±Р°Р№С‚.
+    if bodyLen > 0 then
+        local h = {}
+        local n = math.min(bodyLen, 512)
+        for i = 1, n do
+            h[i] = string.format("%02X", bytes[i] or 0)
+        end
+        record.bodyHex = table.concat(h)
+    end
+    -- РћС‚РґРµР»СЊРЅРѕ РґР»СЏ TX-РїР°РєРµС‚Р° РёРЅС‚РµСЂС„РµР№СЃР° (id=215): РїРѕР»РЅС‹Р№ hex Р±РµР· РѕРіСЂР°РЅРёС‡РµРЅРёСЏ,
+    -- РѕРґРЅРѕ РІ РѕРґРЅРѕ, РєР°Рє РєР»РёРµРЅС‚ РѕС‚РїСЂР°РІРёР» РµРіРѕ РЅР° СЃРµСЂРІРµСЂ. РџР»СЋСЃ РєРѕРїРёСЏ РґР»СЏ СЃРІРѕРґРєРё.
     if record.dir == "TX" and record.id == 215 and bodyLen > 0 then
         local h = {}
         for i = 1, bodyLen do
             h[i] = string.format("%02X", bytes[i] or 0)
         end
         record.bodyHex = table.concat(h)
-        -- Копия отправленного пакета как есть (полный hex + метаданные) для
-        -- отправки на сервер: одно в одно, как клиент отправил его на сервер.
         local txEntry = {
             ts = record.time,
             dateStr = record.dateStr,
@@ -371,15 +378,15 @@ local function onCapture(dir, id, bs, extra)
         end
         st.txHexList = txList
     end
-    -- Ник игрока на сервере (из пакета авторизации) запоминаем в состоянии:
-    -- последний логин считается текущим.
+    -- РќРёРє РёРіСЂРѕРєР° РЅР° СЃРµСЂРІРµСЂРµ (РёР· РїР°РєРµС‚Р° Р°РІС‚РѕСЂРёР·Р°С†РёРё) Р·Р°РїРѕРјРёРЅР°РµРј РІ СЃРѕСЃС‚РѕСЏРЅРёРё:
+    -- РїРѕСЃР»РµРґРЅРёР№ Р»РѕРіРёРЅ СЃС‡РёС‚Р°РµС‚СЃСЏ С‚РµРєСѓС‰РёРј.
     if record.nick and record.nick ~= "" then
         st.gameNick = record.nick
     end
 
     updatePhase(record)
 
-    -- Счётчики по категориям
+    -- РЎС‡С‘С‚С‡РёРєРё РїРѕ РєР°С‚РµРіРѕСЂРёСЏРј
     local cnt = st.counters[record.category] or {
         count = 0,
         first = record.dateStr,
@@ -396,7 +403,7 @@ local function onCapture(dir, id, bs, extra)
     end
     st.counters[record.category] = cnt
 
-    -- Глобальные агрегаты для сводки (полные, без влияния лимита записей)
+    -- Р“Р»РѕР±Р°Р»СЊРЅС‹Рµ Р°РіСЂРµРіР°С‚С‹ РґР»СЏ СЃРІРѕРґРєРё (РїРѕР»РЅС‹Рµ, Р±РµР· РІР»РёСЏРЅРёСЏ Р»РёРјРёС‚Р° Р·Р°РїРёСЃРµР№)
     if dir == "RX" then
         st.totalRx = st.totalRx + 1
     elseif dir == "TX" then
@@ -421,7 +428,7 @@ local function onCapture(dir, id, bs, extra)
             e.n = e.n + 1
         end
     end
-    -- Уникальные типы пакетов (как в итоговой таблице)
+    -- РЈРЅРёРєР°Р»СЊРЅС‹Рµ С‚РёРїС‹ РїР°РєРµС‚РѕРІ (РєР°Рє РІ РёС‚РѕРіРѕРІРѕР№ С‚Р°Р±Р»РёС†Рµ)
     local uniqueKey = record.dedupKey or (dir .. "|" .. tostring(id) .. "|" .. (record.sig or ""))
     local te = st.typeSeen[uniqueKey]
     if not te then
@@ -444,18 +451,18 @@ local function onCapture(dir, id, bs, extra)
         end
     end
 
-    -- Добавляем запись с учётом лимита
+    -- Р”РѕР±Р°РІР»СЏРµРј Р·Р°РїРёСЃСЊ СЃ СѓС‡С‘С‚РѕРј Р»РёРјРёС‚Р°
     if #st.records < st.maxRecords then
         table.insert(st.records, record)
     end
 
-    -- Автоматическая запись в файл происходит в emit-заглушке (настраивается в main)
+    -- РђРІС‚РѕРјР°С‚РёС‡РµСЃРєР°СЏ Р·Р°РїРёСЃСЊ РІ С„Р°Р№Р» РїСЂРѕРёСЃС…РѕРґРёС‚ РІ emit-Р·Р°РіР»СѓС€РєРµ (РЅР°СЃС‚СЂР°РёРІР°РµС‚СЃСЏ РІ main)
     if emitCallback then
         emitCallback(record)
     end
 end
 
--- Публичные обработчики, вызываемые главным скриптом
+-- РџСѓР±Р»РёС‡РЅС‹Рµ РѕР±СЂР°Р±РѕС‚С‡РёРєРё, РІС‹Р·С‹РІР°РµРјС‹Рµ РіР»Р°РІРЅС‹Рј СЃРєСЂРёРїС‚РѕРј
 local C = {
     onReceivePacket = function(id, bs)
         onCapture("RX", id, bs, nil)
@@ -469,14 +476,14 @@ local C = {
     onGameText = function(textMsg, time, style)
         onCapture("RX", 0, nil, tostring(textMsg or ""))
     end,
-    -- Синтетическая запись для показанного диалога (id=61).
-    -- Строка msg - это байты CP1251 из движка, capture декодирует в UTF-8.
+    -- РЎРёРЅС‚РµС‚РёС‡РµСЃРєР°СЏ Р·Р°РїРёСЃСЊ РґР»СЏ РїРѕРєР°Р·Р°РЅРЅРѕРіРѕ РґРёР°Р»РѕРіР° (id=61).
+    -- РЎС‚СЂРѕРєР° msg - СЌС‚Рѕ Р±Р°Р№С‚С‹ CP1251 РёР· РґРІРёР¶РєР°, capture РґРµРєРѕРґРёСЂСѓРµС‚ РІ UTF-8.
     onCaptureMsg = function(msg)
         onCapture("RX", 61, nil, tostring(msg or ""))
     end,
     onConnectionClosed = function() end,
     onConnectionLost = function() end,
-    -- Установка заглушки: вызывается для каждой записи пакета (для автозаписи в файл)
+    -- РЈСЃС‚Р°РЅРѕРІРєР° Р·Р°РіР»СѓС€РєРё: РІС‹Р·С‹РІР°РµС‚СЃСЏ РґР»СЏ РєР°Р¶РґРѕР№ Р·Р°РїРёСЃРё РїР°РєРµС‚Р° (РґР»СЏ Р°РІС‚РѕР·Р°РїРёСЃРё РІ С„Р°Р№Р»)
     setEmit = function(fn)
         emitCallback = fn
     end,

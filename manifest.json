@@ -119,9 +119,9 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/CefPacketAnalyzer_v1.15.0.lua",
-                      "sha256":  "4261dc5231f2cf350020585bc51a5ba21747e1e84f80c2acbee2b88694fd884d",
-                      "size":  7766,
+                      "path":  "moonloader/CefPacketAnalyzer_v1.15.1.lua",
+                      "sha256":  "f150423bb4a8627eb0ba8b9428553b58dfc77367ad341ec7c25d4d18a754bacb",
+                      "size":  9340,
                       "dest":  "gameRoot"
                   },
                   {
