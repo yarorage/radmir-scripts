@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.0",
     "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-08 16:23",
+    "updatedAt":  "2026-09-08 16:42",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -221,12 +221,6 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/AutoLoginByYaroRage/config/AutoLoginSettings.ini",
-                      "sha256":  "8c4d1885604b7c2102231a09fa1b78c130b973c104d169785e59c3d09e7fcc6f",
-                      "size":  97,
-                      "dest":  "gameRoot"
-                  },
-                  {
                       "path":  "moonloader/AutoLoginByYaroRage/resource/authSound1.mp3",
                       "sha256":  "7bc02c22f6a0a75446187dbe0547a7eca86c05e3d3d369e0831dc084bb974ea3",
                       "size":  29091,
@@ -278,30 +272,6 @@
                       "path":  "moonloader/CheatByYaroRage/resource/CheatAdminList.txt",
                       "sha256":  "73a55cb7321cd21aa94907f10f0f9d2c32e8a37d4bf1aab4ba89eeb11a135fb5",
                       "size":  1840,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/config/CheatByYaroRage/CheatByYaroRage.ini",
-                      "sha256":  "0bf77daf77ab362ce0e0bf59cf2d18f8beec70fbda91ff7c931170dea05f4aa4",
-                      "size":  958,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/config/CheatByYaroRage/settingstime.ini",
-                      "sha256":  "c73e3ea4dca9e8289d9007738366bd76623392eb7ee1c846ff6a86cad7d03583",
-                      "size":  85,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/config/CheatByYaroRage/profiles/Custom.ini",
-                      "sha256":  "52b32c3ba50c25fd82780181907c062ccb13a62cd4466f2651d5af68d0030af4",
-                      "size":  18,
-                      "dest":  "gameRoot"
-                  },
-                  {
-                      "path":  "moonloader/config/CheatByYaroRage/profiles/Visual Only.ini",
-                      "sha256":  "52b32c3ba50c25fd82780181907c062ccb13a62cd4466f2651d5af68d0030af4",
-                      "size":  18,
                       "dest":  "gameRoot"
                   },
                   {
