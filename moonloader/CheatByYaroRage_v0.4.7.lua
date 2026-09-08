@@ -662,8 +662,8 @@ ini = {
 local config = inicfg.load(nil, f_ini)
 
 --> Main
-function main()
-    repeat wait(0) until isSampAvailable()
+--> Инициализация и команды (вынесено из main, чтобы уложиться в лимит upvalues)
+local function mainInit()
 
 	ywelcome("CheatByYaroRage", "Меню: /cheat или N (долгое нажатие 1 сек)")
 
@@ -868,6 +868,10 @@ function main()
         end
     end)
 
+end
+
+--> Главный цикл (вынесено из main, чтобы уложиться в лимит upvalues)
+local function mainLoop()
 	local n_press_time = 0
 
 	while true do
@@ -1265,6 +1269,14 @@ function main()
 			imgui.DisableInput = false
 		end
 	end
+end
+
+--> Main
+function main()
+    repeat wait(0) until isSampAvailable()
+
+	mainInit()
+	mainLoop()
 end
 
 function cmd_stime()
