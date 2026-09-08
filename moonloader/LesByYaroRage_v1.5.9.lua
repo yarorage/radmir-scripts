@@ -18,8 +18,55 @@ ffi.cdef[[
     void* GetForegroundWindow(void);
     int IsIconic(void* hWnd);
     short GetAsyncKeyState(int vKey);
+    int GetDpiForSystem(void);
+    int GetSystemMetrics(int nIndex);
 ]]
 local user32 = ffi.load("user32")
+
+-- DPI-масштаб Windows (4K, 150-200% и т.д.): UI увеличивается под все разрешения.
+-- Базовый масштаб берём из разрешения / 1080, а DPI-фактор применяем только если
+-- игровое окно меньше физического экрана (окно/неполноэкранный режим).
+local dpiUi = 1.0
+do
+    local ok, dpi = pcall(function()
+        return user32.GetDpiForSystem()
+    end)
+    if ok and type(dpi) == "number" and dpi > 0 then dpiUi = dpi / 96 end
+    if dpiUi < 1 then dpiUi = 1 end
+end
+
+-- Возвращает 1, если игра полноэкранная, иначе системный DPI-фактор
+local function uiDpiFactor()
+    local _resH = select(2, getScreenResolution())
+    if not _resH or _resH <= 0 then _resH = 1080 end
+    local ok, sysH = pcall(function() return user32.GetSystemMetrics(1) end)
+    if ok and type(sysH) == "number" and sysH > 0 then
+        if sysH * dpiUi > _resH * 1.05 then
+            return dpiUi
+        end
+    end
+    return 1
+end
+
+-- Масштаб интерфейса под разрешение экрана (учитывает 4K и жёсткие смещения)
+local _espScale = 1.0
+
+-- Возвращает точку, масштабированную под текущее разрешение экрана
+local function uiScaled(v)
+    return v * _espScale
+end
+
+-- Пересоздаёт ESP-шрифты при изменении размера экрана (например, смена в 4K)
+local function ensureEspScale()
+    local _sw, _sh = getScreenResolution()
+    _sh = _sh or 1080
+    local _s = (_sh / 1080.0) * uiDpiFactor()
+    if math.abs(_s - _espScale) > 0.01 then
+        _espScale = _s
+        font_whGreen = renderCreateFont('Arial', math.floor(7 * _s + 0.5), 13)
+        font_dbg = renderCreateFont('Arial', math.floor(7 * _s + 0.5), 13)
+    end
+end
 
 -- === УТИЛИТЫ: ВАЛИДАЦИЯ УКАЗАТЕЛЕЙ И ЛОГИРОВАНИЕ ОШИБОК ===
 local function safeReadMemory(addr, size, signed)
@@ -590,6 +637,7 @@ function main()
 
         -- Кэшируем часто используемые данные
         local sw, sh = getScreenResolution()
+        ensureEspScale()
         local playerX, playerY, playerZ = getCharCoordinates(playerPed)
         local playerScreenX, playerScreenY = convert3DCoordsToScreen(playerX, playerY, playerZ)
 
@@ -693,18 +741,18 @@ function main()
                 pcall(dbgObjectsScan)
             end
             pcall(dbgObjectsRender)
-            renderFontDrawText(font_dbg, 'Профиль ID: ' .. _probeId .. '  (F6 - / F7 +)', 12, 105, 0xFFFF66FF)
+            renderFontDrawText(font_dbg, 'Профиль ID: ' .. _probeId .. '  (F6 - / F7 +)', uiScaled(12), uiScaled(105), 0xFFFF66FF)
             if _sweepRun then
                 local _bs = math.floor((_sweepCursor - 1) / _sweepBandW) * _sweepBandW + 1
                 local _be = math.min(_bs + _sweepBandW - 1, _sweepMax)
                 renderFontDrawText(font_dbg, string.format('Автоскан: ID %d-%d (F8 стоп, F9 шаг=%d) курсор=%d',
-                    _bs, _be, _sweepBandW, _sweepCursor), 12, 118, 0xFF66FF00)
+                    _bs, _be, _sweepBandW, _sweepCursor), uiScaled(12), uiScaled(118), 0xFF66FF00)
             else
-                renderFontDrawText(font_dbg, string.format('Автоскан остановлен (F8 запуск, шаг=%d, F9 смена)', _sweepBandW), 12, 118, 0xFF66FF00)
+                renderFontDrawText(font_dbg, string.format('Автоскан остановлен (F8 запуск, шаг=%d, F9 смена)', _sweepBandW), uiScaled(12), uiScaled(118), 0xFF66FF00)
             end
             local _sw, _sh = getScreenResolution()
             for _i, _line in ipairs(_dbgScreen) do
-                renderFontDrawText(font_dbg, _line, 12 + ((_i - 1) % 2) * 330, 130 + math.floor((_i - 1) / 2) * 13, 0xFFFFFF00)
+                renderFontDrawText(font_dbg, _line, uiScaled(12) + ((_i - 1) % 2) * uiScaled(330), uiScaled(130) + math.floor((_i - 1) / 2) * uiScaled(13), 0xFFFFFF00)
             end
         end
 
@@ -752,7 +800,7 @@ function main()
                     end
                     -- Дистанция
                     if Les.ShowDistance.v and Les.Wh.v then
-                        renderFontDrawText(font_whGreen, string.format("%.0f м", a.dist), a.screenX, a.screenY - 10, 0xFFFFFFFF)
+                        renderFontDrawText(font_whGreen, string.format("%.0f м", a.dist), a.screenX, a.screenY - uiScaled(10), 0xFFFFFFFF)
                     end
                 end
             end
@@ -770,7 +818,7 @@ function main()
                         renderDrawBoxWithBorder(p.headX, p.headY, 3, 3, 0xFF00FF00, 1, 0xFF00FF00)
                     end
                     if Les.ShowDistance.v and Les.WhPlayers.v then
-                        renderFontDrawText(font_whGreen, string.format("%.0f м", p.dist), p.screenX, p.screenY - 10, 0xFFFFFFFF)
+                        renderFontDrawText(font_whGreen, string.format("%.0f м", p.dist), p.screenX, p.screenY - uiScaled(10), 0xFFFFFFFF)
                     end
                 end
             end
@@ -782,7 +830,7 @@ function main()
                 if d.okHead then
                     renderDrawLine(sw/2, sh/2, d.headX, d.headY, 2.0, 0xFF0000FF)
                     local _cdist = math.sqrt((d.posX-playerX)^2 + (d.posY-playerY)^2 + (d.posZ-playerZ)^2)
-                    renderFontDrawText(font_whGreen, string.format("Труп %.0fм", _cdist), d.headX + 8, d.headY - 8, 0xFF0000FF)
+                    renderFontDrawText(font_whGreen, string.format("Труп %.0fм", _cdist), d.headX + uiScaled(8), d.headY - uiScaled(8), 0xFF0000FF)
                 end
             end
         end
@@ -1033,7 +1081,7 @@ end
 -- GUI с вкладками
 function imgui.OnDrawFrame()
     local sw, sh = getScreenResolution()
-    fsc = sh / 1080
+    fsc = (sh / 1080) * uiDpiFactor()
     imgui.GetIO().FontGlobalScale = fsc
     if Menu.windowState.v then
         apply_custom_style()
@@ -1335,7 +1383,7 @@ function renderEspTush()
                     local d = math.sqrt((lx-px)^2 + (ly-py)^2 + (lz-pz)^2)
                     local animalName = (m == MODEL_DEER) and "Олень" or "Медведь"
                     renderFontDrawText(font_whGreen, animalName .. " (труп)", X, Y, 0xFFFF0000)
-                    renderFontDrawText(font_whGreen, string.format("%.0f м", d), X, Y - 10, 0xFFFFAAAA)
+                    renderFontDrawText(font_whGreen, string.format("%.0f м", d), X, Y - uiScaled(10), 0xFFFFAAAA)
                     -- Линия к голове трупа
                     local sw, sh = getScreenResolution()
                     local hx, hy, hz = GetBodyPartCoordinates(8, v)
@@ -1378,12 +1426,12 @@ function renderEspPlayers()
                 if health < 20 then healthColor = 0xFFFF0000 end
                 
                 local yOffset = 0
-                renderFontDrawText(font_whGreen, nick, _X, _Y + yOffset, 0xFF00CCFF); yOffset = yOffset + 12
-                renderFontDrawText(font_whGreen, "HP: " .. health, _X, _Y + yOffset, healthColor); yOffset = yOffset + 12
+                renderFontDrawText(font_whGreen, nick, _X, _Y + yOffset, 0xFF00CCFF); yOffset = yOffset + uiScaled(12)
+                renderFontDrawText(font_whGreen, "HP: " .. health, _X, _Y + yOffset, healthColor); yOffset = yOffset + uiScaled(12)
                 if armor > 0 then
-                    renderFontDrawText(font_whGreen, "AP: " .. armor, _X, _Y + yOffset, 0xFF00AAFF); yOffset = yOffset + 12
+                    renderFontDrawText(font_whGreen, "AP: " .. armor, _X, _Y + yOffset, 0xFF00AAFF); yOffset = yOffset + uiScaled(12)
                 end
-                renderFontDrawText(font_whGreen, weaponName, _X, _Y + yOffset, 0xFFFFFFFF); yOffset = yOffset + 12
+                renderFontDrawText(font_whGreen, weaponName, _X, _Y + yOffset, 0xFFFFFFFF); yOffset = yOffset + uiScaled(12)
                 renderFontDrawText(font_whGreen, string.format("%.0f м", dist), _X, _Y + yOffset, 0xFFFFAAAA)
                 
                 -- Линия к игроку
@@ -1447,7 +1495,7 @@ function renderEspPickups()
                 if pickupType == 3 then color = 0xFF00AAFF end
                 
                 renderFontDrawText(font_whGreen, typeName .. ": " .. modelName, X, Y, color)
-                renderFontDrawText(font_whGreen, string.format("%.0f м", dist), X, Y - 10, 0xFFFFAAAA)
+                renderFontDrawText(font_whGreen, string.format("%.0f м", dist), X, Y - uiScaled(10), 0xFFFFAAAA)
                 ::continue::
             end
         end
@@ -1582,18 +1630,18 @@ function renderEspCars()
                         if health < 250 then healthColor = 0xFFFF0000 end
                         
                         local yOff = 0
-                        renderFontDrawText(font_whGreen, string.format("%.0f м", d), VX, VY + yOff - 10, 0xFFFFFFFF)
+                        renderFontDrawText(font_whGreen, string.format("%.0f м", d), VX, VY + yOff - uiScaled(10), 0xFFFFFFFF)
                         if Les.CarShowModel.v then
                             renderFontDrawText(font_whGreen, modelName, VX, VY + yOff, 0xFF00CCFF)
-                            yOff = yOff + 12
+                            yOff = yOff + uiScaled(12)
                         end
                         if Les.CarShowHP.v then
                             renderFontDrawText(font_whGreen, string.format("HP: %.0f", health/10), VX, VY + yOff, healthColor)
-                            yOff = yOff + 12
+                            yOff = yOff + uiScaled(12)
                         end
                         if Les.CarShowDriver.v and driverName ~= "" then
                             renderFontDrawText(font_whGreen, "Водитель: " .. driverName, VX, VY + yOff, 0xFFFFFFFF)
-                            yOff = yOff + 12
+                            yOff = yOff + uiScaled(12)
                         end
                         if Les.CarShowDoor.v then
                             renderFontDrawText(font_whGreen, doorStatus, VX, VY + yOff, 0xFFFFAAAA)
@@ -1632,7 +1680,7 @@ function dbgObjectsRender()
             end
             renderDrawBoxWithBorder(x0, y0, w, h, color, 1, color)
             renderDrawLine(sw / 2, sh / 2, X, Y, 1.0, color)
-            renderFontDrawText(font_dbg, tostring(o.m) .. (o.s and 'S' or ''), X, y0 - 14, color)
+            renderFontDrawText(font_dbg, tostring(o.m) .. (o.s and 'S' or ''), X, y0 - uiScaled(14), color)
         end
     end
 end
