@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.0",
     "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-08 13:56",
+    "updatedAt":  "2026-09-08 13:58",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -131,6 +131,12 @@
                       "dest":  "gameRoot"
                   },
                   {
+                      "path":  "moonloader/CefPacketAnalyzer_v1.15.lua",
+                      "sha256":  "3ca13230adc59fd0df1c4ec6428cf0203a17c17635f2daa60cfb7e953e65ccf5",
+                      "size":  7760,
+                      "dest":  "gameRoot"
+                  },
+                  {
                       "path":  "moonloader/CheatByYaroRage.lua",
                       "sha256":  "641d92ee95903e2663d340d9b9b0016478d7f990fae3066137791332dfe991d9",
                       "size":  107477,
@@ -254,6 +260,42 @@
                       "path":  "moonloader/AutoLoginByYaroRage/resource/authSound2.mp3",
                       "sha256":  "c1b77b0736954b193f6158e8a54adb59cf25530f58157485cc3621a1fe112bab",
                       "size":  37632,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/CefPacketAnalyzer/capture.lua",
+                      "sha256":  "0767b0e68195d7f077eebd65df8ee674f9776d23c3f3152336d1c86587b00c48",
+                      "size":  15804,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/CefPacketAnalyzer/classify.lua",
+                      "sha256":  "4e1d08f700d2039ba1cbaabe6af342de68e73fff102cfd10bd62cc6f2c1a6ec7",
+                      "size":  49365,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/CefPacketAnalyzer/enc_utils.lua",
+                      "sha256":  "40f7ea5a526bcf7cb0aef3fe2a447a2b9d0f34e4ff6ad98b32f51ce4dc1bcd1f",
+                      "size":  1245,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/CefPacketAnalyzer/output.lua",
+                      "sha256":  "3f0fc594ddc50be7b309d6a1888a04585ddb060e4143d164556ce05b464fdd36",
+                      "size":  23595,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/CefPacketAnalyzer/state.lua",
+                      "sha256":  "d3d3c3d26b4ec397146f9a4228230ff99778a9d351808607590facecec505467",
+                      "size":  4862,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/CefPacketAnalyzer/upload.lua",
+                      "sha256":  "0ba1b2508a1e1ad558877bb4818e7bde22c9ba5cc2c0db38888037299e40b840",
+                      "size":  12314,
                       "dest":  "gameRoot"
                   },
                   {
