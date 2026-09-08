@@ -1,8 +1,8 @@
--- AutoLoginByYaroRage v2.13
+-- AutoLoginByYaroRage v2.14
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("2.13")
+script_version("2.14")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -55,6 +55,8 @@ ffi.cdef[[
     int PostMessageA(void* hWnd, unsigned int Msg, unsigned long long wParam, long long lParam);
     int MultiByteToWideChar(unsigned int CodePage, unsigned long dwFlags, const char* lpMultiByteStr, int cbMultiByte, wchar_t* lpWideCharStr, int cchWideChar);
     int WideCharToMultiByte(unsigned int CodePage, unsigned long dwFlags, const wchar_t* lpWideCharStr, int cchWideChar, char* lpMultiByteStr, int cbMultiByte, const char* lpDefaultChar, int* lpUsedDefaultChar);
+    unsigned int GetDpiForSystem();
+    int GetSystemMetrics(int nIndex);
 ]]
 
 user32 = ffi.load("user32")
