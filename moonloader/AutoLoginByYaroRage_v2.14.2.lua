@@ -1,8 +1,8 @@
--- AutoLoginByYaroRage v2.14.1
+-- AutoLoginByYaroRage v2.14.2
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("2.14.1")
+script_version("2.14.2")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -88,7 +88,9 @@ local reconnect_keywords = {
     "лимит на подключение", "запрещено на сервере", "time limit", "disconnected",
     "античит", "anti-cheat", "anti cheat", "блокировка", "читер", "cheat",
     "много попыток", "превышение лимит", "too many", "limit", "attempts", "try again",
-    "заблокирован", "бан", "block", "banned",
+    "заблокирован", "вы забанены", "были забанены", "аккаунт забанен",
+    "забанили", "забанил", "выдал бан", "получил бан", "бан навсегда",
+    "банлист", "бан-лист", "block", "banned",
 }
 
 local queue_keywords = {

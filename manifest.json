@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.0",
     "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-08 23:28",
+    "updatedAt":  "2026-09-08 23:42",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -107,9 +107,9 @@
                       "dest":  "base"
                   },
                   {
-                      "path":  "moonloader/AutoLoginByYaroRage_v2.14.1.lua",
-                      "sha256":  "98465504c0208b0ef729cb63b134bbddcd04f159a20af601a01eaecbc9a77698",
-                      "size":  40523,
+                      "path":  "moonloader/AutoLoginByYaroRage_v2.14.2.lua",
+                      "sha256":  "cba2b9febfc32fe58215c51f0c1eaa0908a21003ae1ca3d8be19bc9c9b9f9d12",
+                      "size":  40665,
                       "dest":  "gameRoot"
                   },
                   {
@@ -125,9 +125,9 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/CheatByYaroRage_v0.4.4.lua",
-                      "sha256":  "ddad8e4c23969c7262f66d31bdf0ef310b080132fccd7061d0bee1f5a50e858a",
-                      "size":  105905,
+                      "path":  "moonloader/CheatByYaroRage_v0.4.5.lua",
+                      "sha256":  "7ce6e6f203975e598ce6bb49dfd93078ce2940c9c7d3b540acbd2d5aa4b93ffe",
+                      "size":  100507,
                       "dest":  "gameRoot"
                   },
                   {
@@ -198,7 +198,7 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/ui.lua",
-                      "sha256":  "60ef7cc0bbb2d82d1295311f50ba45f8e47ebc6f1d6af984418b4f31166882af",
+                      "sha256":  "d22b2b946b59ad480e0cf584ebeee4031691eae7c5569bec9664ff609761b61c",
                       "size":  28754,
                       "dest":  "gameRoot"
                   },

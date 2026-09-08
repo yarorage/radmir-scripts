@@ -386,11 +386,6 @@ local flipcar = imgui.ImBool(false)
 local flycar = imgui.ImBool(false)
 local flycar_speed = imgui.ImFloat(50.0)
 local flycar_brake = imgui.ImFloat(1.0)
-local esp_box = imgui.ImBool(false)
-local esp_line = imgui.ImBool(false)
-local esp_bones = imgui.ImBool(false)
-local esp_tracers = imgui.ImBool(false)
-local esp_distance = imgui.ImFloat(200.0)
 local coordmaster = imgui.ImBool(false)
 local coordmaster_step = imgui.ImFloat(5.0)
 local coordmaster_delay = imgui.ImInt(20)
@@ -455,11 +450,6 @@ local mainIni = inicfg.load({
 		flycar = false,
 		flycar_speed = 50.0,
 		flycar_brake = 1.0,
-		esp_box = false,
-		esp_line = false,
-		esp_bones = false,
-		esp_tracers = false,
-		esp_distance = 200.0,
 		coordmaster = false,
 		coordmaster_step = 5.0,
 		coordmaster_delay = 20,
@@ -517,11 +507,6 @@ flipcar.v = mainIni.CheatByYaroRage.flipcar or false
 flycar.v = mainIni.CheatByYaroRage.flycar or false
 flycar_speed.v = mainIni.CheatByYaroRage.flycar_speed or 50.0
 flycar_brake.v = mainIni.CheatByYaroRage.flycar_brake or 1.0
-esp_box.v = mainIni.CheatByYaroRage.esp_box or false
-esp_line.v = mainIni.CheatByYaroRage.esp_line or false
-esp_bones.v = mainIni.CheatByYaroRage.esp_bones or false
-esp_tracers.v = mainIni.CheatByYaroRage.esp_tracers or false
-esp_distance.v = mainIni.CheatByYaroRage.esp_distance or 200.0
 coordmaster.v = mainIni.CheatByYaroRage.coordmaster or false
 coordmaster_step.v = mainIni.CheatByYaroRage.coordmaster_step or 5.0
 coordmaster_delay.v = mainIni.CheatByYaroRage.coordmaster_delay or 20
@@ -558,8 +543,6 @@ local profile_vars = {
 	damageinf = damageinf, tfirst = tfirst, tsecond = tsecond,
 	triggermode = triggermode, flipcar = flipcar,
 	flycar = flycar, flycar_speed = flycar_speed, flycar_brake = flycar_brake,
-	esp_box = esp_box, esp_line = esp_line, esp_bones = esp_bones,
-	esp_tracers = esp_tracers, esp_distance = esp_distance,
 	coordmaster = coordmaster, coordmaster_step = coordmaster_step,
 	coordmaster_delay = coordmaster_delay, coordmaster_height = coordmaster_height,
 	autocapture = autocapture, autocapture_time = autocapture_time,
@@ -1678,27 +1661,26 @@ function imgui.OnDrawFrame()
 
 		-- Вкладки в одну строку в шапке окна
 		local tabs = {
-			fa.ICON_FA_CROSSHAIRS .. u8' Аимбот',
-			fa.ICON_FA_CAR .. u8' Машины',
-			fa.ICON_FA_USER .. u8' Игрок',
-			fa.ICON_FA_EYE .. u8' Визуал',
-			fa.ICON_FA_BRIEFCASE .. u8' Бизнес',
-			fa.ICON_FA_PLANE .. u8' FlyCar',
-			fa.ICON_FA_EYE .. u8' ESP',
-			fa.ICON_FA_MAP_MARKER_ALT .. u8' CoordMaster',
-			fa.ICON_FA_CLOCK .. u8' AutoCapture',
-			fa.ICON_FA_SHIELD_ALT .. u8' Anti-Crasher',
-			fa.ICON_FA_USER_SHIELD .. u8' Admin',
+			u8'Аимбот',
+			u8'Машины',
+			u8'Игрок',
+			u8'Визуал',
+			u8'Бизнес',
+			u8'FlyCar',
+			u8'CoordMaster',
+			u8'AutoCapture',
+			u8'Anti-Crasher',
+			u8'Admin',
 		}
 		local tabCount = #tabs
-		local perRow = 4
+		local perRow = 5
 		for i = 1, tabCount do
 			local tabActive = menuTab.v == i
 			if tabActive then
 				imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(1.15, 0.28, 0.22, 1))
 				imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
 			end
-			if imgui.Button(tabs[i], imgui.ImVec2(150 * fsc, 30 * fsc)) then menuTab.v = i end
+			if imgui.Button(tabs[i], imgui.ImVec2(128 * fsc, 30 * fsc)) then menuTab.v = i end
 			if tabActive then
 				imgui.PopStyleColor(2)
 			end
@@ -1708,7 +1690,7 @@ function imgui.OnDrawFrame()
 		end
 		imgui.Separator()
 		
-		-- Верхняя панель: профиль, тема, автоапдейтер (без нерабочего поиска)
+		-- Верхняя панель: профиль и тема
 		imgui.Text(u8"Профиль:")
 		imgui.SameLine()
 		imgui.PushItemWidth(110 * fsc)
@@ -1730,9 +1712,6 @@ function imgui.OnDrawFrame()
 		end
 		imgui.PopItemWidth()
 		imgui.SameLine()
-		if imgui.Button(u8"Автоапдейтер", imgui.ImVec2(110 * fsc, 25 * fsc)) then
-			os.execute('start "" "..\\..\\autoupdateryr.exe"')
-		end
 		imgui.Separator()
 
 		-- Активная вкладка
@@ -1742,11 +1721,10 @@ function imgui.OnDrawFrame()
 		elseif menuTab.v == 4 then drawVisualTab()
 		elseif menuTab.v == 5 then drawBizTab()
 		elseif menuTab.v == 6 then drawFlyTab()
-		elseif menuTab.v == 7 then drawEspTab()
-		elseif menuTab.v == 8 then drawCoordTab()
-		elseif menuTab.v == 9 then drawAutoCaptureTab()
-		elseif menuTab.v == 10 then drawAntiCrasherTab()
-		elseif menuTab.v == 11 then drawAdminTab()
+		elseif menuTab.v == 7 then drawCoordTab()
+		elseif menuTab.v == 8 then drawAutoCaptureTab()
+		elseif menuTab.v == 9 then drawAntiCrasherTab()
+		elseif menuTab.v == 10 then drawAdminTab()
 		end
 		
 		imgui.End()
@@ -1784,7 +1762,7 @@ end
 function drawAimTab()
 			-- ВКЛАДКА: АИМБОТ
 			do
-			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_CROSSHAIRS .. u8' Аимбот')
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'Аимбот')
 				imgui.BeginChild("##AimChild", imgui.ImVec2(0, 0), true)
 				imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"Настройки AimBot")
 				imgui.Separator()
@@ -1828,7 +1806,7 @@ end
 function drawVehicleTab()
 			-- ВКЛАДКА: ТРАНСПОРТ
 			do
-			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_CAR .. u8' Транспорт')
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'Транспорт')
 				imgui.BeginChild("##VehChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'AirBrake', airbrake)
@@ -1850,7 +1828,7 @@ end
 function drawPlayerTab()
 			-- ВКЛАДКА: ИГРОК
 			do
-			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_USER .. u8' Игрок')
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'Игрок')
 				imgui.BeginChild("##PlayerChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'FullSkillGun', fullskillgun)
@@ -1877,7 +1855,7 @@ end
 function drawVisualTab()
 			-- ВКЛАДКА: ВИЗУАЛЫ
 			do
-			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_EYE .. u8' Визуалы')
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'Визуалы')
 				imgui.BeginChild("##VisualChild", imgui.ImVec2(0, 0), true)
 				
 				imgui.TextColored(imgui.ImVec4(0.3, 1, 0.3, 1), u8"Дистанции отрисовки")
@@ -1901,7 +1879,7 @@ end
 function drawBizTab()
 			-- ВКЛАДКА: БИЗНЕС
 			do
-			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_BRIEFCASE .. u8' Бизнес')
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'Бизнес')
 				imgui.BeginChild("##BizChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'AutoCapture Biz', capturebiz)
@@ -1922,7 +1900,7 @@ end
 function drawFlyTab()
 			-- ВКЛАДКА: FLYCAR
 			do
-			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_PLANE .. u8' FlyCar')
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'FlyCar')
 				imgui.BeginChild("##FlyChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'FlyCar', flycar)
@@ -1934,32 +1912,11 @@ function drawFlyTab()
 			end
 end
 
-function drawEspTab()
-			-- ВКЛАДКА: ESP
-			do
-			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_EYE .. u8' ESP')
-				imgui.BeginChild("##ESPChild", imgui.ImVec2(0, 0), true)
-				
-				imgui.TextColored(imgui.ImVec4(0.3, 1, 0.3, 1), u8"Настройки ESP")
-				imgui.Separator()
-				sbox(u8'Box ESP', esp_box)
-				imgui.TextDisabled(u8'Коробки вокруг игроков')
-				sbox(u8'Line ESP', esp_line)
-				imgui.TextDisabled(u8'Линии к игрокам')
-				sbox(u8'Bones ESP', esp_bones)
-				imgui.TextDisabled(u8'Скелеты игроков')
-				sbox(u8'Tracers', esp_tracers)
-				imgui.TextDisabled(u8'Трассеры пуль/линии прицела')
-				if imgui.SliderFloat(u8'Дистанция ESP', esp_distance, 50.0, 500.0, '%.1f') then save() end
-				
-				imgui.EndChild()
-			end
-end
 
 function drawCoordTab()
 			-- ВКЛАДКА: COORDMASTER
 			do
-			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_MAP_MARKER_ALT .. u8' CoordMaster')
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'CoordMaster')
 				imgui.BeginChild("##CoordChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'CoordMaster (F5)', coordmaster)
@@ -1975,7 +1932,7 @@ end
 function drawAutoCaptureTab()
 			-- ВКЛАДКА: AUTO CAPTURE
 			do
-			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_CLOCK .. u8' AutoCapture')
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'AutoCapture')
 				imgui.BeginChild("##AutoCapChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'AutoCapture Biz', autocapture)
@@ -1993,7 +1950,7 @@ end
 function drawAntiCrasherTab()
 			-- ВКЛАДКА: ANTI-CRASHER
 			do
-			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_SHIELD_ALT .. u8' Anti-Crasher')
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'Anti-Crasher')
 				imgui.BeginChild("##AntiCrashChild", imgui.ImVec2(0, 0), true)
 				
 				sbox(u8'Вкл. защиту', anticrasher)
@@ -2016,7 +1973,7 @@ end
 function drawAdminTab()
 			-- ВКЛАДКА: ADMIN DETECTION (Radmir CRMP)
 			do
-			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), fa.ICON_FA_USER_SHIELD .. u8' Admin Detection')
+			    imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'Admin Detection')
 				imgui.BeginChild("##AdminDetectChild", imgui.ImVec2(0, 0), true)
 				
 if imgui.Checkbox(u8'Вкл. детекцию админов', admin_detection) then
@@ -2834,77 +2791,10 @@ function saveProfile(name)
     ywelcome("CheatByYaroRage", "Профиль '" .. name .. "' сохранен!")
 end
 
--- ESP Rendering
-function renderESP()
-    if not (esp_box.v or esp_line.v or esp_bones.v or esp_tracers.v) then return end
-    
-    local myX, myY, myZ = getCharCoordinates(PLAYER_PED)
-    
-    for i = 0, sampGetMaxPlayerId(true) do
-        if sampIsPlayerConnected(i) then
-            local result, handle = sampGetCharHandleBySampPlayerId(i)
-            if result and doesCharExist(handle) and not isCharDead(handle) then
-                local pedX, pedY, pedZ = getCharCoordinates(handle)
-                local dist = getDistanceBetweenCoords3d(myX, myY, myZ, pedX, pedY, pedZ)
-                
-                if dist <= esp_distance.v then
-                    local screenX, screenY = convert3DCoordsToScreen(pedX, pedY, pedZ)
-                    local headX, headY = convert3DCoordsToScreen(pedX, pedY, pedZ + 1.0)
-                    
-                    if screenX and screenY then
-                        local color = 0xFFFFFFFF
-                        local nick = sampGetPlayerNickname(i)
-                        
-                        if esp_box.v then
-                            local h = math.abs(screenY - headY)
-                            local w = h / 2
-                            renderDrawBox(screenX - w/2, headY, w, h, 2, color)
-                        end
-                        
-                        if esp_line.v then
-                            local resX, resY = getScreenResolution()
-                            renderDrawLine(resX/2, resY, screenX, screenY, 1, color)
-                        end
-                        
-                        if esp_tracers.v then
-                            local resX, resY = getScreenResolution()
-                            renderDrawLine(resX/2, resY/2, screenX, screenY, 1, color)
-                        end
-                        
-                        -- Bones ESP (simplified)
-                        if esp_bones.v then
-                            -- Draw basic skeleton
-                            local bones = {
-                                {1, 2}, {2, 3}, {3, 4}, -- Spine
-                                {2, 5}, {5, 6}, {6, 7}, -- Left arm
-                                {2, 8}, {8, 9}, {9, 10}, -- Right arm
-                                {1, 11}, {11, 12}, {12, 13}, -- Left leg
-                                {1, 14}, {14, 15}, {15, 16} -- Right leg
-                            }
-                            for _, bone in ipairs(bones) do
-                                local b1X, b1Y, b1Z = GetBodyPartCoordinates(bone[1], handle)
-                                local b2X, b2Y, b2Z = GetBodyPartCoordinates(bone[2], handle)
-                                local s1X, s1Y = convert3DCoordsToScreen(b1X, b1Y, b1Z)
-                                local s2X, s2Y = convert3DCoordsToScreen(b2X, b2Y, b2Z)
-                                if s1X and s1Y and s2X and s2Y then
-                                    renderDrawLine(s1X, s1Y, s2X, s2Y, 1, color)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
 
--- Добавить рендер ESP в OnDrawFrame
 local originalOnDrawFrame = imgui.OnDrawFrame
 imgui.OnDrawFrame = function()
     originalOnDrawFrame()
-    if mcheat.v then
-        renderESP()
-    end
     -- Admin HUD (рисуется каждый кадр, пока включён)
     if show_admin_hud.v and admin_detection.v then
         renderAdminHUD()
