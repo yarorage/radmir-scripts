@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.4.1")
+script_version("0.4.2")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -16,6 +16,21 @@ local vector 		= require 'vector3d'
 local memory 		= require 'memory'
 local imgui 		= require('imgui')
 local fsc = 1
+-- DPI-масштаб Windows (4K, 150-200% и т.п.): UI подгоняется под него автоматически.
+-- Базовый множитель — высота рендера / 1080. Если игра не покрывает весь экран
+-- нативно (окно/неполноэкранный режим), дополнительно применяется DPI.
+local dpiUi = 1.0
+do
+    local ok, dpi = pcall(function()
+        ffi.cdef[[
+            int GetDpiForSystem(void);
+            int GetSystemMetrics(int nIndex);
+        ]]
+        return ffi.C.GetDpiForSystem()
+    end)
+    if ok and type(dpi) == "number" and dpi > 0 then dpiUi = dpi / 96 end
+    if dpiUi < 1 then dpiUi = 1 end
+end
 local encoding      = require("encoding")
 encoding.default = 'CP1251'
 local u8 = encoding.UTF8
@@ -1637,7 +1652,20 @@ menuTab.v = mainIni.CheatByYaroRage.menuTab or 1
 
 function imgui.OnDrawFrame()
 	resX, resY = getScreenResolution()
-	fsc = resY / 1080
+	-- Авто-учёт DPI Windows: на больших мониторах (4K при 150-200%) GUI растягивается
+	-- по высоте экрана, а при смене масштаба Windows (100/125/150/200%) пересчитывается.
+	local baseScale = resY / 1080
+	local dpiFactor = 1
+	do
+		-- SM_CYSCREEN = 1: логическая высота экрана (без DPI). Если она заметно больше
+		-- высоты рендера — игра работает в окне/не на весь экран, добавляем DPI-множитель.
+		local ok, sysH = pcall(function() return ffi.C.GetSystemMetrics(1) end)
+		if ok and type(sysH) == "number" and sysH > 0 then
+			local physH = sysH * dpiUi
+			if physH > resY * 1.05 then dpiFactor = dpiUi end
+		end
+	end
+	fsc = baseScale * dpiFactor
 	imgui.GetIO().FontGlobalScale = fsc
 	
 	local winW, winH = 680 * fsc, 560 * fsc
@@ -1725,7 +1753,7 @@ function imgui.OnDrawFrame()
 	
 	if window.v then
         local resX, resY = getScreenResolution()
-        local fsc = resY / 1080
+        local fsc = imgui.GetIO().FontGlobalScale
         local sizeX, sizeY = 300 * fsc, 150 * fsc
         imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - sizeX / 2, resY / 2 - sizeY / 2), imgui.Cond.Always)
         imgui.SetNextWindowSize(imgui.ImVec2(sizeX, sizeY), imgui.Cond.Always)
