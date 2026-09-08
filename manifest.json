@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.0",
-    "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-08 19:54",
+    "launcherVersion":  "1.1.1",
+    "updatedAt":  "2026-09-08 20:11",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -119,9 +119,9 @@
                       "dest":  "base"
                   },
                   {
-                      "path":  "moonloader/AutoLoginByYaroRage_v2.14.lua",
-                      "sha256":  "cc3345c7563c6fafe187211d7a9a82f922153a0b6575e5e6ec40593b561bbe29",
-                      "size":  40180,
+                      "path":  "moonloader/AutoLoginByYaroRage_v2.14.0.lua",
+                      "sha256":  "8b093c6b6386d514b5a63549c79c1cfd8331544b88bc52cb822af1794abcbcf2",
+                      "size":  40184,
                       "dest":  "gameRoot"
                   },
                   {
@@ -131,9 +131,9 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/CefPacketAnalyzer_v1.15.lua",
-                      "sha256":  "3ca13230adc59fd0df1c4ec6428cf0203a17c17635f2daa60cfb7e953e65ccf5",
-                      "size":  7760,
+                      "path":  "moonloader/CefPacketAnalyzer_v1.15.0.lua",
+                      "sha256":  "4261dc5231f2cf350020585bc51a5ba21747e1e84f80c2acbee2b88694fd884d",
+                      "size":  7766,
                       "dest":  "gameRoot"
                   },
                   {
@@ -210,8 +210,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/ui.lua",
-                      "sha256":  "72e3faba23befb14200f885342d503c3482214bfb2e21ceeaf772b8b873a1ab8",
-                      "size":  28502,
+                      "sha256":  "c04395ff1c9bdd60bf7e0c8f437f4ac616edc236759c5c1fa71d6c60f10b1760",
+                      "size":  28504,
                       "dest":  "gameRoot"
                   },
                   {
