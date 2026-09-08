@@ -386,7 +386,7 @@ end
 -- НАСТРОЙКИ.
 
 local mcheat = imgui.ImBool(false)
-local autorem = false -- AutoRem
+-- Автопояс: управляется галкой Autorem во вкладке Машины (см. tfirst)
 
 -- ФУНКЦИИ.
 
@@ -760,12 +760,13 @@ local function mainInit()
     time = ffi.new('SYSTEMTIME')
 
 	sampRegisterChatCommand('autorem', function()
-		autorem = not autorem
-		if autorem then
+		tfirst.v = not tfirst.v
+		if tfirst.v then
 			ywelcome("CheatByYaroRage", 'Autorem - ВКЛ.')
 		else
 			ywelcome("CheatByYaroRage", 'Autorem - ВЫКЛ.')
 		end
+		save()
 	end)
 
 	sampRegisterChatCommand("wolic", function()
@@ -820,42 +821,7 @@ local function mainInit()
 		end
 	end)
 
-	sampRegisterChatCommand('fix', function(arg)
-		if isCharInAnyCar(PLAYER_PED) then
-			fX,fY,fZ = getCharCoordinates(PLAYER_PED)
-			veh = storeCarCharIsInNoSave(PLAYER_PED)
-			setCarCoordinates(veh, fX, fY, fZ)
-			vehhp = arg and arg:match("(%d+)")
-			lua_thread.create(function()
-				if vehhp ~= nil then
-					setCarHealth(veh, vehhp)
-					setVirtualKeyDown(VK_RETURN, true)
-					wait(20)
-					setVirtualKeyDown(VK_RETURN, false)
-				else
-					setCarHealth(veh, 1000)
-					setVirtualKeyDown(VK_RETURN, true)
-					wait(20)
-					setVirtualKeyDown(VK_RETURN, false)
-				end
-			end)
-		end
-	end)
-
-	sampRegisterChatCommand('breakecar', function()
-		if isCharInAnyCar(PLAYER_PED) then
-			fX,fY,fZ = getCharCoordinates(PLAYER_PED)
-			veh = storeCarCharIsInNoSave(PLAYER_PED)
-			setCarCoordinates(veh, fX, fY, fZ)
-			lua_thread.create(function()
-				setCarHealth(veh, 100)
-				setVirtualKeyDown(VK_RETURN, true)
-				wait(20)
-				setVirtualKeyDown(VK_RETURN, false)
-			end)
-		end
-	end)
-
+-- Команды /fix и /breakecar передаются на сервер как есть (серверные).
 	lua_thread.create(function() 
         while true do
             wait(0)
@@ -1657,9 +1623,10 @@ function sampSetPlayerSkin(playerId, skinId)
 end
 
 function ev.onSendEnterVehicle(vehId, pass)
-	if autorem then
+	if tfirst.v then
 		lua_thread.create(function()
-			wait(5000)
+			-- Случайная задержка 0.5-3 с: чтобы у нескольких читеров ремень не надевался одновременно
+			wait(math.random(500, 3000))
 			result, handle = sampGetCarHandleBySampVehicleId(vehId)
 			if result then
 				sampProcessChatInput('/rem')
@@ -1875,6 +1842,14 @@ function drawVehicleTab()
 				imgui.TextDisabled(u8'Ускорение машины на Alt')
 				if imgui.SliderInt(u8'Смут##speed', SpeedSmooth, 1, 100) then save() end
 				
+				imgui.Separator()
+				sbox(u8'Autorem', tfirst)
+				imgui.TextDisabled(u8'Авто /rem при входе в машину (случайная задержка 0.5-3 с)')
+				
+				if imgui.Button(u8'FIX Машину', imgui.ImVec2(95 * fsc, 35 * fsc)) then sampProcessChatInput('/fix') end
+				imgui.SameLine()
+				if imgui.Button(u8'BREAK Машину', imgui.ImVec2(95 * fsc, 35 * fsc)) then sampProcessChatInput('/breakecar') end
+				
 				imgui.EndChild()
 			end
 end
@@ -1938,13 +1913,6 @@ function drawBizTab()
 				
 				sbox(u8'AutoCapture Biz', capturebiz)
 				imgui.TextDisabled(u8'Автозахват биза по таймеру')
-				sbox(u8'Autorem', tfirst)
-				imgui.TextDisabled(u8'Авто /rem при входе в машину')
-				
-				if imgui.Button(u8'FIX Машину', imgui.ImVec2(70 * fsc, 35 * fsc)) then sampProcessChatInput('/fix') end
-				imgui.SameLine()
-				if imgui.Button(u8'BREAK Машину', imgui.ImVec2(70 * fsc, 35 * fsc)) then sampProcessChatInput('/breakecar') end
-				imgui.SameLine()
 				if imgui.Button(u8'Fake Chat', imgui.ImVec2(70 * fsc, 35 * fsc)) then sampProcessChatInput('/fake'); mcheat.v = false end
 				
 				imgui.EndChild()

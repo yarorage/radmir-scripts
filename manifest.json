@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.0",
     "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-09 01:45",
+    "updatedAt":  "2026-09-09 02:41",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -119,15 +119,15 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/CefPacketAnalyzer_v1.15.1.lua",
-                      "sha256":  "f150423bb4a8627eb0ba8b9428553b58dfc77367ad341ec7c25d4d18a754bacb",
+                      "path":  "moonloader/CefPacketAnalyzer_v1.15.2.lua",
+                      "sha256":  "1c2e89b1a1193e77879ed6cae94822b119fd2d2ffa2a4c35795f00d29a9dc157",
                       "size":  9340,
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/CheatByYaroRage_v0.4.8.lua",
-                      "sha256":  "0ed81692d19c31657791b42bd45a8a959e4c813d403ee2d8af4da6e86315b257",
-                      "size":  101700,
+                      "path":  "moonloader/CheatByYaroRage_v0.4.9.lua",
+                      "sha256":  "79040077f0cd4f5dfc80a09c7c8da1df3f88f6dae0e0dd2a3b89f7dea409ec2a",
+                      "size":  100993,
                       "dest":  "gameRoot"
                   },
                   {
@@ -228,8 +228,8 @@
                   },
                   {
                       "path":  "moonloader/CefPacketAnalyzer/capture.lua",
-                      "sha256":  "0767b0e68195d7f077eebd65df8ee674f9776d23c3f3152336d1c86587b00c48",
-                      "size":  15804,
+                      "sha256":  "4b4489934fa1a26a368537f4d43007c215cbdcdf3c602aed8851413485e42434",
+                      "size":  17989,
                       "dest":  "gameRoot"
                   },
                   {
@@ -258,8 +258,8 @@
                   },
                   {
                       "path":  "moonloader/CefPacketAnalyzer/state.lua",
-                      "sha256":  "d3d3c3d26b4ec397146f9a4228230ff99778a9d351808607590facecec505467",
-                      "size":  4862,
+                      "sha256":  "828e7e5126301d238a5d9c3d2d99143fbb6396714b0fe8bd4690286dd2708fee",
+                      "size":  6918,
                       "dest":  "gameRoot"
                   },
                   {
