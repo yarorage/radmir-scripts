@@ -2037,7 +2037,7 @@ if imgui.Checkbox(u8'Вкл. детекцию админов', admin_detection) then
 				
 				if #admin_list > 0 then
 					for _, data in pairs(admin_list) do
-						imgui.Text(string.format(u8"  %s | %s | %s", data.reason or "-", data.nick, data.date or "-"))
+						imgui.Text(string.format(u8"  %s | %s | %s", u8(data.reason or "-"), u8(data.nick), u8(data.date or "-")))
 					end
 				else
 					imgui.TextColored(imgui.ImVec4(0.5, 0.5, 0.5, 1), u8"  Админы не найдены")
@@ -2047,7 +2047,7 @@ if imgui.Checkbox(u8'Вкл. детекцию админов', admin_detection) then
 					imgui.Separator()
 					imgui.TextColored(imgui.ImVec4(1, 0.7, 0.5, 1), u8"Выявленные по сообщениям сервера (не найденные среди игроков):")
 					for nick, det in pairs(chat_detected_list) do
-						imgui.Text(string.format(u8"  %s | %s | %s", det.reason or "-", nick, det.date or "-"))
+						imgui.Text(string.format(u8"  %s | %s | %s", u8(det.reason or "-"), u8(nick), u8(det.date or "-")))
 					end
 				end
 
@@ -2058,13 +2058,13 @@ if imgui.Checkbox(u8'Вкл. детекцию админов', admin_detection) then
 				imgui.BeginChild("##AdminOnlineChild", imgui.ImVec2(0, 200 * fsc), true)
 				for _, a in ipairs(known_admins) do
 					if known_online[a.nick] then
-						imgui.TextColored(imgui.ImVec4(0.4, 1, 0.4, 1), string.format("[Он] %s | %s", a.nick, a.post or "-"))
+						imgui.TextColored(imgui.ImVec4(0.4, 1, 0.4, 1), string.format(u8"[Он] %s | %s", u8(a.nick), u8(a.post or "-")))
 					end
 				end
 				imgui.TextDisabled(u8"-- оффлайн --")
 				for _, a in ipairs(known_admins) do
 					if not known_online[a.nick] then
-						imgui.TextDisabled(string.format(u8"  %s | %s", a.nick, a.post or "-"))
+						imgui.TextDisabled(string.format(u8"  %s | %s", u8(a.nick), u8(a.post or "-")))
 					end
 				end
 				imgui.EndChild()
@@ -2093,7 +2093,7 @@ if imgui.Checkbox(u8'Вкл. детекцию админов', admin_detection) then
 				
 				if #spectator_list > 0 then
 					for _, data in ipairs(spectator_list) do
-						imgui.Text(string.format(u8"  %s [%d] | %dm | %s", data.nick, data.id, data.dist, data.time))
+						imgui.Text(string.format(u8"  %s [%d] | %dm | %s", u8(data.nick), data.id, data.dist, data.time))
 					end
 				else
 					imgui.TextColored(imgui.ImVec4(0.5, 0.5, 0.5, 1), u8"  Никто не следит")
