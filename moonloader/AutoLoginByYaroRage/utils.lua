@@ -13,7 +13,16 @@ local GAME_WINDOW_CLASS = "Grand theft auto San Andreas"
 function M.get_ui_scale()
     local sw, sh = getScreenResolution()
     local s = math.min(sw / 1920.0, sh / 1080.0)
-    if s < 0.6 then s = 0.6 elseif s > 3.0 then s = 3.0 end
+    -- DPI: в окне на HiDPI экране разрешение рендера меньше физического, домножаем
+    local dpiScale = 1.0
+    local ok, dpi = pcall(function() return user32.GetDpiForSystem() end)
+    if ok and type(dpi) == "number" and dpi > 0 then dpiScale = dpi / 96 end
+    local ok2, sysH = pcall(function() return user32.GetSystemMetrics(1) end)
+    if ok2 and type(sysH) == "number" and sysH > 0 and sysH * dpiScale > sh * 1.05 then
+        s = s * dpiScale
+    end
+    -- Диапазон 100%..350% (0.5..3.5) с шагом 25%
+    if s < 0.5 then s = 0.5 elseif s > 3.5 then s = 3.5 end
     return s
 end
 

@@ -29,7 +29,8 @@ do
         return ffi.C.GetDpiForSystem()
     end)
     if ok and type(dpi) == "number" and dpi > 0 then dpiUi = dpi / 96 end
-    if dpiUi < 1 then dpiUi = 1 end
+    -- Диапазон 100%..350% (0.5..3.5) с шагом 25%
+    if dpiUi < 0.5 then dpiUi = 0.5 elseif dpiUi > 3.5 then dpiUi = 3.5 end
 end
 local encoding      = require("encoding")
 encoding.default = 'CP1251'
