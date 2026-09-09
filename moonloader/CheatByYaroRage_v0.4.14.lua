@@ -6,6 +6,49 @@ script_version("0.4.2")
 require 'moonloader'
 require "lib.sampfuncs"
 
+-- Защита от краша SAMPFUNCS+0x861E8: пул игроков ещё пуст до подключения к серверу.
+-- Обёртки возвращают безопасные значения, пока SAMP не готов.
+local _sampSafe_origGetPid = sampGetPlayerIdByCharHandle or function() return false, -1 end
+local _sampSafe_origNick   = sampGetPlayerNickname or function() return nil end
+local _sampSafe_origColor  = sampGetPlayerColor or function() return 0 end
+local _sampSafe_origScore  = sampGetPlayerScore or function() return 0 end
+local _sampSafe_origAnim   = sampGetPlayerAnimationId or function() return 0 end
+local _sampSafe_origIsConn = sampIsPlayerConnected or function() return false end
+local _sampSafe_origSampChar = sampGetCharHandleBySampPlayerId or function() return 0 end
+local _sampSafe_origSampCar  = sampGetCarHandleBySampVehicleId or function() return 0 end
+local function sampGetPlayerIdByCharHandle(ped)
+    if not isSampAvailable() then return false, -1 end
+    return _sampSafe_origGetPid(ped)
+end
+local function sampGetPlayerNickname(id)
+    if not isSampAvailable() then return nil end
+    return _sampSafe_origNick(id)
+end
+local function sampGetPlayerColor(id)
+    if not isSampAvailable() then return 0 end
+    return _sampSafe_origColor(id)
+end
+local function sampGetPlayerScore(id)
+    if not isSampAvailable() then return 0 end
+    return _sampSafe_origScore(id)
+end
+local function sampGetPlayerAnimationId(id)
+    if not isSampAvailable() then return 0 end
+    return _sampSafe_origAnim(id)
+end
+local function sampIsPlayerConnected(id)
+    if not isSampAvailable() then return false end
+    return _sampSafe_origIsConn(id)
+end
+local function sampGetCharHandleBySampPlayerId(id)
+    if not isSampAvailable() then return 0 end
+    return _sampSafe_origSampChar(id)
+end
+local function sampGetCarHandleBySampVehicleId(id)
+    if not isSampAvailable() then return 0 end
+    return _sampSafe_origSampCar(id)
+end
+
 local ywelcome         = require "ywelcome"
 local fa 			= require 'fAwesome5'
 local vKeys         = require('vKeys')

@@ -1,6 +1,19 @@
 require "lib.moonloader"
 require "lib.sampfuncs"
 
+-- Защита от краша SAMPFUNCS+0x861E8: пул игроков ещё пуст до подключения к серверу.
+-- Обёртки возвращают безопасные значения, пока SAMP не готов.
+local _sampSafe_origGetId  = sampGetPlayerIdByCharHandle or function() return false, -1 end
+local _sampSafe_origNick   = sampGetPlayerNickname or function() return nil end
+local function sampGetPlayerIdByCharHandle(ped)
+    if not isSampAvailable() then return false, -1 end
+    return _sampSafe_origGetId(ped)
+end
+local function sampGetPlayerNickname(id)
+    if not isSampAvailable() then return nil end
+    return _sampSafe_origNick(id)
+end
+
 -- Include
 local sampEvents = require 'lib.samp.events'
 local imgui = require 'imgui'
