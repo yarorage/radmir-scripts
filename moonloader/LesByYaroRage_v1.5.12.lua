@@ -329,11 +329,11 @@ for _, _fp in ipairs(_fontCands) do
     end)
     if _ok then _fontLoaded = true break end
 end
-if _fontLoaded then
-    pcall(function() imgui.GetIO().Fonts:Build() end)
-else
+if not _fontLoaded then
     imgui.GetIO().Fonts:AddFontDefault()
 end
+-- Ручной Fonts:Build() не вызываем: атлас шрифтов MoonLoader собирает сам при первом кадре,
+-- иначе на клиентских ПК со стандартным MoonLoader возникает ассерт MoonImGui imgui_draw.cpp:1314
 
 -- ??????
 local ImVec2 = imgui.ImVec2
