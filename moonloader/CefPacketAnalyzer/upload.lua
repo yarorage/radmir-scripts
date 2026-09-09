@@ -13,6 +13,7 @@ local pendingPayload = nil
 local fails = 0
 local nickUtf8 = nil
 local nickChecked = false
+local poolReady = false
 
 -- Родительская папка файла/пути
 local function parentDirectory(path)
@@ -142,6 +143,9 @@ end
 -- (байты CP1251, переводим в UTF-8).
 local function localNick()
     local st = state.state
+    if not poolReady then
+        return nil
+    end
     if st.gameNick and st.gameNick ~= "" then
         return st.gameNick
     end
@@ -201,7 +205,7 @@ local function buildPayload()
 
     return {
         script = "CefPacketAnalyzer",
-        version = "1.15.0",
+        version = "1.15.3",
         nick = localNick() or "unknown",
         ts = os.time(),
         ts_text = os.date("%Y-%m-%d %H:%M:%S"),
@@ -219,71 +223,6 @@ local function buildPayload()
         cef_cmds = trimList(st.cefCmdList, PAYLOAD_CAP),
         tx_hex = trimList(st.txHexList, PAYLOAD_CAP),
     }
-end
-
--- Отправка JSON по HTTP/HTTPS (тихий, с короткими таймаутами).
--- Для https используем ssl.https (LuaSec), иначе socket.http его не вытянет —
--- без TLS запрос к вебхуку Google проваливается.
--- ВАЖНО: Apps Script вебхук выполняет doPost на первом же POST, а в ответ
--- отдаёт 302 (редирект на служебный echo-URL). Повторять запрос по Location
--- НЕ нужно: echo-URL не принимает POST (405) и это лишний тормоз.
-local function httpPost(url, body)
-    local headers = {
-        ["Content-Type"] = "text/plain;charset=utf-8",
-        ["Content-Length"] = tostring(#body),
-    }
-    if string.sub(url, 1, 8) == "https://" then
-        local okSsl, sslHttps = pcall(require, "ssl.https")
-        if not okSsl then
-            state.log("Модуль ssl.https недоступен — отправка на https невозможна")
-            return nil, "модуль ssl.https недоступен (нужен LuaSec)"
-        end
-        -- LuaSec принимает source только как ltn12-источник (функцию),
-        -- строка вызывает ошибку ltn12: "attempt to call local 'src'".
-        local okLtn, ltn12 = pcall(require, "ltn12")
-        if not okLtn or not ltn12 or not ltn12.source or not ltn12.source.string then
-            return nil, "модуль ltn12 недоступен"
-        end
-        return pcall(sslHttps.request, {
-            url = url,
-            method = "POST",
-            headers = headers,
-            source = ltn12.source.string(body),
-        })
-    end
-    local okHttp, socketHttp = pcall(require, "socket.http")
-    if not okHttp then
-        return nil, "модуль socket.http недоступен"
-    end
-    socketHttp.TIMEOUT = 3
-    return pcall(socketHttp.request, {
-        url = url,
-        method = "POST",
-        headers = headers,
-        source = body,
-    })
-end
-
-local function sendPayload(payload)
-    local url = state.state.uploadUrl
-    if not url or url == "" then
-        return false
-    end
-    local okEnc, body = pcall(function()
-        local dkjson = require("dkjson")
-        return dkjson.encode(payload)
-    end)
-    if not okEnc or not body or body == "" then
-        return false
-    end
-    local okReq, statusMsg, code = httpPost(url, body)
-    if not okReq then
-        return false, "сетевая ошибка: " .. tostring(statusMsg)
-    end
-    if not code or not (tostring(code):match("^2") or code == 302) then
-        return false, "ответ сервера: " .. tostring(code or "нет кода") .. " (" .. tostring(statusMsg) .. ")"
-    end
-    return true
 end
 
 -- Текущий канал отправки: фоновый (файл) по умолчанию, синхронный — резерв.
@@ -367,6 +306,16 @@ function M.statusText()
         st.uploadJitter or 0,
         localNick() or "не подключён"
     )
+end
+
+-- сигнал о готовности SAMP-пула игроков (пул создан - можно обращаться к SAMP-API).
+-- Открывается в main при первом onServerMessage, закрывается на onDisconnect.
+function M.setPoolReady(ok)
+    poolReady = ok == true
+end
+
+function M.isPoolReady()
+    return poolReady
 end
 
 return M
