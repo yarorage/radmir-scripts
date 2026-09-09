@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.0",
     "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-09 19:25",
+    "updatedAt":  "2026-09-09 19:37",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -288,8 +288,8 @@
                   },
                   {
                       "path":  "moonloader/LesByYaroRage/LesCarNames.txt",
-                      "sha256":  "69a64d201fe591181bf55b94c55c7cb62267f2c7bb4d570ba6672df581683e1d",
-                      "size":  13276,
+                      "sha256":  "faeafa9fa93940f1d273f89f5b9c01718a6e856872373f16bfc724e2fae25340",
+                      "size":  13292,
                       "dest":  "gameRoot"
                   },
                   {

@@ -612,3 +612,4 @@
 17449=Lamborghini Fenomeno
 17450=Volkswagen Multivan
 17451=Volkswagen Multivan Bunker
+17462=ÂÀÇ 21099
