@@ -51,7 +51,7 @@ end
 
 -- Масштаб интерфейса под разрешение экрана (учитывает 4K и жёсткие смещения)
 local _espScale = 1.0
-local _espFontSizeApplied = 0  -- применённый размер шрифта ESP
+local _espFontSizeApplied = 7  -- применённый размер шрифта ESP
 
 -- Возвращает точку, масштабированную под текущее разрешение экрана
 local function uiScaled(v)
