@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.0",
     "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-09 19:37",
+    "updatedAt":  "2026-09-09 20:04",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -48,8 +48,8 @@
                   },
                   {
                       "path":  "MoonRageCrashInfo.asi",
-                      "sha256":  "27c3a1ee988e7436a6d8cdba51ad9d7b122cfd284b647c8b52bc1e463e704d73",
-                      "size":  47104,
+                      "sha256":  "89d0d77bbb8db24fea34ad5c51cd3ae8e110dde4cee8a4e23346a1a9468d061e",
+                      "size":  48128,
                       "dest":  "gameRoot"
                   },
                   {
