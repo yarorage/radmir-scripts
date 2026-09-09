@@ -51,6 +51,7 @@ end
 
 -- Масштаб интерфейса под разрешение экрана (учитывает 4K и жёсткие смещения)
 local _espScale = 1.0
+local _espFontSizeApplied = 0  -- применённый размер шрифта ESP
 
 -- Возвращает точку, масштабированную под текущее разрешение экрана
 local function uiScaled(v)
@@ -62,9 +63,11 @@ local function ensureEspScale()
     local _sw, _sh = getScreenResolution()
     _sh = _sh or 1080
     local _s = (_sh / 1080.0) * uiDpiFactor()
-    if math.abs(_s - _espScale) > 0.01 then
+    local _fs = math.floor(Les.EspFontSize.v * _s + 0.5)
+    if math.abs(_s - _espScale) > 0.01 or _fs ~= _espFontSizeApplied then
         _espScale = _s
-        font_whGreen = renderCreateFont('Arial', math.floor(7 * _s + 0.5), 13)
+        _espFontSizeApplied = _fs
+        font_whGreen = renderCreateFont('Arial', _fs, 13)
         font_dbg = renderCreateFont('Arial', math.floor(7 * _s + 0.5), 13)
     end
 end
@@ -237,6 +240,7 @@ local function applyConfig(cfg)
     Les.NoRecoil.v = cfg.NoRecoil or false
     Les.NoSpread.v = cfg.NoSpread or false
     Les.EspPickups.v = cfg.EspPickups or false
+    Les.EspFontSize.v = cfg.EspFontSize or 7
     Les.Aim.v = cfg.Aim or false
     Les.AimPlayers.v = cfg.AimPlayers or false
     Les.Aim_Smoothing.v = cfg.Aim_Smoothing or 5.0
@@ -287,6 +291,7 @@ local function gatherConfig()
         NoRecoil = Les.NoRecoil.v,
         NoSpread = Les.NoSpread.v,
         EspPickups = Les.EspPickups.v,
+        EspFontSize = Les.EspFontSize.v,
         Aim = Les.Aim.v,
         AimPlayers = Les.AimPlayers.v,
         Aim_Smoothing = Les.Aim_Smoothing.v,
@@ -468,7 +473,8 @@ Les = {
     PlayerShowAP = imgui.ImBool(true),     -- броня в ESP игроков
     PlayerShowWeapon = imgui.ImBool(true), -- оружие в ESP игроков
     PlayerShowDistance = imgui.ImBool(true), -- дистанция в ESP игроков
-    EspPickups = imgui.ImBool(false),  -- ESP пикапов/предметов
+    EspPickups = imgui.ImBool(false),
+    EspFontSize = imgui.ImInt(7),         -- размер шрифта надписей ESP/WH,  -- ESP пикапов/предметов
     -- Аим
     Aim = imgui.ImBool(false),         -- Аим на животных
     AimPlayers = imgui.ImBool(false),  -- Аим на игроков
@@ -1344,6 +1350,8 @@ function imgui.OnDrawFrame()
                     if imgui.IsItemHovered() then imgui.SetTooltip(u8"Сканер ID моделей окружения, лог в les_dbg.txt (F6/F7 ID, F8 скан)") end
 
                     imgui.Separator()
+                    if imgui.SliderInt(u8"Размер шрифта ESP/WH", Les.EspFontSize, 4, 24) then end
+                    if imgui.IsItemHovered() then imgui.SetTooltip(u8"Размер шрифта надписей ESP (животные, игроки, машины, пикапы)") end
                     imgui.TextColored(imgui.ImVec4(0.55, 0.55, 0.55, 1.0), u8"/les - меню, /lesr - перезагрузка")
                 end
 
