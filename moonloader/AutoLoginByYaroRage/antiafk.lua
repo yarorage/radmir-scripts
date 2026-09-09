@@ -134,54 +134,6 @@ function M.mafk_hotkey_thread()
     end
 end
 
-function M.on_send_packet(id, bs)
-    local s = AL.state
-    if not s.anti_ticket_enabled then return end
-    -- Only block OnPlayerDeviceLost/EnterArea/LeaveArea if explicitly enabled (off by default)
-    if s.block_device_area_packets then
-        local text = M.bitStreamStructure(bs)
-        if text:find("OnPlayerDeviceLost") then
-            return false
-        end
-        if (text:find('OnPlayerEnterArea') or text:find('OnPlayerLeaveArea')) and isCharInAnyCar(PLAYER_PED) then
-            return false
-        end
-    end
-end
-
-function M.on_receive_packet(id, bs)
-    local s = AL.state
-    if not s.anti_ticket_enabled then return end
-    if id == 215 then
-        local _style = raknetBitStreamReadInt16(bs)
-        local _type = raknetBitStreamReadInt32(bs)
-        local l = raknetBitStreamReadInt8(bs)
-        local style3 = raknetBitStreamReadInt8(bs)
-        local length = raknetBitStreamReadInt32(bs)
-        if length > 0 and length < 777 then
-            local bitstreamtext = raknetBitStreamReadString(bs, length)
-            if bitstreamtext then
-                local text = M.bitStreamStructure(bs)
-                if bitstreamtext:match('Overlay') and (text == "[2000,2000,1.00,1]" or text == "[2500,2500,1.00,1]") then
-                    return false
-                end
-            end
-        end
-    end
-end
-
-function M.bitStreamStructure(bs)
-    local text = ''
-    for i = 1, raknetBitStreamGetNumberOfBytesUsed(bs) do
-        local byte = raknetBitStreamReadInt8(bs)
-        if byte >= 32 and byte <= 255 and byte ~= 37 then
-            text = text .. string.char(byte)
-        end
-    end
-    raknetBitStreamResetReadPointer(bs)
-    return text
-end
-
 function M.register_commands()
     sampRegisterChatCommand("mafk", function()
         local s = AL.state
@@ -208,11 +160,6 @@ function M.register_commands()
         end
     end)
 
-    sampRegisterChatCommand("fk", function()
-        local s = AL.state
-        s.anti_ticket_enabled = not s.anti_ticket_enabled
-        printStringNow(string.format("YARO RAGE ANTIAFK %s", s.anti_ticket_enabled and "~g~ON" or "~r~OFF"), 1000)
-    end)
 end
 
 return M

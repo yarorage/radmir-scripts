@@ -108,9 +108,6 @@ M.state = {
     admin_names = {},
     admin_color_pattern = nil,
 
-    -- Anti-Ticket (из antiafk [1.1])
-    anti_ticket_enabled = true,
-    block_device_area_packets = false,
 
     -- Fast Reconnect (из RecconnectByYaroRage)
     fast_reconnect_enabled = false,

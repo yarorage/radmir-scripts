@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.0",
     "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-09 17:06",
+    "updatedAt":  "2026-09-09 19:25",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -48,8 +48,8 @@
                   },
                   {
                       "path":  "MoonRageCrashInfo.asi",
-                      "sha256":  "b86fdc8c913badb9acdd5d1aef527626d87ed8167813c635856ccbd44761dbe9",
-                      "size":  33280,
+                      "sha256":  "27c3a1ee988e7436a6d8cdba51ad9d7b122cfd284b647c8b52bc1e463e704d73",
+                      "size":  47104,
                       "dest":  "gameRoot"
                   },
                   {
@@ -119,9 +119,9 @@
                       "dest":  "base"
                   },
                   {
-                      "path":  "moonloader/AutoLoginByYaroRage_v2.14.5.lua",
-                      "sha256":  "fdf5739bd53a35c44509d0e7594f2c169524f2bda62d3f8aed0da4e0fea466b0",
-                      "size":  44486,
+                      "path":  "moonloader/AutoLoginByYaroRage_v2.14.6.lua",
+                      "sha256":  "dc47a0cd7fb2aebf4f5955239c5f6a425456e86966368d1423d0df7251fa57db",
+                      "size":  44277,
                       "dest":  "gameRoot"
                   },
                   {
@@ -174,8 +174,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/antiafk.lua",
-                      "sha256":  "3c3a87d92b553ede37d4646b37ede41398245ac2b244eb4ea3e9dba82e54a388",
-                      "size":  7475,
+                      "sha256":  "fb408dce8d2709e7420ee2e8307694bc464d46150fa230f41ae6f0636c8db50f",
+                      "size":  5536,
                       "dest":  "gameRoot"
                   },
                   {
@@ -186,8 +186,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/config.lua",
-                      "sha256":  "9192552f1411716bf555a735aecae6b0b09fd3afbdb6b78bcf2c540a23f96ff6",
-                      "size":  8561,
+                      "sha256":  "f9c9fa8218b83f42f57467779d8746b7e25b27973edf46770dd5132191973f72",
+                      "size":  8431,
                       "dest":  "gameRoot"
                   },
                   {
@@ -204,8 +204,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/state.lua",
-                      "sha256":  "22daf1bc2ba3fe2345677c51a5110eb62d0d3839ae16bf65b4db021155d157a7",
-                      "size":  9958,
+                      "sha256":  "b78db8c852a005f80fd50d8b255d520deb0629996d284f977d3321f6f6afd37b",
+                      "size":  9849,
                       "dest":  "gameRoot"
                   },
                   {
@@ -216,8 +216,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/ui.lua",
-                      "sha256":  "07f77b9b58bd6313c2b5e0af0421fbdb75f2ba0eb78c295df6f867629c67370f",
-                      "size":  28754,
+                      "sha256":  "d4b05b93b421340d06c5eae61a3df4005ceaabb0ca26be4b0a91462dedfbdae7",
+                      "size":  28335,
                       "dest":  "gameRoot"
                   },
                   {

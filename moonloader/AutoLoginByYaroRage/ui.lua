@@ -613,12 +613,6 @@ function draw_antiafk_tab()
         AL.chat_msg("{FFCC00}[Anti-AFK] Статус: " .. (new_val and "{33FF33}ВКЛ" or "{FF3333}ВЫКЛ"))
     end
     
-    changed, new_val = imgui.Checkbox("Anti-Ticket", s.anti_ticket_enabled)
-    if changed then s.anti_ticket_enabled = new_val; config.save() end
-    
-    changed, new_val = imgui.Checkbox("Block Device/Area Packets", s.block_device_area_packets)
-    if changed then s.block_device_area_packets = new_val; config.save() end
-    
     imgui.Spacing()
     imgui.Text("Режим AFK:")
     imgui.SameLine()
@@ -770,8 +764,6 @@ function draw_misc_tab()
             s.tg_enabled = false
             s.admin_names = {}
             s.admin_color_pattern = ""
-            s.anti_ticket_enabled = true
-            s.block_device_area_packets = false
             s.fast_reconnect_enabled = true
             config.save()
             AL.chat_msg("{FF3333}Все настройки сброшены!")

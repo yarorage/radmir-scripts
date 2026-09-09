@@ -355,8 +355,6 @@ function onReceivePacket(id, bs)
         if s.is_reconnecting then return true end
     end
 
-    local antiafk_result = antiafk.on_receive_packet(id, bs)
-    if antiafk_result == false then return false end
 
     local len = raknetBitStreamGetNumberOfBytesUsed(bs)
     local pkt_log = string.format("[PKT] id=%d size=%d", id, len)
@@ -699,8 +697,6 @@ local function handle_cef_tx_packet(bs)
 end
 
 function onSendPacket(id, bs, priority, reliability, orderingChannel)
-    local result = antiafk.on_send_packet(id, bs)
-    if result == false then return false end
     if id == 215 then
         handle_cef_tx_packet(bs)
     end

@@ -14,8 +14,6 @@ local CONFIG_SCHEMA = {
     TelegramChatId = { type = "string", default = "", validate = function(v) return #v == 0 or v:match("^%-?%d+$") end },
     AdminNames = { type = "string", default = "" },
     AdminColorPattern = { type = "string", default = "" },
-    AntiTicketEnabled = { type = "boolean", default = true },
-    BlockDeviceAreaPackets = { type = "boolean", default = false },
     FastReconnectEnabled = { type = "boolean", default = true },
     PacketAuth = { type = "boolean", default = true },
     CefDialogCloseTx = { type = "boolean", default = true },
