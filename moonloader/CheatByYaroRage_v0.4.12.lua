@@ -1637,8 +1637,8 @@ end
 function ev.onSendEnterVehicle(vehId, pass)
 	if tfirst.v then
 		lua_thread.create(function()
-			-- Случайная задержка 0.5-3 с: чтобы у нескольких читеров ремень не надевался одновременно
-			wait(math.random(500, 3000))
+			-- Случайная задержка 5-10 с: чтобы у нескольких читеров ремень не надевался одновременно
+			wait(math.random(5000, 10000))
 			result, handle = sampGetCarHandleBySampVehicleId(vehId)
 			if result then
 				sampProcessChatInput('/rem')
