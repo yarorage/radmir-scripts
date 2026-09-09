@@ -927,6 +927,19 @@ local function extractCefFields(text, jsonData)
             end
         end
     end
+    -- Ник также может приходить JS-вызовом window.setPlayerNickName('<ник>') —
+    -- типичный входящий CEF-пакет RX 215 при входе в мир (пачка window.set*).
+    -- Раньше отсюда ник не доставался, из-за чего gameNick оставался пустым
+    -- и фоновая отправка агрегатов не стартовала.
+    if not out.nick and type(text) == "string" then
+        local _, jsNick = text:match(
+            "setPlayerNickName%s*%(%s*([\"'])(.-)%1%s*%)"
+        )
+        if jsNick and jsNick ~= "" then
+            out.nick = jsNick
+        end
+    end
+
     if out.nick then
         -- Разжимаем возможное URL-кодирование символов (проценты).
         out.nick = (out.nick:gsub("%%(%x%x)", function(h)
