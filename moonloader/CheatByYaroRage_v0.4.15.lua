@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.4.2")
+script_version("0.4.15")
 --==================================[ Õ¿—“–Œ… » ◊»“¿ ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
