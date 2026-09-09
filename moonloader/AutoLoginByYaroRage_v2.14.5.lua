@@ -181,6 +181,8 @@ end
 
 local function should_close_cef_anytime(text)
     local lower = text:lower()
+    -- Команды конфигурации интерфейса (updateConfiguration*) не являются диалогами
+    if lower:find("updateconfiguration") then return nil end
     for _, kw in ipairs(close_cef_anytime_keywords) do
         if lower:find(kw) then return kw end
     end
