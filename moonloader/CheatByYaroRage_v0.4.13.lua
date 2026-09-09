@@ -349,7 +349,7 @@ local silent = false
 -- Горячие клавиши для функций
 local hotkeys = {
     airbrake = {v = {vKeys.VK_RSHIFT}},
-    flipcar = {v = {vKeys.VK_OEM_3}},
+    flipcar = {v = {vKeys.VK_DELETE}},
     sbivx = {v = {vKeys.VK_B}},
     capturebiz = {v = {}},
     godcar = {v = {}},
@@ -956,14 +956,13 @@ local function mainLoop()
 		end
 
 		if flipcar.v and isCharInAnyCar(PLAYER_PED) then
-			local timerKey = 192 -- VK_OEM_3 (key with ~ and |, often Ъ on Russian keyboards)
+			-- Удержание Del 0.5 с переворачивает машину на колёса
+			local timerKey = 0x2E -- VK_DELETE (цифровая клавиша Del)
 			if isKeyDown(timerKey) then
 				n_press_time = n_press_time + 1
 				if n_press_time >= 50 then -- 0.5 seconds (50 * 10ms)
 					local veh = storeCarCharIsInNoSave(PLAYER_PED)
-					setVehicleForwardSpeed(veh, 0)
-					setCarProofs(veh, false, false, false, false, false)
-					setVehicleModel(veh, getVehicleModel(veh)) -- reset to original model to flip
+					flipCarToWheels(veh)
 					n_press_time = 0
 				end
 			else
@@ -2525,6 +2524,41 @@ function setVehicleRotationMatrix(car, rx, ry, rz, fx, fy, fz, ux, uy, uz)
 			writeFloatArray(mat, 10, uz)
 		end
 	end
+end
+
+function flipCarToWheels(car)
+	local ptr = getCarPointer(car)
+	if ptr == 0 then return end
+	local mat = readMemory(ptr + 0x14, 4, false)
+	if mat == 0 then return end
+	-- Текущая матрица: right()/fwd()/up(). Ставим машину колёсами вниз (up -> +Z),
+	-- сохраняя поворот вокруг вертикали (yaw). Используем текущие right/fwd/up.
+	local rx = readFloatArray(mat, 0)
+	local ry = readFloatArray(mat, 1)
+	local rz = readFloatArray(mat, 2)
+	local fx = readFloatArray(mat, 4)
+	local fy = readFloatArray(mat, 5)
+	local fz = readFloatArray(mat, 6)
+	-- Новый up строго вверх, right/fwd в горизонтальной плоскости из текущего fwd
+	local len = math.sqrt(fx*fx + fy*fy)
+	if len < 0.001 then
+		fx, fy = 1, 0  -- fallback: смотрим на север
+	else
+		fx, fy = fx / len, fy / len
+	end
+	local rxx, ryy = -fy, fx   -- right = fwd rotated 90deg (так, чтобы система была правой)
+	-- R = [ rx', ry', 0 ; fx', fy', 0 ; 0, 0, 1 ]
+	writeFloatArray(mat, 0, rxx)
+	writeFloatArray(mat, 1, ryy)
+	writeFloatArray(mat, 2, 0)
+	writeFloatArray(mat, 4, fx)
+	writeFloatArray(mat, 5, fy)
+	writeFloatArray(mat, 6, 0)
+	writeFloatArray(mat, 8, 0)
+	writeFloatArray(mat, 9, 0)
+	writeFloatArray(mat, 10, 1)
+	-- Обнуляем угловые и скорость, чтобы машина не дёргалась
+	setVehicleForwardSpeed(car, 0)
 end
 
 function displayVehicleName(x, y, gxt)
