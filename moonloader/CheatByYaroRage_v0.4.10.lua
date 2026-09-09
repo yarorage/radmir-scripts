@@ -203,9 +203,10 @@ local function isPlayerAdmin(id)
     if not sampIsPlayerConnected(id) then return false, nil, nil end
     local nick = sampGetPlayerNickname(id)
 
-    -- Точное совпадение с официальным списком действующих администраторов
+    -- Точное совпадение с официальным списком действующих администраторов (без учёта регистра)
+    local low_nick = nick:lower()
     for _, a in ipairs(known_admins) do
-        if nick == a.nick then
+        if low_nick == a.nick:lower() then
             return true, a.post, a.date
         end
     end
@@ -216,9 +217,11 @@ local function isPlayerAdmin(id)
         return true, "Ник с припиской Администратор", nil
     end
 
-    -- Админ, выявленный по системному сообщению сервера ("Администратор X ...")
-    if chat_admins[nick] then
-        return true, "Админ (по сообщению сервера)", nil
+    -- Админ, выявленный по системному сообщению сервера ("Администратор X ...") без учёта регистра
+    for chat_nick in pairs(chat_admins) do
+        if low == chat_nick:lower() then
+            return true, "Админ (по сообщению сервера)", nil
+        end
     end
 
     return false, nil, nil
