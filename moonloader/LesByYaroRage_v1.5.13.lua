@@ -315,25 +315,34 @@ local function game_has_focus()
 end
 
 
--- Шрифт (поддержка кириллицы)
+-- Шрифты: загрузка с проверкой существования файла.
+-- Без проверки AddFontFromFileTTF на отсутствующий файл даёт C-ассерт MoonImGui
+-- imgui_draw.cpp:1314 (IM_ASSERT(0) "Could not load file"); pcall его не ловит.
+-- Приоритет у системной папки шрифтов (CSIDL_FONTS = getFolderPath(0x14)) — как в рабочем Ohota.
+local function fontFileExists(_fp)
+    local _fh = io.open(_fp, 'rb')
+    if _fh then _fh:close() return true end
+    return false
+end
 imgui.GetIO().Fonts:Clear()
 local _fontCands = {
-    'C:\\Windows\\Fonts\\segoeui.ttf',   -- Segoe UI, есть везде
+    getFolderPath(0x14) .. '\\Arial.ttf',   -- системная папка шрифтов (есть у всех)
     'C:\\Windows\\Fonts\\arial.ttf',
-    getFolderPath(0x14) .. '\\Arial.ttf',
+    'C:\\Windows\\Fonts\\segoeui.ttf',   -- Segoe UI, может отсутствовать на урезанных сборках
 }
 local _fontLoaded = false
 for _, _fp in ipairs(_fontCands) do
-    local _ok = pcall(function()
-        imgui.GetIO().Fonts:AddFontFromFileTTF(_fp, 16, nil, imgui.GetIO().Fonts:GetGlyphRangesCyrillic())
-    end)
-    if _ok then _fontLoaded = true break end
+    if fontFileExists(_fp) then
+        local _ok = pcall(function()
+            imgui.GetIO().Fonts:AddFontFromFileTTF(_fp, 16, nil, imgui.GetIO().Fonts:GetGlyphRangesCyrillic())
+        end)
+        if _ok then _fontLoaded = true break end
+    end
 end
 if not _fontLoaded then
-    imgui.GetIO().Fonts:AddFontDefault()
+    imgui.GetIO().Fonts:AddFontDefault()   -- встроенный шрифт imgui, файл не нужен
 end
--- Ручной Fonts:Build() не вызываем: атлас шрифтов MoonLoader собирает сам при первом кадре,
--- иначе на клиентских ПК со стандартным MoonLoader возникает ассерт MoonImGui imgui_draw.cpp:1314
+-- Ручной Fonts:Build() не вызываем: атлас шрифтов MoonLoader собирает сам при первом кадре
 
 -- ??????
 local ImVec2 = imgui.ImVec2
