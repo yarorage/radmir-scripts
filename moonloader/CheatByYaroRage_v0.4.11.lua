@@ -1530,6 +1530,15 @@ function set_player_skin(id, skin)
 	raknetDeleteBitStream(BS)
 end
 
+-- Конвертация цвета игрока SAMP (0xRRGGBBAA) в ARGB (0xAARRGGBB) для отрисовки движком
+function sampColorToArgb(col)
+    local a = bit.band(col, 0xFF)
+    local r = bit.band(bit.rshift(col, 24), 0xFF)
+    local g = bit.band(bit.rshift(col, 16), 0xFF)
+    local b = bit.band(bit.rshift(col, 8), 0xFF)
+    return join_argb(a, r, g, b)
+end
+
 function join_argb(a, r, g, b)
     local argb = b
     argb = bit.bor(argb, bit.lshift(g, 8))
@@ -2825,7 +2834,7 @@ function renderAdminHUD()
         y = y + line_h
         for id, data in pairs(admin_list) do
             local txt = string.format("  %s | %s | %s", data.reason or "-", data.nick, data.date or "-")
-            renderFontDrawText(font, txt, x, y, data.color)
+            renderFontDrawText(font, txt, x, y, sampColorToArgb(data.color or 0xFFFFFFFF))
             y = y + line_h
         end
 else
