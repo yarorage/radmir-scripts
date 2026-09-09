@@ -110,8 +110,6 @@ function M.handle_auth_limit_cef()
     end
     lua_thread.create(function()
         AL.log("handle_auth_limit_cef: CEF-закрытие диалога-лимита")
-        pcall(utils.wait_for_focus)
-        wait(200)
         s.saw_menu_pause_after_esc = false
         if s.cef_dialog_close_tx then
             local ok1 = M.send_cef_tx_215("MenuInt_OnCloseInterface", { 0 })
@@ -128,6 +126,8 @@ function M.handle_auth_limit_cef()
             end
         else
             -- Старый путь через Esc (совместимость)
+            pcall(utils.wait_for_focus)
+            wait(200)
             AL.log("handle_auth_limit_cef: ESC #1")
             user32.keybd_event(0x1B, 0, 0, 0)
             wait(50)
