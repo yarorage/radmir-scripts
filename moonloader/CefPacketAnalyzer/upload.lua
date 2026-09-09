@@ -4,16 +4,12 @@
 -- пакетов. Пакет маленький, отправка редкая, чтобы не грузить игру и не
 -- упираться в лимиты Google. Ник идёт в UTF-8 (JSON).
 local state = require("CefPacketAnalyzer.state")
-local encUtils = require("CefPacketAnalyzer.enc_utils")
 
 local M = {}
 
 local nextUploadAt = 0
 local pendingPayload = nil
 local fails = 0
-local nickUtf8 = nil
-local nickChecked = false
-local poolReady = false
 
 -- Родительская папка файла/пути
 local function parentDirectory(path)
@@ -138,33 +134,18 @@ local function randomBetween(a, b)
     return a + math.random() * (b - a)
 end
 
--- Ник игрока в UTF-8. Приоритет — ник из CEF-пакета авторизации (точный,
--- берём из окна входа username=). Запасной вариант — системный ник из движка
--- (байты CP1251, переводим в UTF-8).
+-- Ник игрока в UTF-8. Берём из входящего CEF-пакета: username= в URL окна
+-- авторизации (login...) либо поле username/nick в JSON CEF-команды.
 local function localNick()
+    -- Ник берём ТОЛЬКО из входящего CEF-пакета (state.gameNick).
+    -- СРЕДСТВА SAMP-API ЗДЕСЬ НЕ ИСПОЛЬЗУЕМ: пул игроков на входе в сервер
+    -- может быть ещё не создан (риск AV), а в строках точный ник уже
+    -- передаётся в CEF-командах setPlayerNickName / username=.
     local st = state.state
-    if not poolReady then
-        return nil
-    end
     if st.gameNick and st.gameNick ~= "" then
         return st.gameNick
     end
-    if nickChecked then
-        return nickUtf8
-    end
-    nickChecked = true
-    local pid
-    if PLAYER_PED and sampGetPlayerIdByCharHandle then
-        local ok, res, resPid = pcall(sampGetPlayerIdByCharHandle, PLAYER_PED)
-        pid = resPid or res
-    end
-    if pid and sampGetPlayerNickname then
-        local ok2, nick = pcall(sampGetPlayerNickname, pid)
-        if ok2 and nick and #nick > 0 then
-            nickUtf8 = encUtils.bytesCpToUtf8(nick)
-        end
-    end
-    return nickUtf8
+    return nil
 end
 
 -- Собираем агрегаты из глобальных счётчиков сессии (полные: не зависят от
@@ -205,7 +186,7 @@ local function buildPayload()
 
     return {
         script = "CefPacketAnalyzer",
-        version = "1.15.3",
+        version = "1.15.4",
         nick = localNick() or "unknown",
         ts = os.time(),
         ts_text = os.date("%Y-%m-%d %H:%M:%S"),
@@ -306,16 +287,6 @@ function M.statusText()
         st.uploadJitter or 0,
         localNick() or "не подключён"
     )
-end
-
--- сигнал о готовности SAMP-пула игроков (пул создан - можно обращаться к SAMP-API).
--- Открывается в main при первом onServerMessage, закрывается на onDisconnect.
-function M.setPoolReady(ok)
-    poolReady = ok == true
-end
-
-function M.isPoolReady()
-    return poolReady
 end
 
 return M
