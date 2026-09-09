@@ -19,6 +19,51 @@ local function safe_bitstream(bytes, handler)
     return ok
 end
 
+function M.send_cef_tx_215(cmd, ints)
+    local cmd_bytes = { string.byte(cmd, 1, #cmd) }
+    local function le32(v)
+        v = v % 4294967296
+        return { v % 256, math.floor(v / 256) % 256, math.floor(v / 65536) % 256, math.floor(v / 16777216) % 256 }
+    end
+    local body = {}
+    local function push(x) body[#body + 1] = x end
+    -- Заголовок CEF TX: int32(2), два нуля, int32(длина имени), имя
+    local h = le32(2)
+    for i = 1, 4 do push(h[i]) end
+    push(0); push(0)
+    local ln = le32(#cmd)
+    for i = 1, 4 do push(ln[i]) end
+    for i = 1, #cmd_bytes do push(cmd_bytes[i]) end
+    -- Параметры: [int32(2)]['d'][int32(значение)]  как в дампе MenuInt_OnCloseInterface
+    if ints then
+        for i = 1, #ints do
+            local m = le32(2)
+            for j = 1, 4 do push(m[j]) end
+            push(100) -- 'd' = 0x64
+            local v = le32(ints[i])
+            for j = 1, 4 do push(v[j]) end
+        end
+    else
+        -- Маркер нуля аргументов (как у OnPlayerDeviceLost/THNT_OnInterfaceDisappear)
+        push(0); push(0); push(0); push(0)
+    end
+    local full = { 215 }
+    for i = 1, #body do full[#full + 1] = body[i] end
+    local ok_bs, bs = pcall(raknetNewBitStream)
+    if not ok_bs or not bs then return false end
+    local ok_w = pcall(function()
+        for i = 1, #full do raknetBitStreamWriteInt8(bs, full[i]) end
+    end)
+    if not ok_w then
+        raknetDeleteBitStream(bs)
+        return false
+    end
+    local ok_s, res_s = pcall(raknetSendBitStream, bs)
+    raknetDeleteBitStream(bs)
+    AL.log("TX-CEF " .. cmd .. " байт=" .. tostring(#full) .. " ok=" .. tostring(ok_s) .. " res=" .. tostring(res_s))
+    return ok_s
+end
+
 local start_reconnect_watch
 local post_loading_login_watch
 local emulate_loading_close_auth
@@ -55,37 +100,48 @@ end
 function M.handle_auth_limit_cef()
     local s = AL.state
     if not s.cef_limit_seen then
-        AL.log("handle_auth_limit_cef: пропуск (флаг лимита/античит/время не в сети)")
+        AL.log("handle_auth_limit_cef: пропуск (окна лимита/времени/античит нет в трекере)")
         return
     end
     if s.is_spawned then
         s.cef_limit_seen = false
-        AL.log("handle_auth_limit_cef: пропуск (мы уже в мире)")
+        AL.log("handle_auth_limit_cef: пропуск (уже в мире)")
         return
     end
     lua_thread.create(function()
-        AL.log("handle_auth_limit_cef: ждём 215 (лимит/античит/время) -> эмуляция закрытия")
+        AL.log("handle_auth_limit_cef: CEF-закрытие диалога-лимита")
         pcall(utils.wait_for_focus)
         wait(200)
         s.saw_menu_pause_after_esc = false
-        AL.log("handle_auth_limit_cef: ESC #1")
-        user32.keybd_event(0x1B, 0, 0, 0)
-        wait(50)
-        user32.keybd_event(0x1B, 0, 2, 0)
-        wait(400)
-        if s.saw_menu_pause_after_esc then
-            AL.log("handle_auth_limit_cef: OnPlayerOpenMenuPause пришёл -> ESC #2")
+        if s.cef_dialog_close_tx then
+            local ok1 = M.send_cef_tx_215("MenuInt_OnCloseInterface", { 0 })
+            AL.log("handle_auth_limit_cef: MenuInt_OnCloseInterface ok=" .. tostring(ok1))
+            wait(250)
+            local ok2 = M.send_cef_tx_215("THNT_OnInterfaceDisappear")
+            AL.log("handle_auth_limit_cef: THNT_OnInterfaceDisappear ok=" .. tostring(ok2))
+            wait(400)
+            if not s.is_spawned and not s.is_reconnecting and not s.login_submitted then
+                AL.log("handle_auth_limit_cef: CEF-пакет не закрыл окно -> запасной F11 (/rec)")
+                user32.keybd_event(0x7A, 0, 0, 0)
+                wait(50)
+                user32.keybd_event(0x7A, 0, 2, 0)
+            end
+        else
+            -- Старый путь через Esc (совместимость)
+            AL.log("handle_auth_limit_cef: ESC #1")
             user32.keybd_event(0x1B, 0, 0, 0)
             wait(50)
             user32.keybd_event(0x1B, 0, 2, 0)
-        else
-            AL.log("handle_auth_limit_cef: OnPlayerOpenMenuPause не пришёл -> F11")
-            user32.keybd_event(0x7A, 0, 0, 0)
-            wait(50)
-            user32.keybd_event(0x7A, 0, 2, 0)
+            wait(400)
+            if s.saw_menu_pause_after_esc then
+                AL.log("handle_auth_limit_cef: OnPlayerOpenMenuPause пришёл -> ESC #2")
+                user32.keybd_event(0x1B, 0, 0, 0)
+                wait(50)
+                user32.keybd_event(0x1B, 0, 2, 0)
+            end
         end
         s.cef_limit_seen = false
-        AL.log("handle_auth_limit_cef: готово")
+        AL.log("handle_auth_limit_cef: завершено")
         wait(200)
         if not s.is_spawned and not s.is_reconnecting then
             mark_manual_reconnect("AuthLimit")
@@ -223,16 +279,12 @@ start_reconnect_watch = function()
     s.reconnect_watch_start_time = 0
     if s.reconnect_watch_retries <= 3 then
         AL.log("Наблюдатель: завис после реконнекта, повторный реконнект (" .. tostring(s.reconnect_watch_retries) .. "/3)")
+        -- Важно: идём через mark_manual_reconnect, чтобы is_reconnecting было true
+        -- на время do_fast_reconnect, иначе собственный sampDisconnect из
+        -- do_fast_reconnect вызовет onConnectionLost -> trigger_reconnect -> цикл.
         s.is_reconnecting = false
-        emulate_reconnect_ui_cleanup()
-        M.do_fast_reconnect(2)
-        wait(800)
-        if s.login_submitted or s.is_spawned then
-            s.reconnect_watch_retries = 0
-            return
-        end
-        start_reconnect_watch()
-    else
+        mark_manual_reconnect("ReconnectWatchStuck", 2)
+    elseif s.reconnect_watch_retries > 3 then
         AL.log("Наблюдатель: 3 повтора - остановка")
         s.reconnect_watch_retries = 0
     end

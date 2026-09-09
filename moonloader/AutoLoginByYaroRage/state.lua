@@ -53,13 +53,26 @@ M.state = {
     cef_spawn_select_seen = false,      -- SelectSpawn (выбор спавна)
     cef_wrong_password_seen = false,    -- setError "неверный пароль"
     cef_limit_seen = false,             -- лимит попыток / бан / сообщение CEF
+    cef_device_lost_seen = false,       -- OnPlayerDeviceLost (браузер потерян)
+    cef_device_restore_seen = false,    -- OnPlayerDeviceRestore (браузер восстановлен)
+    cef_browser_initialized = false,    -- EndedInitializeBrowser (CEF готов)
+    cef_tx_log_enabled = true,          -- логировать исходящие CEF (TX id=215)
+    cef_dialog_close_tx = true,         -- закрывать диалоги-лимиты CEF-пакетом вместо Esc
     cef_emul_depth = 0,                 -- глубина эмуляции кликов CEF (для проверки реального времени)
 
-    -- Спавн
+-- Спавн
     waiting_for_spawn_choice = false,
     current_dialog_id = -1,
     spawn_timer_seconds = 0,
     spawn_timer_running = false,
+
+    -- Восстановление позиции
+    restore_active = false,
+    restore_timer_seconds = 15,
+    restore_deadline = 0,
+    restore_answered = false,
+    restore_btn_rect = nil,
+    restore_last_lmb = false,
 
     -- UI
     force_password_form = false,
@@ -250,6 +263,14 @@ M.reset_login_state = function()
     M.state.cef_wrong_password_seen = false
     M.state.cef_limit_seen = false
     M.state.cef_emul_depth = 0
+    M.state.cef_device_lost_seen = false
+    M.state.cef_device_restore_seen = false
+    M.state.cef_browser_initialized = false
+    M.state.restore_active = false
+    M.state.restore_deadline = 0
+    M.state.restore_answered = false
+    M.state.restore_btn_rect = nil
+    M.state.restore_last_lmb = false
 end
 
 -- Profile management

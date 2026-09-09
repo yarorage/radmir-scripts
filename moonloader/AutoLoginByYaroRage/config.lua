@@ -18,6 +18,7 @@ local CONFIG_SCHEMA = {
     BlockDeviceAreaPackets = { type = "boolean", default = false },
     FastReconnectEnabled = { type = "boolean", default = true },
     PacketAuth = { type = "boolean", default = true },
+    CefDialogCloseTx = { type = "boolean", default = true },
     Profiles = { type = "string", default = "{}" }, -- JSON encoded profiles
     CurrentProfile = { type = "string", default = "default" },
     DiscordWebhook = { type = "string", default = "", validate = function(v) return #v == 0 or v:match("^https://discord%.com/api/webhooks/") end },
@@ -135,6 +136,8 @@ function M.load()
                 s.profiles = dkjson.decode(validated) or {}
             elseif key == "CurrentProfile" then
                 s.current_profile = validated
+            elseif key == "CefDialogCloseTx" then
+                s.cef_dialog_close_tx = validated
             else
                 s[key:lower()] = validated
             end
@@ -146,6 +149,8 @@ function M.load()
                 s.profiles = {}
             elseif key == "CurrentProfile" then
                 s.current_profile = schema.default
+            elseif key == "CefDialogCloseTx" then
+                s.cef_dialog_close_tx = schema.default
             else
                 s[key:lower()] = schema.default
             end
@@ -202,6 +207,8 @@ function M.save()
             val = dkjson.encode(s.profiles)
         elseif key == "CurrentProfile" then
             val = s.current_profile
+        elseif key == "CefDialogCloseTx" then
+            val = s.cef_dialog_close_tx
         else
             val = s[key:lower()]
         end

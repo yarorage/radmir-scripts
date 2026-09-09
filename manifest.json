@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.0",
     "launcherVersion":  "1.1.0",
-    "updatedAt":  "2026-09-09 13:49",
+    "updatedAt":  "2026-09-09 13:59",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -108,8 +108,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage_v2.14.5.lua",
-                      "sha256":  "d36e2e3c6d7450b716b29305e264cff6de51afb66e0dc9eeb7040a66096c0370",
-                      "size":  44341,
+                      "sha256":  "0c092fcc3761d9933d1aec06237ae83e2388cad286e9d6ceeaddc6c7b09cb8ef",
+                      "size":  45475,
                       "dest":  "gameRoot"
                   },
                   {
@@ -156,14 +156,14 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/admin_detection.lua",
-                      "sha256":  "411b998c7d90af2352a4f517ef0382e555f44de15b7211cd905d592b834cf032",
-                      "size":  2946,
+                      "sha256":  "9c45a750bc45521a302a3f432f1ebe1fc8c7ab5602bfe0e5f57f804712b53613",
+                      "size":  3041,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/antiafk.lua",
-                      "sha256":  "3c3a87d92b553ede37d4646b37ede41398245ac2b244eb4ea3e9dba82e54a388",
-                      "size":  7475,
+                      "sha256":  "317f144d43461cea215aa4bfb2504e9e91d1d21d045afc23e877a8ebe3f5ba4f",
+                      "size":  7693,
                       "dest":  "gameRoot"
                   },
                   {
@@ -174,14 +174,14 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/config.lua",
-                      "sha256":  "9192552f1411716bf555a735aecae6b0b09fd3afbdb6b78bcf2c540a23f96ff6",
-                      "size":  8561,
+                      "sha256":  "0d3c5c068e991596d61fefff1f6dd8a1dc8c522b02b22b3761a7df0f6302ece0",
+                      "size":  8794,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/reconnect.lua",
-                      "sha256":  "398f521a996d0798ff6ecf689ee9be49f1fdc008ce383fc98379035a71c882d1",
-                      "size":  13567,
+                      "sha256":  "093ce49576a7fbc1d0f54357a8da09550f5ab72e8fa6e8a0cb80f1eb8bb0f875",
+                      "size":  13965,
                       "dest":  "gameRoot"
                   },
                   {
@@ -192,14 +192,14 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/state.lua",
-                      "sha256":  "22daf1bc2ba3fe2345677c51a5110eb62d0d3839ae16bf65b4db021155d157a7",
-                      "size":  9958,
+                      "sha256":  "fd4746d42d687b26fa31a70e16bc007ef2ebca0a8aa852b14030a1f4172f34af",
+                      "size":  10284,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/telegram.lua",
-                      "sha256":  "c31ee8a67f6e3cb26ccbbe2503def54841d7b56553274786f6199d3210686be1",
-                      "size":  7540,
+                      "sha256":  "301b556b4f92ecc163f252ce9b1e7745f8cbffce339eed92940b128048fef371",
+                      "size":  7744,
                       "dest":  "gameRoot"
                   },
                   {
@@ -210,8 +210,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/utils.lua",
-                      "sha256":  "e364acb8f259cac4a287336483190d02a85b92e5f86c9fd99b4a57df068a658b",
-                      "size":  24955,
+                      "sha256":  "04a2eb6527de0db4ddad96ba817c15cdd00224fd1cbd234b89ce0dd54b1a413d",
+                      "size":  25715,
                       "dest":  "gameRoot"
                   },
                   {
