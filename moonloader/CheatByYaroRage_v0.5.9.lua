@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.5.8")
+script_version("0.5.9")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1076,14 +1076,14 @@ local function mainLoop()
 			end
 		end
 
-				-- Авторем (Autorem): как только игрок сел в транспорт - /rem с задержкой 0.5-3 с.
+				-- Авторем (Autorem): как только игрок сел в транспорт - /rem с задержкой 5-10 с.
 		-- Детект через клиентское состояние (isCharInAnyCar), не зависит от RPC-событий сервера.
 		do
 			local inCar = isCharInAnyCar(PLAYER_PED)
 			if tfirst.v and inCar and not wasInCar then
 				local entered = getCarCharIsUsing(PLAYER_PED)
 				lua_thread.create(function()
-					wait(math.random(500, 3000))
+					wait(math.random(5000, 10000))
 					if isSampAvailable() and getCarCharIsUsing(PLAYER_PED) == entered then
 						sampProcessChatInput('/rem')
 					end
@@ -2116,7 +2116,7 @@ function drawVehicleTab()
 				
 				imgui.Separator()
 				sbox(u8'Autorem', tfirst)
-				imgui.TextDisabled(u8'Авто /rem при входе в машину (случайная задержка 0.5-3 с)')
+				imgui.TextDisabled(u8'Авто /rem при входе в машину (случайная задержка 5-10 с)')
 				
 				if imgui.Button(u8'FIX Машину', imgui.ImVec2(95 * fsc, 35 * fsc)) then sampProcessChatInput('/fix') end
 				imgui.SameLine()
