@@ -1,4 +1,4 @@
--- AutoLoginByYaroRage v2.14.7
+-- AutoLoginByYaroRage v1.1.2
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
