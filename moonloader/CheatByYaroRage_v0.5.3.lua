@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.5.2")
+script_version("0.5.3")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -720,6 +720,7 @@ local function mainInit()
 
 	save()
 	mergeNewAdmins()
+	loadSavedCarsFile()
 
     last_spectator_check = 0  -- для авто-проверки слежки
 	
@@ -885,34 +886,103 @@ local function mainInit()
 end
 
 --> Главный цикл (вынесено из main, чтобы уложиться в лимит upvalues)
--- ============== Дистанционный /lock (фейк-синк) ==============
-local lastVehicleHandle = 0
-local lastVehicleX, lastVehicleY, lastVehicleZ = 0, 0, 0
+-- ============== Дистанционный /lock по сохранённым машинам ==============
+-- Список сохранённых: id = {name, lock, x, y, z, model, samid}
+local savedCars = {}
+local savedCarsFile = 'CheatByYaroRage/saved_cars.ini'
 local fakeLockActive = false
 local fakeLockPacked = false
+local fakeLockTX, fakeLockTY, fakeLockTZ = 0, 0, 0
 local remoteLockDebug = true
 
--- Дистанционный лок: подменяем позицию в sync-пакете на координаты последнего авто,
--- дожидаемся его отправки и посылаем /lock N. Следующий синк вернёт реальную позицию.
-function remoteLock(lockType)
-	if not isSampAvailable() then return end
-	-- Игрок в машине: сервер сам найдёт его транспорт - обычный /lock.
-	if isCharInAnyCar(PLAYER_PED) then
-		sampProcessChatInput('/lock '..lockType)
-		return
-	end
-	if lastVehicleHandle == 0 then
-		if remoteLockDebug then sampAddChatMessage(u8'Дистлок: нет запомненного авто', -1) end
-		return
-	end
-	-- Рядом с последним авто - обычный /lock (сервер сам знает, чья это машина).
+-- Сохранение списка сохранённых машин
+function saveSavedCarsFile()
+    local data = {count = #savedCars}
+    for i, car in ipairs(savedCars) do
+        data['car' .. i .. '.name'] = car.name
+        data['car' .. i .. '.lock'] = car.lock
+        data['car' .. i .. '.x'] = car.x
+        data['car' .. i .. '.y'] = car.y
+        data['car' .. i .. '.z'] = car.z
+        data['car' .. i .. '.model'] = car.model or 0
+        data['car' .. i .. '.samid'] = car.samid or 0
+    end
+    inicfg.save({SavedCars = data}, savedCarsFile)
+end
+-- Загрузка списка сохранённых машин
+function loadSavedCarsFile()
+    local ok, cfg = pcall(inicfg.load, savedCarsFile)
+    if not ok or not cfg or not cfg.SavedCars then
+        savedCars = {}
+        return
+    end
+    local c = cfg.SavedCars
+    savedCars = {}
+    for i = 1, tonumber(c.count) or 0 do
+        local car = {
+            name = c['car' .. i .. '.name'] or ('Машина #' .. i),
+            lock = tonumber(c['car' .. i .. '.lock']) or 1,
+            x = tonumber(c['car' .. i .. '.x']) or 0,
+            y = tonumber(c['car' .. i .. '.y']) or 0,
+            z = tonumber(c['car' .. i .. '.z']) or 0,
+            model = tonumber(c['car' .. i .. '.model']) or 0,
+            samid = tonumber(c['car' .. i .. '.samid']) or 0,
+        }
+        savedCars[i] = car
+    end
+end
+-- Запомнить машину, в которой сидит игрок (кнопка в GUI)
+function saveCurrentCar()
+    if not isSampAvailable() or not isCharInAnyCar(PLAYER_PED) then
+        if remoteLockDebug then sampAddChatMessage(u8'Дистлок: игрок не в машине', -1) end
+        return
+    end
+    local veh = getCarCharIsUsing(PLAYER_PED)
+    if veh == 0 then return end
+    local model = getCarModel(veh)
+    local saName = getNameOfVehicleModel(model) or ('ID:' .. model)
+    local okS, samid = sampGetVehicleIdByCarHandle(veh)
+    samid = okS and samid or 0
+    local x, y, z = getCarCoordinates(veh)
+    local name = okS and (saName .. ' #' .. samid) or saName
+    -- Если машина уже сохранена - обновляем только координаты.
+    for _, car in ipairs(savedCars) do
+        if car.samid ~= 0 and car.samid == samid then
+            car.x, car.y, car.z = x, y, z
+            car.lock = car.lock or 1
+            sampAddChatMessage(u8('Машина '..name..' уже сохранена'), -1)
+            saveSavedCarsFile()
+            return
+        end
+    end
+    if #savedCars >= 10 then
+        if remoteLockDebug then sampAddChatMessage(u8'Дистлок: не больше 10 машин. Удали лишние', -1) end
+        return
+    end
+    table.insert(savedCars, {name = name, lock = 1, x = x, y = y, z = z, model = model, samid = samid})
+    saveSavedCarsFile()
+    if remoteLockDebug then sampAddChatMessage(u8'Машина сохранена: ' .. name, -1) end
+end
+
+-- Удалить сохранённую машину по индексу (0 = ничего не делать)
+function removeSavedCar(idx)
+    if savedCars[idx] then
+        table.remove(savedCars, idx)
+        saveSavedCarsFile()
+    end
+end
+
+-- Отправка /lock с подменой позиции на координаты машины
+local function doRemoteLock(car, lockType)
+	if not isSampAvailable() or not car then return end
 	local px, py, pz = getCharCoordinates(PLAYER_PED)
-	local dist = getDistanceBetweenCoords3d(px, py, pz, lastVehicleX, lastVehicleY, lastVehicleZ)
-	if dist <= 15 then
+	local dist = getDistanceBetweenCoords3d(px, py, pz, car.x, car.y, car.z)
+	if isCharInAnyCar(PLAYER_PED) or dist <= 15 then
 		sampProcessChatInput('/lock '..lockType)
 		return
 	end
-	if remoteLockDebug then sampAddChatMessage(u8'Дистлок: машина далеко, фейк-синк на '..math.floor(dist)..' м', -1) end
+	fakeLockTX, fakeLockTY, fakeLockTZ = car.x, car.y, car.z
+	if remoteLockDebug then sampAddChatMessage(u8('Дистлок: '..car.name..' на '..math.floor(dist)..' м, фейк-синк'), -1) end
 	lua_thread.create(function ()
 		fakeLockActive = true
 		fakeLockPacked = false
@@ -925,6 +995,16 @@ function remoteLock(lockType)
 		wait(400)
 		fakeLockActive = false
 	end)
+end
+
+-- Публичная кнопка GUI: открыть/закрыть сохранённую машину по индексу
+function remoteLockSaved(idx, lockType)
+    local car = savedCars[idx]
+    if not car then
+        if remoteLockDebug then sampAddChatMessage(u8'Дистлок: машина не найдена', -1) end
+        return
+    end
+    doRemoteLock(car, tonumber(lockType) or car.lock or 1)
 end
 
 local function mainLoop()
@@ -954,12 +1034,27 @@ local function mainLoop()
 			end
 		end
 
-		-- Запоминаем последний транспорт игрока.
+		-- Автообновление координат сохранённых машин: если игрок пересел
+		-- в сохранённую (по server id), обновляем её позицию в списке.
 		if isCharInAnyCar(PLAYER_PED) then
 			local veh = getCarCharIsUsing(PLAYER_PED)
 			if veh ~= 0 then
-				lastVehicleHandle = veh
-				lastVehicleX, lastVehicleY, lastVehicleZ = getCarCoordinates(veh)
+				local okS, samid = sampGetVehicleIdByCarHandle(veh)
+				samid = okS and samid or 0
+				local vx, vy, vz = getCarCoordinates(veh)
+				if samid ~= 0 then
+					for _, car in ipairs(savedCars) do
+						if car.samid ~= 0 and car.samid == samid then
+							-- Обновляем только при заметном изменении, чтобы не писать ini каждый кадр.
+							local oldX, oldY, oldZ = car.x, car.y, car.z
+							car.x, car.y, car.z = vx, vy, vz
+							if getDistanceBetweenCoords3d(oldX, oldY, oldZ, vx, vy, vz) > 1 then
+								saveSavedCarsFile()
+							end
+							break
+						end
+					end
+				end
 			end
 		end
 
@@ -992,14 +1087,6 @@ local function mainLoop()
 		if myId >= 0 and sampGetPlayerAnimationId(myId) == 1537 and autokick.v then
             sync = true
         end
-
-		if isKeyDown(VK_LMENU) and isKeyJustPressed(VK_1) and not sampIsChatInputActive() and not sampIsDialogActive()  then
-			remoteLock(1)
-		end
-
-		if isKeyDown(VK_LMENU) and isKeyJustPressed(VK_2) and not sampIsChatInputActive() and not sampIsDialogActive()  then
-			remoteLock(4)
-		end
 
 		if isKeyJustPressed(VK_N) and not sampIsChatInputActive() and not sampIsDialogActive() then
 			if mcheat.v then
@@ -1980,7 +2067,31 @@ function drawVehicleTab()
 				if imgui.Button(u8'FIX Машину', imgui.ImVec2(95 * fsc, 35 * fsc)) then sampProcessChatInput('/fix') end
 				imgui.SameLine()
 				if imgui.Button(u8'BREAK Машину', imgui.ImVec2(95 * fsc, 35 * fsc)) then sampProcessChatInput('/breakecar') end
-				
+
+				imgui.Separator()
+				imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'Дистанционный /lock (сохранённые машины)')
+				if imgui.Button(u8'Запомнить текущую машину', imgui.ImVec2(190 * fsc, 28 * fsc)) then saveCurrentCar() end
+				imgui.TextDisabled(u8'Сядь в машину и нажми кнопку. Координаты обновляются при посадке')
+				if #savedCars == 0 then
+					imgui.TextDisabled(u8'Сохранённых машин нет')
+				else
+					for i, car in ipairs(savedCars) do
+						imgui.Text(i .. '. ' .. (car.name or '?'))
+						imgui.SameLine()
+						local lockSel = imgui.ImInt(car.lock)
+						imgui.PushID(i)
+						if imgui.Combo(u8'##lock', lockSel, { u8'1 - Личная', u8'2 - Аренда', u8'3 - Бизнес', u8'4 - Другое' }, nil, 190 * fsc) then
+							car.lock = lockSel.v
+							saveSavedCarsFile()
+						end
+						imgui.SameLine()
+						if imgui.Button(u8'Открыть', imgui.ImVec2(64 * fsc, 22 * fsc)) then remoteLockSaved(i, car.lock) end
+						imgui.SameLine()
+						if imgui.Button(u8'X', imgui.ImVec2(24 * fsc, 22 * fsc)) then removeSavedCar(i) end
+						imgui.PopID()
+					end
+				end
+
 				imgui.EndChild()
 			end
 end
@@ -2643,7 +2754,7 @@ end
 
 function ev.onSendPlayerSync(data)
 	if fakeLockActive and not fakeLockPacked then
-		data.position = {lastVehicleX, lastVehicleY, lastVehicleZ}
+		data.position = {fakeLockTX, fakeLockTY, fakeLockTZ}
 		fakeLockPacked = true
 	end
 
