@@ -137,16 +137,23 @@ local function readPacketBody(bs)
         return "", 0, 0
     end
     local bytes = {}
-    for i = 1, n do
-        local ok, b = pcall(raknetBitStreamReadInt8, bs)
-        if ok and b and b ~= false then
-            bytes[i] = b
-        else
-            bytes[i] = 0
+    -- „итаем тело одним pcall (не на каждый байт): ошибки чтени€ битстрима
+    -- лов€тс€ здесь, а указатель сбрасываем ниже. Ёто заметно дешевле.
+    local ok = pcall(function()
+        for i = 1, n do
+            local b = raknetBitStreamReadInt8(bs)
+            if type(b) ~= "number" then
+                bytes[i] = 0
+            else
+                bytes[i] = b
+            end
         end
-    end
+    end)
     -- сбрасываем указатель чтени€
     pcall(raknetBitStreamResetReadPointer, bs)
+    if not ok then
+        return "", 0, 0
+    end
     local raw = {}
     for i = 1, #bytes do
         raw[i] = string.char(bytes[i] % 256)
@@ -204,11 +211,21 @@ local function getCursorState()
     return on, x or 0, y or 0
 end
 
--- —нимок контекста дл€ записи
+-- —нимок контекста дл€ записи.
+--  эшируетс€ ~50 миллисекунд: getCharCoordinates/isCursorActive/getCursorPos -
+-- это вызовы SAMPFUNCS, их нельз€ дЄргать на каждый пакет (служебные sync-пакеты
+-- идут дес€тками в секунду), а на пустом пуле они потенциально опасны.
+local lastCtxClock = 0
+local ctxCache = nil
 local function snapshotContext()
+    local now = os.clock()
+    if ctxCache and (now - lastCtxClock) < 0.05 then
+        return ctxCache
+    end
+    lastCtxClock = now
     local px, py, pz = getPlayerPos()
     local cur, cx, cy = getCursorState()
-    return {
+    ctxCache = {
         px = px,
         py = py,
         pz = pz,
@@ -216,6 +233,7 @@ local function snapshotContext()
         cursorX = cx,
         cursorY = cy,
     }
+    return ctxCache
 end
 
 -- ќбновление фазы игры по пакету (дополнительно к базе знаний)
@@ -292,7 +310,13 @@ local function onCapture(dir, id, bs, extra)
         bodyForStore = bodyForStore:sub(1, st.maxBodyLen)
     end
 
-    local ctx = snapshotContext()
+    --  онтекст (позици€/курсор) снимаем только дл€ содержательных пакетов:
+    -- CEF-команды, диалоги, текст и сообщени€. —лужебные бинарные пакеты
+    -- (sync и т.п.) идут потоком и контекста не требуют.
+    local ctx = nil
+    if id == 215 or id == 61 or isText or not bs then
+        ctx = snapshotContext()
+    end
     st.seq = st.seq + 1
     st.totalPackets = st.totalPackets + 1
     if id == 215 then

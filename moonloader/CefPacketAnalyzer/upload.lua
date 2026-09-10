@@ -186,7 +186,7 @@ local function buildPayload()
 
     return {
         script = "CefPacketAnalyzer",
-        version = "1.15.4",
+        version = "1.15.6",
         nick = localNick() or "unknown",
         ts = os.time(),
         ts_text = os.date("%Y-%m-%d %H:%M:%S"),

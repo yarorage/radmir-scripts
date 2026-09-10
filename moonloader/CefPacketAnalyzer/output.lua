@@ -100,10 +100,29 @@ local function getStreamHandle()
     return fh
 end
 
+-- Буфер строк потока: flush раз в несколько пакетов, чтобы не бить по диску
+-- на каждый пакет (это происходит в игровом потоке и съедает FPS).
+local streamBuf = ""
+local streamBufN = 0
+local streamFlushEvery = 50
+
+-- Сброс буфера потока в файл
+local function flushStream()
+    if #streamBuf == 0 then return end
+    local fh = getStreamHandle()
+    if not fh then
+        streamBuf = ""
+        streamBufN = 0
+        return
+    end
+    fh:write(streamBuf)
+    fh:flush()
+    streamBuf = ""
+    streamBufN = 0
+end
+
 -- Дописываем запись в поток
 function M.appendStream(rec)
-    local fh = getStreamHandle()
-    if not fh then return end
     local line = streamLine(rec) .. "\n"
     if rec.text and #rec.text > 0 then
         line = line .. "\t" .. rec.text:gsub("\n", " ") .. "\n"
@@ -112,29 +131,22 @@ function M.appendStream(rec)
     if rec.bodyHex and #rec.bodyHex > 0 then
         line = line .. "\tHEX (" .. math.floor(#rec.bodyHex / 2) .. " байт): " .. rec.bodyHex .. "\n"
     end
-    fh:write(line)
-    fh:flush()
-end
-
--- Закрывает открытые файлы (поток и JSON-lines) при завершении/выгрузке скрипта
-function M.closeStream()
-    if streamHandle then
-        pcall(function()
-            streamHandle:close()
-        end)
-        streamHandle = nil
-    end
-    if dataHandle then
-        pcall(function()
-            dataHandle:close()
-        end)
-        dataHandle = nil
+    streamBuf = streamBuf .. line
+    streamBufN = streamBufN + 1
+    if streamBufN >= streamFlushEvery then
+        flushStream()
     end
 end
 
 -- Каждая запись сразу дописывается в JSON-lines (packets_data.jsonl).
 -- Этот файл переживает даже жёсткий краш игры: данные не теряются,
 -- полные отчёты достраиваются при штатном завершении (/cpa save, выход).
+-- Буфер строк данных: flush раз в несколько пакетов, чтобы не бить по диску
+-- на каждый пакет. Данные при штатном завершении сбрасываются в closeStream.
+local dataBuf = ""
+local dataBufN = 0
+local dataFlushEvery = 20
+
 local function getDataHandle()
     if dataHandle then
         return dataHandle
@@ -148,16 +160,52 @@ local function getDataHandle()
     return fh
 end
 
-function M.appendData(rec)
+-- Сброс буфера данных в файл
+local function flushData()
+    if #dataBuf == 0 then return end
     local fh = getDataHandle()
-    if not fh then return end
+    if not fh then
+        dataBuf = ""
+        dataBufN = 0
+        return
+    end
+    fh:write(dataBuf)
+    fh:flush()
+    dataBuf = ""
+    dataBufN = 0
+end
+
+function M.appendData(rec)
     local ok, enc = pcall(function()
         local dkjson = require("dkjson")
         return dkjson.encode(rec)
     end)
     if ok and enc then
-        fh:write(enc, "\n")
-        fh:flush()
+        dataBuf = dataBuf .. enc .. "\n"
+        dataBufN = dataBufN + 1
+        if dataBufN >= dataFlushEvery then
+            flushData()
+        end
+    end
+end
+
+-- Закрывает открытые файлы (поток и JSON-lines) при завершении/выгрузке скрипта.
+-- Объявлен после appendStream/appendData, чтобы обе функции сброса буферов
+-- были доступны как upvalue.
+function M.closeStream()
+    flushStream()
+    flushData()
+    if streamHandle then
+        pcall(function()
+            streamHandle:close()
+        end)
+        streamHandle = nil
+    end
+    if dataHandle then
+        pcall(function()
+            dataHandle:close()
+        end)
+        dataHandle = nil
     end
 end
 
