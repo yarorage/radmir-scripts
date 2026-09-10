@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("2.14.7")
+script_version("1.1.0")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -181,7 +181,12 @@ end
 
 local function should_close_cef_anytime(text)
     local lower = text:lower()
-    -- Команды конфигурации интерфейса (updateConfiguration*) не являются диалогами
+    -- Окно бан-сообщения (updateConfigurationBannedMessage) накладывается поверх игры
+    -- и блокирует управление персонажем - закрываем его как диалог античита
+    if lower:find("updateconfigurationbannedmessage") then
+        return "banned-cfg"
+    end
+    -- Прочие команды конфигурации интерфейса (updateConfiguration*) не являются диалогами
     if lower:find("updateconfiguration") then return nil end
     for _, kw in ipairs(close_cef_anytime_keywords) do
         if lower:find(kw) then return kw end
@@ -445,8 +450,13 @@ function onReceivePacket(id, bs)
         end
 
         if should_handle then
-            s.cef_limit_seen = true
-            reconnect_mod._internal.handle_auth_limit_cef()
+            if matched_anytime == "banned-cfg" then
+                -- Конфиг бан-сообщения: перехват и закрытие окна без реконнекта
+                reconnect_mod._internal.close_cef_window_silent()
+            else
+                s.cef_limit_seen = true
+                reconnect_mod._internal.handle_auth_limit_cef()
+            end
             return true
         end
     end

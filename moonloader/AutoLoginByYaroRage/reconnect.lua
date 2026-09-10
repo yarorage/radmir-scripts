@@ -103,13 +103,9 @@ function M.handle_auth_limit_cef()
         AL.log("handle_auth_limit_cef: пропуск (окна лимита/времени/античит нет в трекере)")
         return
     end
-    if s.is_spawned then
-        s.cef_limit_seen = false
-        AL.log("handle_auth_limit_cef: пропуск (уже в мире)")
-        return
-    end
+    local spawned_at_entry = s.is_spawned
     lua_thread.create(function()
-        AL.log("handle_auth_limit_cef: CEF-закрытие диалога-лимита")
+        AL.log("handle_auth_limit_cef: CEF-закрытие диалога-лимита (в мире=" .. tostring(spawned_at_entry) .. ")")
         s.saw_menu_pause_after_esc = false
         if s.cef_dialog_close_tx then
             local ok1 = M.send_cef_tx_215("MenuInt_OnCloseInterface", { 0 })
@@ -146,6 +142,33 @@ function M.handle_auth_limit_cef()
         if not s.is_spawned and not s.is_reconnecting then
             mark_manual_reconnect("AuthLimit")
         end
+    end)
+end
+
+function M.close_cef_window_silent()
+    local s = AL.state
+    AL.log("close_cef_window_silent: закрытие CEF-окна без реконнекта")
+    if not s.cef_dialog_close_tx then
+        AL.log("close_cef_window_silent: cef_dialog_close_tx выключен, пропуск")
+        return
+    end
+    lua_thread.create(function()
+        local ok1 = M.send_cef_tx_215("MenuInt_OnCloseInterface", { 0 })
+        AL.log("close_cef_window_silent: MenuInt_OnCloseInterface ok=" .. tostring(ok1))
+        wait(250)
+        local ok2 = M.send_cef_tx_215("THNT_OnInterfaceDisappear")
+        AL.log("close_cef_window_silent: THNT_OnInterfaceDisappear ok=" .. tostring(ok2))
+        -- если окно не закрылось - закрываем через Esc
+        wait(400)
+        if s.is_spawned or s.is_logging_in then
+            if not s.saw_menu_pause_after_esc then
+                AL.log("close_cef_window_silent: запасной ESC")
+                user32.keybd_event(0x1B, 0, 0, 0)
+                wait(50)
+                user32.keybd_event(0x1B, 0, 2, 0)
+            end
+        end
+        AL.log("close_cef_window_silent: завершено")
     end)
 end
 
@@ -391,6 +414,7 @@ M._internal = {
     post_loading_login_watch = function() post_loading_login_watch() end,
     start_reconnect_watch = function() start_reconnect_watch() end,
     handle_auth_limit_cef = M.handle_auth_limit_cef,
+    close_cef_window_silent = M.close_cef_window_silent,
     start_reconnect_internal = function(r, sec) start_reconnect_internal(r, sec) end,
 }
 
