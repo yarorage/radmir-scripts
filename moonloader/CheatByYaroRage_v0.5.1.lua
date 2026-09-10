@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.5.0")
+script_version("0.5.1")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -404,7 +404,6 @@ local hotkeys = {
     antistun = {v = {}},
     shotmax = {v = {}},
     damageinf = {v = {}},
-    clickwarp = {v = {}},
     pslide = {v = {}},
     trigger = {v = {}},
     cbz5 = {v = {}},
@@ -438,7 +437,6 @@ local mcheat = imgui.ImBool(false)
 
 -- ФУНКЦИИ.
 
-local clickwarp = imgui.ImBool(false)
 local sbivx = imgui.ImBool(false)
 local SpeedHack = imgui.ImBool(false)
 local SpeedSmooth = imgui.ImInt(15)
@@ -500,7 +498,6 @@ local triggermode = imgui.ImInt(3)
 local mainIni = inicfg.load({
     CheatByYaroRage =
     {
-		clickwarp = false,
 		sbivx = false,
 		allowBunnyhop = false,
         SpeedHack = false,
@@ -562,7 +559,6 @@ local mainIni = inicfg.load({
 
 godcar.v = mainIni.CheatByYaroRage.godcar or false
 NoAnimationMoney.v = mainIni.CheatByYaroRage.NoAnimationMoney or false
-clickwarp.v = mainIni.CheatByYaroRage.clickwarp or false
 sbivx.v = mainIni.CheatByYaroRage.sbivx or false
 SpeedHack.v = mainIni.CheatByYaroRage.SpeedHack or false
 SpeedSmooth.v = mainIni.CheatByYaroRage.SpeedSmooth or 15
@@ -621,8 +617,7 @@ show_admin_hud.v = mainIni.CheatByYaroRage.show_admin_hud or false
 
 -- Справочник всех настраиваемых переменных для профилей (объявлен ДО save()).
 local profile_vars = {
-	godcar = godcar, NoAnimationMoney = NoAnimationMoney, clickwarp = clickwarp,
-	sbivx = sbivx, SpeedHack = SpeedHack, SpeedSmooth = SpeedSmooth,
+	godcar = godcar, sbivx = sbivx, SpeedHack = SpeedHack, SpeedSmooth = SpeedSmooth,
 	fullskillgun = fullskillgun, pslide = pslide, trigger = trigger,
 	autokick = autokick, airbrake = airbrake, Speed = Speed,
 	ifastconnect = ifastconnect, enginecar = enginecar, noReload = noReload,
@@ -942,7 +937,8 @@ local function mainLoop()
 
 		SmoothAimBott()
 
-		if sampGetPlayerAnimationId(select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))) == 1537 and autokick.v then
+		local _, myId = sampGetPlayerIdByCharHandle(PLAYER_PED)
+		if myId >= 0 and sampGetPlayerAnimationId(myId) == 1537 and autokick.v then
             sync = true
         end
 
@@ -1040,8 +1036,8 @@ local function mainLoop()
 			end
 		end
 
-		if time then
-			setTimeOfDay(time, 0)
+		if stTime then
+			setTimeOfDay(stTime, 0)
 		end
 
 		if active then
@@ -1141,7 +1137,10 @@ local function mainLoop()
 		end
 
 		if ifastconnect.v then
-			writeMemory(sampGetBase() + 2964549, 2, 0, true)
+			local base = sampGetBase()
+			if base ~= 0 then
+				writeMemory(base + 2964549, 2, 0, true)
+			end
 		end
 
 		if noReload.v then
@@ -1454,14 +1453,16 @@ function set_dist(number, value)
 	end
 end
 
+stTime = nil
+
 function cmdSetTime(param)
 	local hour = tonumber(param)
 	if hour ~= nil and hour >= 0 and hour <= 23 then
-	  time = hour
+	  stTime = hour
 	  patch_samp_time_set(true)
 	else
 	  patch_samp_time_set(false)
-	  time = nil
+	  stTime = nil
 	end
 end
 
@@ -1474,10 +1475,16 @@ end
 
 function patch_samp_time_set(enable)
 	  if enable and default == nil then
-		  default = readMemory(sampGetBase() + 0x9C0A0, 4, true)
-		  writeMemory(sampGetBase() + 0x9C0A0, 4, 0x000008C2, true)
+		  local base = sampGetBase()
+		  if base ~= 0 then
+			  default = readMemory(base + 0x9C0A0, 4, true)
+			  writeMemory(base + 0x9C0A0, 4, 0x000008C2, true)
+		  end
 	  elseif enable == false and default ~= nil then
-		  writeMemory(sampGetBase() + 0x9C0A0, 4, default, true)
+		  local base = sampGetBase()
+		  if base ~= 0 then
+			  writeMemory(base + 0x9C0A0, 4, default, true)
+		  end
 		  default = nil
 	 end
 end
@@ -1620,11 +1627,13 @@ function ev.onSendGiveDamage(id, data, data1, data2, data3)
 		end
 	end
 	if nodamage.v then
-		_, pID = sampGetPlayerIdByCharHandle(PLAYER_PED)
-		clist = sampGetPlayerColor(pID)
-		clistplayer = sampGetPlayerColor(id)
-		if clistplayer == clist then
-			return false
+		local foundPid, pID = sampGetPlayerIdByCharHandle(PLAYER_PED)
+		if foundPid and pID >= 0 then
+			clist = sampGetPlayerColor(pID)
+			clistplayer = sampGetPlayerColor(id)
+			if clistplayer == clist then
+				return false
+			end
 		end
 	end
 	if damageinf.v then
@@ -2402,76 +2411,6 @@ function ClickWP()
 			end
 		end
 
-		if isKeyDown(VK_MBUTTON) and clickwarp.v then
-			cursorEnabled = not cursorEnabled
-			showCursor(cursorEnabled)
-
-			while isKeyDown(VK_MBUTTON) do
-				wait(80)
-			end
-		end
-		if cursorEnabled and not mcheat.v and not window.v then
-			local mode = sampGetCursorMode()
-			if mode == 0 then
-				showCursor(true)
-			end
-			local sx, sy = getCursorPos()
-			local sw, sh = getScreenResolution()
-			if sx >= 0 and sy >= 0 and sx < sw and sy < sh then
-				local posX, posY, posZ = convertScreenCoordsToWorld3D(sx, sy, 700.0)
-				local camX, camY, camZ = getActiveCameraCoordinates()
-				local result, colpoint = processLineOfSight(camX, camY, camZ, posX, posY, posZ, true, true, false, true, false, false, false)
-				if result and colpoint.entity ~= 0 then
-					local normal = colpoint.normal
-					local pos = Vector3D(colpoint.pos[1], colpoint.pos[2], colpoint.pos[3]) - (Vector3D(normal[1], normal[2], normal[3]) * 0.1)
-					local zOffset = 300
-					if normal[3] >= 0.5 then zOffset = 1 end
-					local result, colpoint2 = processLineOfSight(pos.x, pos.y, pos.z + zOffset, pos.x, pos.y, pos.z - 0.3, true, true, false, true, false, false, false)
-					if result then
-						pos = Vector3D(colpoint2.pos[1], colpoint2.pos[2], colpoint2.pos[3] + 1)
-						local curX, curY, curZ  = getCharCoordinates(PLAYER_PED)
-						local dist              = getDistanceBetweenCoords3d(curX, curY, curZ, pos.x, pos.y, pos.z)
-						local hoffs             = renderGetFontDrawHeight(font)
-						sy = sy - 2
-						sx = sx - 2
-						renderFontDrawText(font, string.format("%0.2fm", dist), sx, sy - hoffs, 0xEEEEEEEE)
-						local tpIntoCar = nil
-						if colpoint.entityType == 2 then
-							local car = getVehiclePointerHandle(colpoint.entity)
-							if doesVehicleExist(car) and (not isCharInAnyCar(PLAYER_PED) or storeCarCharIsInNoSave(PLAYER_PED) ~= car) then
-								displayVehicleName(sx, sy - hoffs * 2, getNameOfVehicleModel(getCarModel(car)))
-								local color = 0xAAFFFFFF
-								if isKeyDown(VK_RBUTTON) then
-									tpIntoCar = car
-									color = 0xFFFFFFFF
-								end
-								renderFontDrawText(font2, "????? ?????? ?????? ???? ??? ???? ???? ????? ? ??????.", sx, sy - hoffs * 3, color)
-							end
-						end
-						createPointMarker(pos.x, pos.y, pos.z)
-						if isKeyDown(VK_LBUTTON) and clickwarp.v then
-							if tpIntoCar then
-								if not jumpIntoCar(tpIntoCar) and clickwarp.v then
-									teleportPlayer(pos.x, pos.y, pos.z)
-								end
-							else
-								if isCharInAnyCar(PLAYER_PED) then
-									local norm = Vector3D(colpoint.normal[1], colpoint.normal[2], 0)
-									local norm2 = Vector3D(colpoint2.normal[1], colpoint2.normal[2], colpoint2.normal[3])
-									rotateCarAroundUpAxis(storeCarCharIsInNoSave(PLAYER_PED), norm2)
-									pos = pos - norm * 1.8
-									pos.z = pos.z - 0.8
-								end
-								teleportPlayer(pos.x, pos.y, pos.z)
-							end
-							removePointMarker()
-							while isKeyDown(keyApply) do wait(0) end
-							showCursor(false)
-						end
-					end
-				end
-			end
-		end
 end
 end
 
