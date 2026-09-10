@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.4.17")
+script_version("0.5.0")
 --==================================[ Õ¿—“–Œ… » ◊»“¿ ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1629,10 +1629,12 @@ function ev.onSendGiveDamage(id, data, data1, data2, data3)
 	end
 	if damageinf.v then
 		lua_thread.create(function ()
-			_, ch = sampGetCharHandleBySampPlayerId(id)
+			local found, ch = sampGetCharHandleBySampPlayerId(id)
+			if not found or not doesCharExist(ch) then return end
 			local nick = sampGetPlayerNickname(id)
 			local _, playerid = sampGetPlayerIdByCharHandle(ch)
 
+			local ox, oy, oz = 0, 0, 0
 			if data3 == 9 then ox, oy, oz = 0, 0, 0.73
 			elseif data3 == 8 then ox, oy, oz = 0.1, 0, -0.5
 			elseif data3 == 7 then ox, oy, oz = -0.15, 0, -0.5
@@ -1640,9 +1642,9 @@ function ev.onSendGiveDamage(id, data, data1, data2, data3)
 			elseif data3 == 5 then ox, oy, oz = -0.27, 0, 0.25
 			elseif data3 == 4 then ox, oy, oz = 0, 0, 0
 			elseif data3 == 3 then ox, oy, oz = 0, 0, 0.4
-			else ox, oy, oz = 0, 0, 0 end
+			end
 
-			x, y, z = getOffsetFromCharInWorldCoords(ch, ox, oy, oz)
+			local x, y, z = getOffsetFromCharInWorldCoords(ch, ox, oy, oz)
 			printStringNow(u8'~g~ ”ÓÌ ÔÓ - '..nick..'['..playerid..'] ~y~[+] ~r~-'..math.floor(data)..'HP', 1500)
 			sampCreate3dTextEx('1', math.floor(data), 0xFFFFFFFF, x, y, z, 100, 1, -1, -1)
 			wait(3000)
@@ -1653,7 +1655,6 @@ end
 
 function ev.onSendTakeDamage(id, data, data1, data2, data3)
 	if damageinf.v and getCharHealth(PLAYER_PED) >= 1 then
-		_, ch = sampGetCharHandleBySampPlayerId(id)
 		local nick = sampGetPlayerNickname(id)
 		local _, playerid = sampGetPlayerIdByCharHandle(PLAYER_PED)
 		printStringNow(u8'~g~ ”ÓÌ ÓÚ - '..nick..'['..playerid..'] ~y~[-] ~r~-'..math.floor(data)..'HP', 1500)
@@ -2349,6 +2350,7 @@ end
 -- √ÎÓ·‡Î¸Ì˚Â require ‰Îˇ ClickWP
 Matrix3X3 = require "matrix3x3"
 Vector3D = require "vector3d"
+local keyApply = 0x01
 
 function ClickWP()
 	if not isSampfuncsLoaded() then return end
@@ -2427,7 +2429,7 @@ function ClickWP()
 					local result, colpoint2 = processLineOfSight(pos.x, pos.y, pos.z + zOffset, pos.x, pos.y, pos.z - 0.3, true, true, false, true, false, false, false)
 					if result then
 						pos = Vector3D(colpoint2.pos[1], colpoint2.pos[2], colpoint2.pos[3] + 1)
-						local curX, curY, curZ  = getCharCoordinates(playerPed)
+						local curX, curY, curZ  = getCharCoordinates(PLAYER_PED)
 						local dist              = getDistanceBetweenCoords3d(curX, curY, curZ, pos.x, pos.y, pos.z)
 						local hoffs             = renderGetFontDrawHeight(font)
 						sy = sy - 2
@@ -2436,7 +2438,7 @@ function ClickWP()
 						local tpIntoCar = nil
 						if colpoint.entityType == 2 then
 							local car = getVehiclePointerHandle(colpoint.entity)
-							if doesVehicleExist(car) and (not isCharInAnyCar(playerPed) or storeCarCharIsInNoSave(playerPed) ~= car) then
+							if doesVehicleExist(car) and (not isCharInAnyCar(PLAYER_PED) or storeCarCharIsInNoSave(PLAYER_PED) ~= car) then
 								displayVehicleName(sx, sy - hoffs * 2, getNameOfVehicleModel(getCarModel(car)))
 								local color = 0xAAFFFFFF
 								if isKeyDown(VK_RBUTTON) then
@@ -2453,10 +2455,10 @@ function ClickWP()
 									teleportPlayer(pos.x, pos.y, pos.z)
 								end
 							else
-								if isCharInAnyCar(playerPed) then
+								if isCharInAnyCar(PLAYER_PED) then
 									local norm = Vector3D(colpoint.normal[1], colpoint.normal[2], 0)
 									local norm2 = Vector3D(colpoint2.normal[1], colpoint2.normal[2], colpoint2.normal[3])
-									rotateCarAroundUpAxis(storeCarCharIsInNoSave(playerPed), norm2)
+									rotateCarAroundUpAxis(storeCarCharIsInNoSave(PLAYER_PED), norm2)
 									pos = pos - norm * 1.8
 									pos.z = pos.z - 0.8
 								end
