@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.5.6")
+script_version("0.5.7")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -2815,7 +2815,7 @@ function flipCarToWheels(car)
 	else
 		fx, fy = fx / len, fy / len
 	end
-	local rxx, ryy = -fy, fx   -- right = fwd rotated 90deg (так, чтобы система была правой)
+	local rxx, ryy = fy, -fx   -- right = fwd rotated -90deg (чтобы right x fwd = +Z, колёсами вниз) (так, чтобы система была правой)
 	-- R = [ rx', ry', 0 ; fx', fy', 0 ; 0, 0, 1 ]
 	writeFloatArray(mat, 0, rxx)
 	writeFloatArray(mat, 1, ryy)
