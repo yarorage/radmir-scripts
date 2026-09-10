@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.4.16")
+script_version("0.4.17")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -708,7 +708,9 @@ ini = {
         fontsize = 12
     }
 }
-local config = inicfg.load(nil, f_ini)
+local config = {}
+local okConfigInit, cfgConfigInit = pcall(inicfg.load, ini, f_ini)
+if okConfigInit and type(cfgConfigInit) == "table" then config = cfgConfigInit end
 
 --> Main
 --> Инициализация и команды (вынесено из main, чтобы уложиться в лимит upvalues)
@@ -727,10 +729,12 @@ local function mainInit()
     last_spectator_check = 0  -- для авто-проверки слежки
 	
     if config == nil then
-        local f = io.open(f_ini, "w")
-        if f then f:close() end
-        if inicfg.save(ini, f_ini) then
-            config = inicfg.load(nil, f_ini)
+        local okSave, cfgSave = pcall(inicfg.save, ini, f_ini)
+        if okSave then
+            local okReload, cfgReload = pcall(inicfg.load, ini, f_ini)
+            if okReload and type(cfgReload) == "table" then config = cfgReload else config = ini end
+        else
+            config = ini
         end
     end
 
