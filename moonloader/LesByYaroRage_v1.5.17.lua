@@ -1461,25 +1461,23 @@ end
 -- WH Трупы: коробка + линия + дистанция + инфо
 function renderEspTush()
     if type(getAllChars) ~= "function" then return end
+    local camX, camY, camZ = getActiveCameraCoordinates()
+    local lookX, lookY, lookZ = getActiveCameraPointAt()
+    local dirX, dirY, dirZ = lookX - camX, lookY - camY, lookZ - camZ
     for _, v in pairs(getAllChars()) do
         if doesCharExist(v) and v ~= PLAYER_PED then
             local m = getCharModel(v)
             if (m == MODEL_DEER or m == MODEL_BEAR) and getCharHealth(v) <= 0 then
                 local lx, ly, lz = getCharCoordinates(v)
-                local X, Y = convert3DCoordsToScreen(lx, ly, lz)
-                if X and Y and X > 0 and X < 8000 and Y > 0 and Y < 6000 then
-                    drawCharBox(v, 0xFFFF0000)
-                    local px, py, pz = getCharCoordinates(PLAYER_PED)
-                    local d = math.sqrt((lx-px)^2 + (ly-py)^2 + (lz-pz)^2)
-                    local animalName = (m == MODEL_DEER) and "Олень" or "Медведь"
-                    renderFontDrawText(font_whGreen, animalName .. " (труп)", X, Y, 0xFFFF0000)
-                    renderFontDrawText(font_whGreen, string.format("%.0f м", d), X, Y - uiScaled(10), 0xFFFFAAAA)
-                    -- Линия к голове трупа
-                    local sw, sh = getScreenResolution()
-                    local hx, hy, hz = GetBodyPartCoordinates(8, v)
-                    local hX, hY = convert3DCoordsToScreen(hx, hy, hz)
-                    if hX and hY then
-                        renderDrawLine(sw/2, sh/2, hX, hY, 1.0, 0xFFFF0000)
+                -- рисуем только трупы перед камерой, иначе координаты зеркаляются
+                if (lx - camX) * dirX + (ly - camY) * dirY + (lz - camZ) * dirZ > 0 then
+                    local X, Y = convert3DCoordsToScreen(lx, ly, lz)
+                    if X and Y and X > 0 and X < 8000 and Y > 0 and Y < 6000 then
+                        local px, py, pz = getCharCoordinates(PLAYER_PED)
+                        local d = math.sqrt((lx-px)^2 + (ly-py)^2 + (lz-pz)^2)
+                        local animalName = (m == MODEL_DEER) and "Олень" or "Медведь"
+                        renderFontDrawText(font_whGreen, animalName .. " (труп)", X, Y, 0xFFFF0000)
+                        renderFontDrawText(font_whGreen, string.format("%.0f м", d), X, Y - uiScaled(10), 0xFFFFAAAA)
                     end
                 end
             end
@@ -1487,7 +1485,6 @@ function renderEspTush()
     end
 end
 
--- WH Игроки: ник + здоровье + броня + оружие + дистанция
 function renderEspPlayers()
     if not Les.WhPlayers.v or type(getAllChars) ~= "function" then return end
     local px, py, pz = getCharCoordinates(PLAYER_PED)
