@@ -839,7 +839,7 @@ function main()
         end
 
         -- WH животных + линии + игроки (используем предсобранные таблицы)
-        local shouldRenderAimExtras = (doesCharExist(Les.AimHandle) and Les.AimHandle ~= nil)
+        local shouldRenderAimExtras = (Les.AimHandle ~= nil and doesCharExist(Les.AimHandle))
 
         if Les.Wh.v or Les.LineAnimals.v or Les.WhPlayers.v or Les.LinePlayers.v or Les.HeadDot.v or Les.ShowDistance.v then
             -- Животные
@@ -1032,7 +1032,7 @@ function main()
                     canSee = isLineOfSightClear(px, py, pz, tx, ty, tz, true, false, false, true, false, false, false)
                 end
                 
-                if inBox and doesCharExist(Les.AimHandle) and isCharOnScreen(Les.AimHandle) and canSee then
+                if inBox and Les.AimHandle ~= nil and doesCharExist(Les.AimHandle) and isCharOnScreen(Les.AimHandle) and canSee then
                     -- Сглаженное прицеливание (smoothing)
                     local cx, cy, cz = getActiveCameraCoordinates()
                     local targetX, targetY, targetZ = x, y, z
