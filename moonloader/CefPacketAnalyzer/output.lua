@@ -15,6 +15,13 @@ local summaryFile = "packets_summary.txt"
 local uniqueFile  = "packets_unique_table.html"
 local dataLineFile = "packets_data.jsonl"
 
+-- Предохранитель размера живых лог-файлов (packets_data.jsonl и packets_stream.txt):
+-- если файл вырос выше maxLogSize, выполняется авто-ротация без ожидания upload,
+-- чтобы при длительных сбоях выгрузки папка output не разрасталась на диске.
+local maxLogSize = 96 * 1024 * 1024
+local sizeCheckCounter = 0
+local sizeCheckEvery = 200
+
 -- Конвертация UTF-8-строки в CP1251 (для HTML с charset windows-1251)
 local function toCp1251(text)
     return encUtils.utf8ToBytesCp(text)
@@ -121,8 +128,39 @@ local function flushStream()
     streamBufN = 0
 end
 
+-- Размер файла через lfs (метаданные, без чтения данных)
+local function getFileSize(name)
+    local lfsOK, lfs = pcall(require, "lfs")
+    if not lfsOK then
+        return nil
+    end
+    local ok, attr = pcall(lfs.attributes, fullPath(name))
+    if ok and attr and attr.size then
+        return attr.size
+    end
+    return nil
+end
+
+-- Проверка лимита размера живых лог-файлов; при превышении - авто-ротация.
+local function enforceLogSizeLimit()
+    sizeCheckCounter = sizeCheckCounter + 1
+    if sizeCheckCounter < sizeCheckEvery then
+        return
+    end
+    sizeCheckCounter = 0
+    for i = 1, 2 do
+        local name = (i == 1) and dataLineFile or streamFile
+        local size = getFileSize(name)
+        if size and size > maxLogSize then
+            M.rotateLogs()
+            return
+        end
+    end
+end
+
 -- Дописываем запись в поток
 function M.appendStream(rec)
+    enforceLogSizeLimit()
     local line = streamLine(rec) .. "\n"
     if rec.text and #rec.text > 0 then
         line = line .. "\t" .. rec.text:gsub("\n", " ") .. "\n"
@@ -176,6 +214,7 @@ local function flushData()
 end
 
 function M.appendData(rec)
+    enforceLogSizeLimit()
     local ok, enc = pcall(function()
         local dkjson = require("dkjson")
         return dkjson.encode(rec)
