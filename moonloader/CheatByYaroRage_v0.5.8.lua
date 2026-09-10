@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.5.7")
+script_version("0.5.8")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -2827,7 +2827,7 @@ function flipCarToWheels(car)
 	writeFloatArray(mat, 9, 0)
 	writeFloatArray(mat, 10, 1)
 	-- Обнуляем угловые и скорость, чтобы машина не дёргалась
-	setVehicleForwardSpeed(car, 0)
+	setCarForwardSpeed(car, 0)
 end
 
 function displayVehicleName(x, y, gxt)
