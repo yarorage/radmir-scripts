@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.5.3")
+script_version("0.5.4")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -997,6 +997,40 @@ local function doRemoteLock(car, lockType)
 	end)
 end
 
+-- Переменные для ручного редактирования координат машины
+local carEditIdx = 0
+local carEditX = imgui.ImBuffer(64)
+local carEditY = imgui.ImBuffer(64)
+local carEditZ = imgui.ImBuffer(64)
+
+-- Автообновление координат сохранённых машин: перебираем весь пул SAMP
+-- и если видим рядом (дистанция < 30 м) сохранённую машину - обновляем её позицию.
+-- Вызывается из mainLoop раз в 1 сек (не каждый кадр). Даже если игрок стоит
+-- рядом с машиной (но не в ней), координаты обновятся автоматически.
+local lastProxUpdate = 0
+local function updateProximityCars()
+	local px, py, pz = getCharCoordinates(PLAYER_PED)
+	local changed = false
+	for i = 0, 1999 do
+		local okV, vehH = sampGetCarHandleBySampVehicleId(i)
+		if okV and vehH and vehH ~= 0 then
+			local cx, cy, cz = getCarCoordinates(vehH)
+			for _, car in ipairs(savedCars) do
+				if car.samid == i then
+					local dist = getDistanceBetweenCoords3d(px, py, pz, cx, cy, cz)
+					if dist <= 30 then
+						if getDistanceBetweenCoords3d(car.x, car.y, car.z, cx, cy, cz) > 0.5 then
+							car.x, car.y, car.z = cx, cy, cz
+							changed = true
+						end
+					end
+				end
+			end
+		end
+	end
+	if changed then saveSavedCarsFile() end
+end
+
 -- Публичная кнопка GUI: открыть/закрыть сохранённую машину по индексу
 function remoteLockSaved(idx, lockType)
     local car = savedCars[idx]
@@ -1056,6 +1090,13 @@ local function mainLoop()
 					end
 				end
 			end
+		end
+
+		-- Автообновление координат сохранённых машин по близости (раз в 1 сек).
+		local _now = os.clock()
+		if _now - (lastProxUpdate or 0) >= 1.0 then
+			updateProximityCars()
+			lastProxUpdate = _now
 		end
 
 		if pslide.v and isCharOnFoot(PLAYER_PED) and getCurrentCharWeapon(PLAYER_PED) == 24 and not sampIsChatInputActive() and not sampIsCursorActive() and not sampIsDialogActive() then
@@ -2078,16 +2119,47 @@ function drawVehicleTab()
 					for i, car in ipairs(savedCars) do
 						imgui.Text(i .. '. ' .. (car.name or '?'))
 						imgui.SameLine()
-						local lockSel = imgui.ImInt(car.lock)
 						imgui.PushID(i)
-						if imgui.Combo(u8'##lock', lockSel, { u8'1 - Личная', u8'2 - Аренда', u8'3 - Бизнес', u8'4 - Другое' }, nil, 190 * fsc) then
+						local lockSel = imgui.ImInt(car.lock)
+						if imgui.Combo(u8'##lock', lockSel, { u8'1 - Личная', u8'2 - Аренда', u8'3 - Бизнес', u8'4 - Другое' }, nil, 140 * fsc) then
 							car.lock = lockSel.v
 							saveSavedCarsFile()
 						end
 						imgui.SameLine()
-						if imgui.Button(u8'Открыть', imgui.ImVec2(64 * fsc, 22 * fsc)) then remoteLockSaved(i, car.lock) end
+						if imgui.Button(u8'Открыть', imgui.ImVec2(58 * fsc, 22 * fsc)) then remoteLockSaved(i, car.lock) end
 						imgui.SameLine()
-						if imgui.Button(u8'X', imgui.ImVec2(24 * fsc, 22 * fsc)) then removeSavedCar(i) end
+						if carEditIdx ~= i then
+							if imgui.Button(u8'Е##ed', imgui.ImVec2(26 * fsc, 22 * fsc)) then
+								carEditIdx = i
+								carEditX.v = tostring(car.x)
+								carEditY.v = tostring(car.y)
+								carEditZ.v = tostring(car.z)
+							end
+							imgui.SameLine()
+							if imgui.Button(u8'X', imgui.ImVec2(24 * fsc, 22 * fsc)) then removeSavedCar(i) end
+						else
+							imgui.PushItemWidth(72 * fsc)
+							imgui.InputText(u8'##ex', carEditX)
+							imgui.SameLine()
+							imgui.InputText(u8'##ey', carEditY)
+							imgui.SameLine()
+							imgui.InputText(u8'##ez', carEditZ)
+							imgui.PopItemWidth()
+							imgui.SameLine()
+							if imgui.Button(u8'OK', imgui.ImVec2(34 * fsc, 22 * fsc)) then
+								local nx = tonumber(carEditX.v)
+								local ny = tonumber(carEditY.v)
+								local nz = tonumber(carEditZ.v)
+								if nx and ny and nz then
+									car.x, car.y, car.z = nx, ny, nz
+									saveSavedCarsFile()
+									if remoteLockDebug then sampAddChatMessage(u8('Координаты '..car.name..' обновлены'), -1) end
+								else
+									if remoteLockDebug then sampAddChatMessage(u8'Ошибка: координаты не числа', -1) end
+								end
+								carEditIdx = 0
+							end
+						end
 						imgui.PopID()
 					end
 				end
