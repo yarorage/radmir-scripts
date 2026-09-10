@@ -158,9 +158,10 @@ function M.close_cef_window_silent()
         wait(250)
         local ok2 = M.send_cef_tx_215("THNT_OnInterfaceDisappear")
         AL.log("close_cef_window_silent: THNT_OnInterfaceDisappear ok=" .. tostring(ok2))
-        -- если окно не закрылось - закрываем через Esc
+        -- запасной ESC: только если CEF-пакеты не закрыли окно и игрок не в мире
+        -- (в мире Esc открывает меню паузы OnPlayerOpenMenuPause)
         wait(400)
-        if s.is_spawned or s.is_logging_in then
+        if (not ok1 or not ok2) and not s.is_spawned then
             if not s.saw_menu_pause_after_esc then
                 AL.log("close_cef_window_silent: запасной ESC")
                 user32.keybd_event(0x1B, 0, 0, 0)
