@@ -200,7 +200,7 @@ local function saveConfig(cfg, notify)
     if f then
         f:write(json.encode(cfg))
         f:close()
-        if notify then
+        if notify and isSampAvailable() then
             sampAddChatMessage("[Les] Конфиг сохранен", -1)
         end
         return true
