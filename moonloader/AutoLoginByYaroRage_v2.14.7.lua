@@ -1,8 +1,8 @@
--- AutoLoginByYaroRage v2.14.5
+-- AutoLoginByYaroRage v2.14.7
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("2.14.5")
+script_version("2.14.7")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -350,6 +350,11 @@ function sampevents.onConnectionLost()
     reconnect_mod.trigger_reconnect("ConnectionLost")
 end
 
+local log_throttle_sec = 10 -- интервал троттлинга лога массовых пакетов, сек
+local last_log_time = -math.huge
+local last_dialog_log_time = -math.huge
+local last_small_log_time = -math.huge
+
 function onReceivePacket(id, bs)
     if id == 32 or id == 33 then
         if s.is_reconnecting then return true end
@@ -358,6 +363,7 @@ function onReceivePacket(id, bs)
 
     local len = raknetBitStreamGetNumberOfBytesUsed(bs)
     local pkt_log = string.format("[PKT] id=%d size=%d", id, len)
+    local pkt_time = os.clock()
 
     local text = ""
     local max_len = math.min(len, 4096)
@@ -405,13 +411,22 @@ function onReceivePacket(id, bs)
     if id == 215 and auth_kind then
         AL.log(pkt_log .. " CEF-AUTH[" .. auth_kind .. "] HEX: " .. auth_hex)
     elseif id == 215 then
-        AL.log(pkt_log .. " CEF: " .. text:sub(1, 300))
+        if pkt_time - last_log_time >= log_throttle_sec then
+            last_log_time = pkt_time
+            AL.log(pkt_log .. " CEF: " .. text:sub(1, 300))
+        end
     elseif id == 61 then
-        AL.log(pkt_log .. " DIALOG: " .. text:sub(1, 300))
+        if pkt_time - last_dialog_log_time >= log_throttle_sec then
+            last_dialog_log_time = pkt_time
+            AL.log(pkt_log .. " DIALOG: " .. text:sub(1, 300))
+        end
     elseif text:find('Authorization') then
         AL.log(pkt_log .. " AUTH: " .. text:sub(1, 300))
     elseif id == 6 or id == 32 or id == 33 or id == 34 or id == 35 then
-        AL.log(pkt_log)
+        if pkt_time - last_small_log_time >= log_throttle_sec then
+            last_small_log_time = pkt_time
+            AL.log(pkt_log)
+        end
     end
 
     if id == 215 then
