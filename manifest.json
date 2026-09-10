@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.2",
     "launcherVersion":  "1.1.2",
-    "updatedAt":  "2026-09-10 16:18",
+    "updatedAt":  "2026-09-10 16:19",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -143,9 +143,9 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/LesByYaroRage_v1.5.18.lua",
-                      "sha256":  "c7a867a6bd93ef67f4dbad0bbf5b75464393c51c95f57d9a18daeb1c4e08d380",
-                      "size":  97804,
+                      "path":  "moonloader/LesByYaroRage_v1.5.19.lua",
+                      "sha256":  "dc3a401a81fe52ee2b78407c91e7521e5db93391ec682a13f34f556a13cf0e86",
+                      "size":  97879,
                       "dest":  "gameRoot"
                   },
                   {

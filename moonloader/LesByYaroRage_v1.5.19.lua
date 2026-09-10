@@ -615,7 +615,7 @@ function main()
                 -- Нажатие клавиши
                 if menuOpen then
                     -- Меню открыто -> закрыть меню
-                    if game_has_focus() and not sampIsChatInputActive() and not sampIsDialogActive() then
+                    if game_has_focus() and isSampAvailable() and not sampIsChatInputActive() and not sampIsDialogActive() then
                         imgui_Menu_windowState()
                     end
                     fired = true
@@ -629,7 +629,7 @@ function main()
                 -- Удержание клавиши
                 if not menuOpen and not fired and hold_start > 0 and (os.clock() - hold_start) >= 0.5 then
                     fired = true
-                    if game_has_focus() and not sampIsChatInputActive() and not sampIsDialogActive() then
+                    if game_has_focus() and isSampAvailable() and not sampIsChatInputActive() and not sampIsDialogActive() then
                         imgui_Menu_windowState()
                     end
                 end
@@ -656,7 +656,7 @@ function main()
             local d7 = (user32.GetAsyncKeyState(VK_F7) < 0)
             local d8 = (user32.GetAsyncKeyState(VK_F8) < 0)
             local d9 = (user32.GetAsyncKeyState(VK_F9) < 0)
-            if Les.DbgObjs.v and game_has_focus() and not sampIsChatInputActive() and not sampIsDialogActive() then
+            if Les.DbgObjs.v and game_has_focus() and isSampAvailable() and not sampIsChatInputActive() and not sampIsDialogActive() then
                 if d6 and not prev6 then
                     _probeId = _probeId - 1
                     probeBuilding(_probeId)
@@ -682,7 +682,7 @@ function main()
                 end
             end
             -- Автоскан: каждые 0.4 сек отправляет RPC 43 для пачки ID
-            if _sweepRun and Les.DbgObjs.v and (os.clock() - _sweepLast) >= 0.4 then
+            if _sweepRun and Les.DbgObjs.v and isSampAvailable() and (os.clock() - _sweepLast) >= 0.4 then
                 _sweepLast = os.clock()
                 _sweepTotal = _sweepTotal + 1
                 if _sweepTotal > _sweepBudget then
@@ -2092,8 +2092,15 @@ end
 function onReceivePacket(id, bs)
     if type(_cefLogReceive) == 'function' then pcall(_cefLogReceive, id, bs) end
     if id ~= 215 then return end
+    if not (Les.AutoY.v and Les.AutoY_Clicker) then return end
     local pk = ''
-    for i = 1, raknetBitStreamGetNumberOfBytesUsed(bs) do pk = pk .. string.char(raknetBitStreamReadInt8(bs)) end
+    local _n = raknetBitStreamGetNumberOfBytesUsed(bs)
+    if not (type(_n) == 'number') or _n < 0 then return end
+    for i = 1, _n do
+        local _ok, _byte = pcall(raknetBitStreamReadInt8, bs)
+        if not _ok then break end
+        pk = pk .. string.char((_byte % 256))
+    end
     if Les.AutoY.v and Les.AutoY_Clicker then
         if pk:find("setFill(0, 100)", 1, true) then
             Les.AutoY_Clicker:Stop()
@@ -2127,8 +2134,8 @@ function targetAtCoords(x, y, z)
     if not crosshairOffset[2] then crosshairOffset[2] = 0.5 end
 
     local mult = math.tan(getCameraFov() * 0.5 * 0.017453292)
-    fz = 3.14159265 - math.atan2(1.0, mult * ((0.5 - crosshairOffset[1]) * (2 / screenAspectRatio)))
-    fx = 3.14159265 - math.atan2(1.0, mult * 2 * (crosshairOffset[2] - 0.5))
+    local fz = 3.14159265 - math.atan2(1.0, mult * ((0.5 - crosshairOffset[1]) * (2 / screenAspectRatio)))
+    local fx = 3.14159265 - math.atan2(1.0, mult * 2 * (crosshairOffset[2] - 0.5))
 
     local camMode = safeReadMemory(0xB6F1A8, 1, false)
 
