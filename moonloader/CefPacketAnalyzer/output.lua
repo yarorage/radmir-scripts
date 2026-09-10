@@ -653,14 +653,46 @@ end
 
 -- Полная ротация лог-файлов: закрыть открытые хэндлы и удалить файлы.
 -- Данные уже отправлены на сервер, новые файлы создадутся сами при
--- следующих пакетах. Вызывается после успешной отправки агрегата.
+-- следующих пакетах. Вызывается после успешной отправки агрегата
+-- и автомобильной ротацией при превышении лимита размера.
+--
+-- Предохранитель от спама: сообщение логируется не чаще раза в минуту,
+-- а если удалить файл не удалось (занят хэндлом скрипта или внешним
+-- процессом) - файл принудительно обнуляется через открытие на запись,
+-- чтобы папка output не разрасталась бесконечно.
+local lastRotateLogAt = 0
+local rotateLogEvery = 60
+
 function M.rotateLogs()
     if not state.state.outputDir then return end
     M.closeStream()
+    local okDelAll = true
+    local errorDetail = nil
     for _, name in ipairs({ streamFile, tableFile, dataFile, summaryFile, uniqueFile, dataLineFile }) do
-        pcall(os.remove, fullPath(name))
+        local path = fullPath(name)
+        local okDel = pcall(os.remove, path)
+        if not okDel then
+            -- план Б: обнулить содержимое файла, если удаление заблокировано
+            local fh = io.open(path, "w")
+            if fh then
+                fh:write("")
+                fh:close()
+                okDel = true
+            else
+                okDelAll = false
+                errorDetail = tostring(name)
+            end
+        end
     end
-    state.log("Локи подчищены после отправки: " .. fullPath("."))
+    local now = os.time()
+    if now >= lastRotateLogAt + rotateLogEvery and (okDelAll or errorDetail) then
+        lastRotateLogAt = now
+        if okDelAll then
+            state.log("Локи подчищены: " .. fullPath("."))
+        else
+            state.log("Не удалось очистить файл: " .. tostring(errorDetail))
+        end
+    end
 end
 
 -- Очистка файлов отчётов (новый прогон)

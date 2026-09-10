@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.3",
     "launcherVersion":  "1.1.3",
-    "updatedAt":  "2026-09-10 23:35",
+    "updatedAt":  "2026-09-11 00:07",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -137,8 +137,8 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/CefPacketAnalyzer_v1.1.7.lua",
-                      "sha256":  "ca768321f6cf97adfc8a76c40ae9ccf1cd50fdea2d0cd5ec9965914eb2556c5e",
+                      "path":  "moonloader/CefPacketAnalyzer_v1.1.8.lua",
+                      "sha256":  "b649fa2bcf859357c3e1292bf975d19ced060b645880fd206dfe0cbe060dfb41",
                       "size":  7763,
                       "dest":  "gameRoot"
                   },
@@ -270,8 +270,8 @@
                   },
                   {
                       "path":  "moonloader/CefPacketAnalyzer/output.lua",
-                      "sha256":  "2092101392e9fb1672aa0d8dc4cab2d8857d1f6d1c540da8d5f41745656fef7a",
-                      "size":  26053,
+                      "sha256":  "39ab61ba078075f9caabbd74fd961e957a7d0504df2aab5ac724e71e3a494bc4",
+                      "size":  27167,
                       "dest":  "gameRoot"
                   },
                   {
@@ -282,7 +282,7 @@
                   },
                   {
                       "path":  "moonloader/CefPacketAnalyzer/upload.lua",
-                      "sha256":  "5e6803e6668a165c9fb5cc213446ee08ee627e4b9d4a5f1a834d064d083f232c",
+                      "sha256":  "2ac7f7ddfa0bfe1de5764c82a5eafaffffa938d73f5331d2dff9b7119bd6ef2c",
                       "size":  9529,
                       "dest":  "gameRoot"
                   },
