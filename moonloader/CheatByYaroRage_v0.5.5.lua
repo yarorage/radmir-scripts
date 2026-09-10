@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.5.4")
+script_version("0.5.5")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -894,6 +894,7 @@ local fakeLockActive = false
 local fakeLockPacked = false
 local fakeLockTX, fakeLockTY, fakeLockTZ = 0, 0, 0
 local remoteLockDebug = true
+local remoteLockFake = false
 
 -- Сохранение списка сохранённых машин
 function saveSavedCarsFile()
@@ -934,7 +935,7 @@ end
 -- Запомнить машину, в которой сидит игрок (кнопка в GUI)
 function saveCurrentCar()
     if not isSampAvailable() or not isCharInAnyCar(PLAYER_PED) then
-        if remoteLockDebug then sampAddChatMessage(u8'Дистлок: игрок не в машине', -1) end
+        if remoteLockDebug then sampAddChatMessage('Дистлок: игрок не в машине', -1) end
         return
     end
     local veh = getCarCharIsUsing(PLAYER_PED)
@@ -950,18 +951,18 @@ function saveCurrentCar()
         if car.samid ~= 0 and car.samid == samid then
             car.x, car.y, car.z = x, y, z
             car.lock = car.lock or 1
-            sampAddChatMessage(u8('Машина '..name..' уже сохранена'), -1)
+            sampAddChatMessage('Машина '..name..' уже сохранена', -1)
             saveSavedCarsFile()
             return
         end
     end
     if #savedCars >= 10 then
-        if remoteLockDebug then sampAddChatMessage(u8'Дистлок: не больше 10 машин. Удали лишние', -1) end
+        if remoteLockDebug then sampAddChatMessage('Дистлок: не больше 10 машин. Удали лишние', -1) end
         return
     end
     table.insert(savedCars, {name = name, lock = 1, x = x, y = y, z = z, model = model, samid = samid})
     saveSavedCarsFile()
-    if remoteLockDebug then sampAddChatMessage(u8'Машина сохранена: ' .. name, -1) end
+    if remoteLockDebug then sampAddChatMessage('Машина сохранена: ' .. name, -1) end
 end
 
 -- Удалить сохранённую машину по индексу (0 = ничего не делать)
@@ -981,8 +982,14 @@ local function doRemoteLock(car, lockType)
 		sampProcessChatInput('/lock '..lockType)
 		return
 	end
+	-- Если фейк-синк выключен (remoteLockFake = false) - шлём /lock честно,
+	-- без подмены позиции. Античит может кикнуть за телетранспорт.
+	if not remoteLockFake then
+		sampProcessChatInput('/lock '..lockType)
+		return
+	end
 	fakeLockTX, fakeLockTY, fakeLockTZ = car.x, car.y, car.z
-	if remoteLockDebug then sampAddChatMessage(u8('Дистлок: '..car.name..' на '..math.floor(dist)..' м, фейк-синк'), -1) end
+	if remoteLockDebug then sampAddChatMessage('Дистлок: '..car.name..' на '..math.floor(dist)..' м, фейк-синк', -1) end
 	lua_thread.create(function ()
 		fakeLockActive = true
 		fakeLockPacked = false
@@ -1035,7 +1042,7 @@ end
 function remoteLockSaved(idx, lockType)
     local car = savedCars[idx]
     if not car then
-        if remoteLockDebug then sampAddChatMessage(u8'Дистлок: машина не найдена', -1) end
+        if remoteLockDebug then sampAddChatMessage('Дистлок: машина не найдена', -1) end
         return
     end
     doRemoteLock(car, tonumber(lockType) or car.lock or 1)
@@ -2111,6 +2118,10 @@ function drawVehicleTab()
 
 				imgui.Separator()
 				imgui.TextColored(imgui.ImVec4(0.9, 0.9, 0.9, 1), u8'Дистанционный /lock (сохранённые машины)')
+				local fakeImBool = imgui.ImBool(remoteLockFake)
+				if imgui.Checkbox(u8'Подмена позиции (/lock издалека, риск кика античитом)', fakeImBool) then
+					remoteLockFake = fakeImBool.v
+				end
 				if imgui.Button(u8'Запомнить текущую машину', imgui.ImVec2(190 * fsc, 28 * fsc)) then saveCurrentCar() end
 				imgui.TextDisabled(u8'Сядь в машину и нажми кнопку. Координаты обновляются при посадке')
 				if #savedCars == 0 then
@@ -2136,7 +2147,7 @@ function drawVehicleTab()
 					imgui.TextDisabled(u8'Другу: нажмите эту кнопку и скажите координаты')
 					if imgui.Button(u8'Получить координаты', imgui.ImVec2(190 * fsc, 26 * fsc)) then
 						local px, py, pz = getCharCoordinates(PLAYER_PED)
-						sampAddChatMessage(string.format(u8'Координаты: %.1f, %.1f, %.1f', px, py, pz), -1)
+						sampAddChatMessage(string.format('Координаты: %.1f, %.1f, %.1f', px, py, pz), -1)
 					end
 					imgui.Separator()
 					-- Ручное редактирование координат через dropdown
@@ -2170,9 +2181,9 @@ function drawVehicleTab()
 							if nx and ny and nz then
 								car.x, car.y, car.z = nx, ny, nz
 								saveSavedCarsFile()
-								if remoteLockDebug then sampAddChatMessage(u8('Координаты '..car.name..' обновлены'), -1) end
+								if remoteLockDebug then sampAddChatMessage('Координаты '..car.name..' обновлены', -1) end
 							else
-								if remoteLockDebug then sampAddChatMessage(u8'Ошибка: координаты не числа', -1) end
+								if remoteLockDebug then sampAddChatMessage('Ошибка: координаты не числа', -1) end
 							end
 						end
 					end
