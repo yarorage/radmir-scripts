@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.3",
     "launcherVersion":  "1.1.3",
-    "updatedAt":  "2026-09-10 21:52",
+    "updatedAt":  "2026-09-10 23:20",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -143,9 +143,9 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/CheatByYaroRage_v0.5.5.lua",
-                      "sha256":  "469c73063a3c87ca951fcd64d4cb2f1a81cbc449c24600f52cbbfe6867f4658e",
-                      "size":  112443,
+                      "path":  "moonloader/CheatByYaroRage_v0.5.6.lua",
+                      "sha256":  "3851913245030dd18336b2956d25723eefd1e4169116e3c53949bb3ce77f68ce",
+                      "size":  112667,
                       "dest":  "gameRoot"
                   },
                   {

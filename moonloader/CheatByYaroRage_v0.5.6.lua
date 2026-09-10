@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.5.5")
+script_version("0.5.6")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -492,6 +492,7 @@ local chatbubbles_dist_slider = imgui.ImInt(6)
 local fog_dist_slider = imgui.ImInt(350)
 local lods_dist_slider = imgui.ImInt(150)
 local tfirst = imgui.ImBool(false)
+local wasInCar = false
 local tsecond = imgui.ImBool(false)
 local triggermode = imgui.ImInt(3)
 
@@ -1075,7 +1076,23 @@ local function mainLoop()
 			end
 		end
 
-		-- Автообновление координат сохранённых машин: если игрок пересел
+				-- Авторем (Autorem): как только игрок сел в транспорт - /rem с задержкой 0.5-3 с.
+		-- Детект через клиентское состояние (isCharInAnyCar), не зависит от RPC-событий сервера.
+		do
+			local inCar = isCharInAnyCar(PLAYER_PED)
+			if tfirst.v and inCar and not wasInCar then
+				local entered = getCarCharIsUsing(PLAYER_PED)
+				lua_thread.create(function()
+					wait(math.random(500, 3000))
+					if isSampAvailable() and getCarCharIsUsing(PLAYER_PED) == entered then
+						sampProcessChatInput('/rem')
+					end
+				end)
+			end
+			wasInCar = inCar
+		end
+
+-- Автообновление координат сохранённых машин: если игрок пересел
 		-- в сохранённую (по server id), обновляем её позицию в списке.
 		if isCharInAnyCar(PLAYER_PED) then
 			local veh = getCarCharIsUsing(PLAYER_PED)
@@ -1888,18 +1905,7 @@ function sampSetPlayerSkin(playerId, skinId)
     raknetDeleteBitStream(bs)
 end
 
-function ev.onSendEnterVehicle(vehId, pass)
-	if tfirst.v then
-		lua_thread.create(function()
-			-- Случайная задержка 5-10 с: чтобы у нескольких читеров ремень не надевался одновременно
-			wait(math.random(5000, 10000))
-			result, handle = sampGetCarHandleBySampVehicleId(vehId)
-			if result then
-				sampProcessChatInput('/rem')
-			end
-		end)
-	end
-end
+
 
 -- ИНТЕРФЕЙС
 local search_text = imgui.ImBuffer(256)
