@@ -2128,39 +2128,53 @@ function drawVehicleTab()
 						imgui.SameLine()
 						if imgui.Button(u8'Открыть', imgui.ImVec2(58 * fsc, 22 * fsc)) then remoteLockSaved(i, car.lock) end
 						imgui.SameLine()
-						if carEditIdx ~= i then
-							if imgui.Button(u8'Е##ed', imgui.ImVec2(26 * fsc, 22 * fsc)) then
-								carEditIdx = i
-								carEditX.v = tostring(car.x)
-								carEditY.v = tostring(car.y)
-								carEditZ.v = tostring(car.z)
-							end
-							imgui.SameLine()
-							if imgui.Button(u8'X', imgui.ImVec2(24 * fsc, 22 * fsc)) then removeSavedCar(i) end
-						else
-							imgui.PushItemWidth(72 * fsc)
-							imgui.InputText(u8'##ex', carEditX)
-							imgui.SameLine()
-							imgui.InputText(u8'##ey', carEditY)
-							imgui.SameLine()
-							imgui.InputText(u8'##ez', carEditZ)
-							imgui.PopItemWidth()
-							imgui.SameLine()
-							if imgui.Button(u8'OK', imgui.ImVec2(34 * fsc, 22 * fsc)) then
-								local nx = tonumber(carEditX.v)
-								local ny = tonumber(carEditY.v)
-								local nz = tonumber(carEditZ.v)
-								if nx and ny and nz then
-									car.x, car.y, car.z = nx, ny, nz
-									saveSavedCarsFile()
-									if remoteLockDebug then sampAddChatMessage(u8('Координаты '..car.name..' обновлены'), -1) end
-								else
-									if remoteLockDebug then sampAddChatMessage(u8'Ошибка: координаты не числа', -1) end
-								end
-								carEditIdx = 0
+						if imgui.Button(u8'X', imgui.ImVec2(24 * fsc, 22 * fsc)) then removeSavedCar(i) end
+						imgui.PopID()
+					end
+					imgui.Separator()
+					-- Кнопка: получить координаты текущей позиции (для друга)
+					imgui.TextDisabled(u8'Другу: нажмите эту кнопку и скажите координаты')
+					if imgui.Button(u8'Получить координаты', imgui.ImVec2(190 * fsc, 26 * fsc)) then
+						local px, py, pz = getCharCoordinates(PLAYER_PED)
+						sampAddChatMessage(string.format(u8'Координаты: %.1f, %.1f, %.1f', px, py, pz), -1)
+					end
+					imgui.Separator()
+					-- Ручное редактирование координат через dropdown
+					imgui.TextDisabled(u8'Ввести координаты для машины:')
+					local editSel = imgui.ImInt(carEditIdx > 0 and carEditIdx or 1)
+					local editNames = {}
+					for j = 1, #savedCars do editNames[j] = j .. '. ' .. (savedCars[j].name or '?') end
+					if imgui.Combo(u8'##editcar', editSel, editNames, #editNames, 190 * fsc) then
+						carEditIdx = editSel.v
+						local car = savedCars[carEditIdx]
+						if car then
+							carEditX.v = tostring(car.x)
+							carEditY.v = tostring(car.y)
+							carEditZ.v = tostring(car.z)
+						end
+					end
+					imgui.PushItemWidth(72 * fsc)
+					imgui.InputText(u8'X##edx', carEditX)
+					imgui.SameLine()
+					imgui.InputText(u8'Y##edy', carEditY)
+					imgui.SameLine()
+					imgui.InputText(u8'Z##edz', carEditZ)
+					imgui.PopItemWidth()
+					imgui.SameLine()
+					if imgui.Button(u8'Сохранить', imgui.ImVec2(64 * fsc, 22 * fsc)) then
+						if carEditIdx >= 1 and carEditIdx <= #savedCars then
+							local car = savedCars[carEditIdx]
+							local nx = tonumber(carEditX.v)
+							local ny = tonumber(carEditY.v)
+							local nz = tonumber(carEditZ.v)
+							if nx and ny and nz then
+								car.x, car.y, car.z = nx, ny, nz
+								saveSavedCarsFile()
+								if remoteLockDebug then sampAddChatMessage(u8('Координаты '..car.name..' обновлены'), -1) end
+							else
+								if remoteLockDebug then sampAddChatMessage(u8'Ошибка: координаты не числа', -1) end
 							end
 						end
-						imgui.PopID()
 					end
 				end
 
