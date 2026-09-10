@@ -824,7 +824,7 @@ local function extractCefFields(text, jsonData)
         local cmdKeys = { "event", "cmd", "command", "type", "action", "name", "window" }
         for _, k in ipairs(cmdKeys) do
             for key, val in pairs(jsonData) do
-                if not out.cmd and key:lower() == k and type(val) == "string" then
+                if not out.cmd and type(key) == "string" and key:lower() == k and type(val) == "string" then
                     if val ~= "" then
                         out.cmd = val
                     end
@@ -835,7 +835,7 @@ local function extractCefFields(text, jsonData)
         local urlKeys = { "url", "src", "page", "resource", "link", "iframe", "path", "uri" }
         for _, k in ipairs(urlKeys) do
             for key, val in pairs(jsonData) do
-                if not out.url and key:lower() == k and type(val) == "string" then
+                if not out.url and type(key) == "string" and key:lower() == k and type(val) == "string" then
                     local u = tostring(val):match("^[%w_]+://")
                     if u then
                         out.url = val
@@ -847,7 +847,7 @@ local function extractCefFields(text, jsonData)
         local dataKeys = { "data", "args", "params", "body", "payload" }
         for _, k in ipairs(dataKeys) do
             for key, val in pairs(jsonData) do
-                if key:lower() == k and type(val) == "table" then
+                if type(key) == "string" and key:lower() == k and type(val) == "table" then
                     for sk in pairs(val) do
                         if #out.dataKeys < 24 then
                             table.insert(out.dataKeys, tostring(sk))
@@ -860,7 +860,7 @@ local function extractCefFields(text, jsonData)
         local winKeys = { "window", "windowSettings", "size", "pos", "dimensions" }
         for _, k in ipairs(winKeys) do
             for key, val in pairs(jsonData) do
-                if not out.win and key:lower() == k and type(val) == "table" then
+                if not out.win and type(key) == "string" and key:lower() == k and type(val) == "table" then
                     local x = val.x or val.left
                     local y = val.y or val.top
                     local w = val.width or val.w
