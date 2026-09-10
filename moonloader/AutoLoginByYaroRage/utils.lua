@@ -351,7 +351,7 @@ function M.check_for_updates()
         local data = dkjson.decode(table.concat(response_body))
         if data and data.tag_name then
             local latest = data.tag_name:gsub("v", "")
-            local current = s.current_version
+            local current = s.current_version or "0.0.0"
             
             if latest ~= current then
                 AL.log("Update available: " .. latest .. " (current: " .. current .. ")")

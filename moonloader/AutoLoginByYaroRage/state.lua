@@ -125,7 +125,7 @@ M.state = {
     auto_update_enabled = true,
     update_check_interval = 3600,
     github_repo = "yarorage/radmir-scripts",
-    current_version = script_version(),
+    current_version = "0.0.0",
     last_update_check = 0,
 
     -- Logging
