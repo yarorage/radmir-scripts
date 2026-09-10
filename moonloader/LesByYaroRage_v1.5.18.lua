@@ -80,6 +80,10 @@ local function ensureEspScale()
     if math.abs(_s - _espScale) > 0.01 or _fs ~= _espFontSizeApplied then
         _espScale = _s
         _espFontSizeApplied = _fs
+        if font_whGreen and type(renderFreeFont) == "function" then
+            pcall(renderFreeFont, font_whGreen)
+            pcall(renderFreeFont, font_dbg)
+        end
         font_whGreen = renderCreateFont('Arial', _fs, 13)
         font_dbg = renderCreateFont('Arial', math.floor(7 * _s + 0.5), 13)
     end
@@ -375,9 +379,14 @@ waitWaitClickY = imgui.ImInt(600)
 
 local getBonePosition = ffi.cast("int (__thiscall*)(void*, float*, int, bool)", 0x5E4280)
 function GetBodyPartCoordinates(id, handle)
+    if not handle or not doesCharExist(handle) then return 0, 0, 0 end
     local pedptr = getCharPointer(handle)
+    if not pedptr or pedptr == 0 then return 0, 0, 0 end
     local vec = ffi.new("float[3]")
-    getBonePosition(ffi.cast("void*", pedptr), vec, id, true)
+    local ok = pcall(function()
+        getBonePosition(ffi.cast("void*", pedptr), vec, id, true)
+    end)
+    if not ok then return 0, 0, 0 end
     return vec[0], vec[1], vec[2]
 end
 local dbgLog = thisScript().directory .. "\\les_dbg.txt"
@@ -420,6 +429,10 @@ function Clicker:new(Button, Sleep, DownTime)
     obj.minInterval = 50  -- Мин. интервал между кликами (мс)
 
     function obj:Start()
+        if self.thread then
+            self.Allow = true
+            return
+        end
         self.Allow = true
         self.thread = lua_thread.create(function()
             while self.Allow do
@@ -701,6 +714,8 @@ function main()
 
     while true do
         wait(0)
+
+        if isSampAvailable() then
 
         -- Кэшируем часто используемые данные
         local sw, sh = getScreenResolution()
@@ -1141,6 +1156,7 @@ function main()
             imgui.ShowCursor = false
         else
             imgui.ShowCursor = true
+        end
         end
     end
 end
@@ -2078,7 +2094,7 @@ function onReceivePacket(id, bs)
     if id ~= 215 then return end
     local pk = ''
     for i = 1, raknetBitStreamGetNumberOfBytesUsed(bs) do pk = pk .. string.char(raknetBitStreamReadInt8(bs)) end
-    if Les.AutoY.v then
+    if Les.AutoY.v and Les.AutoY_Clicker then
         if pk:find("setFill(0, 100)", 1, true) then
             Les.AutoY_Clicker:Stop()
             dbg("AUTOY stop-100")
