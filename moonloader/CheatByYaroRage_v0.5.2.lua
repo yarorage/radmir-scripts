@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.5.1")
+script_version("0.5.2")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -885,6 +885,48 @@ local function mainInit()
 end
 
 --> Главный цикл (вынесено из main, чтобы уложиться в лимит upvalues)
+-- ============== Дистанционный /lock (фейк-синк) ==============
+local lastVehicleHandle = 0
+local lastVehicleX, lastVehicleY, lastVehicleZ = 0, 0, 0
+local fakeLockActive = false
+local fakeLockPacked = false
+local remoteLockDebug = true
+
+-- Дистанционный лок: подменяем позицию в sync-пакете на координаты последнего авто,
+-- дожидаемся его отправки и посылаем /lock N. Следующий синк вернёт реальную позицию.
+function remoteLock(lockType)
+	if not isSampAvailable() then return end
+	-- Игрок в машине: сервер сам найдёт его транспорт - обычный /lock.
+	if isCharInAnyCar(PLAYER_PED) then
+		sampProcessChatInput('/lock '..lockType)
+		return
+	end
+	if lastVehicleHandle == 0 then
+		if remoteLockDebug then sampAddChatMessage(u8'Дистлок: нет запомненного авто', -1) end
+		return
+	end
+	-- Рядом с последним авто - обычный /lock (сервер сам знает, чья это машина).
+	local px, py, pz = getCharCoordinates(PLAYER_PED)
+	local dist = getDistanceBetweenCoords3d(px, py, pz, lastVehicleX, lastVehicleY, lastVehicleZ)
+	if dist <= 15 then
+		sampProcessChatInput('/lock '..lockType)
+		return
+	end
+	if remoteLockDebug then sampAddChatMessage(u8'Дистлок: машина далеко, фейк-синк на '..math.floor(dist)..' м', -1) end
+	lua_thread.create(function ()
+		fakeLockActive = true
+		fakeLockPacked = false
+		local t0 = os.clock()
+		-- Ждём отправки подменённого синка (до 1.5 с).
+		while not fakeLockPacked and os.clock() - t0 < 1.5 do
+			wait(0)
+		end
+		sampProcessChatInput('/lock '..lockType)
+		wait(400)
+		fakeLockActive = false
+	end)
+end
+
 local function mainLoop()
 	local n_press_time = 0
 
@@ -909,6 +951,15 @@ local function mainLoop()
 			if not last_spectator_check or cur_time - last_spectator_check >= 5.0 then
 				checkSpectators()
 				last_spectator_check = cur_time
+			end
+		end
+
+		-- Запоминаем последний транспорт игрока.
+		if isCharInAnyCar(PLAYER_PED) then
+			local veh = getCarCharIsUsing(PLAYER_PED)
+			if veh ~= 0 then
+				lastVehicleHandle = veh
+				lastVehicleX, lastVehicleY, lastVehicleZ = getCarCoordinates(veh)
 			end
 		end
 
@@ -943,11 +994,11 @@ local function mainLoop()
         end
 
 		if isKeyDown(VK_LMENU) and isKeyJustPressed(VK_1) and not sampIsChatInputActive() and not sampIsDialogActive()  then
-			sampProcessChatInput('/lock 1')
+			remoteLock(1)
 		end
 
 		if isKeyDown(VK_LMENU) and isKeyJustPressed(VK_2) and not sampIsChatInputActive() and not sampIsDialogActive()  then
-			sampProcessChatInput('/lock 4')
+			remoteLock(4)
 		end
 
 		if isKeyJustPressed(VK_N) and not sampIsChatInputActive() and not sampIsDialogActive() then
@@ -2591,6 +2642,11 @@ function removePointMarker()
 end
 
 function ev.onSendPlayerSync(data)
+	if fakeLockActive and not fakeLockPacked then
+		data.position = {lastVehicleX, lastVehicleY, lastVehicleZ}
+		fakeLockPacked = true
+	end
+
 	if sync then
         local data_sync = samp_create_sync_data('player')
         pedcord = { getCharCoordinates(PLAYER_PED) }
