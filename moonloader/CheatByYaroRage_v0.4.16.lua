@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.4.15")
+script_version("0.4.16")
 --==================================[ ÍÀÑÒÐÎÉÊÈ ×ÈÒÀ ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -424,8 +424,10 @@ local font2 = renderCreateFont("Tahoma", 10, 5)
 
 function GetBodyPartCoordinates(id, handle)
     local pedptr = getCharPointer(handle)
+    if pedptr == 0 then return nil end
     local vec = ffi.new("float[3]")
-    getBonePosition(ffi.cast("void*", pedptr), vec, id, true)
+    local ok = pcall(getBonePosition, ffi.cast("void*", pedptr), vec, id, true)
+    if not ok then return nil end
     return vec[0], vec[1], vec[2]
 end
 
@@ -658,6 +660,7 @@ ffi.cdef[[
     void __stdcall GetLocalTime(SYSTEMTIME*);
 ]]
 local active = false
+local pslideAim = false
 local hour, minute, second, ms
 
 local fog_dist = ffi.cast('float *', 0x00B7C4F0)
@@ -911,25 +914,25 @@ local function mainLoop()
 		end
 
 		if pslide.v and isCharOnFoot(PLAYER_PED) and getCurrentCharWeapon(PLAYER_PED) == 24 and not sampIsChatInputActive() and not sampIsCursorActive() and not sampIsDialogActive() then
-            if not aiming then
+            if not pslideAim then
                 setGameKeyState(6, 0)
             end
-            if isKeyDown(vKeys.VK_RBUTTON) and not aiming then
+            if isKeyDown(vKeys.VK_RBUTTON) and not pslideAim then
                 lua_thread.create(function() 
                     silent = true
                     wait(500)
                     silent = false
                 end)
                 ignore = true
-                aiming = true
+                pslideAim = true
                 wait(200)
                 ignore = false
                 wait(100)
                 if not isKeyDown(vKeys.VK_RBUTTON) then
                     setGameKeyState(18, 256)
                 end
-            elseif not isKeyDown(vKeys.VK_RBUTTON) and aiming then
-                aiming = false
+            elseif not isKeyDown(vKeys.VK_RBUTTON) and pslideAim then
+                pslideAim = false
             end
         end
 
@@ -980,17 +983,21 @@ local function mainLoop()
 		end
 
 		if trigger.v and not isCharOnAnyBike(PLAYER_PED) and not isCharDead(PLAYER_PED) then
-			local int = readMemory(0xB6F3B8, 4, 0)
-			int = int + 0x79C
-			local intS = readMemory(int, 4, 0)
-			if intS > 0 then
-				local lol = 0xB73458
-				lol = lol + 34
-				writeMemory(lol, 4, 255, 0)
-				wait(100)
-				local int = readMemory(0xB6F3B8, 4, 0)
-				int = int + 0x79C
-				writeMemory(int, 4, 0, 0)
+			local pool = readMemory(0xB6F3B8, 4, 0)
+			if pool ~= 0 then
+				local int = pool + 0x79C
+				local intS = readMemory(int, 4, 0)
+				if intS > 0 then
+					local lol = 0xB73458
+					lol = lol + 34
+					writeMemory(lol, 4, 255, 0)
+					wait(100)
+					local pool2 = readMemory(0xB6F3B8, 4, 0)
+					if pool2 ~= 0 then
+						local int2 = pool2 + 0x79C
+						writeMemory(int2, 4, 0, 0)
+					end
+				end
 			end
 		end
 
@@ -1508,7 +1515,9 @@ function GetNearestPed(fov)
                 if isCharOnScreen(handle) then
                     if not isCharDead(handle) then
                         local _, currentID = sampGetPlayerIdByCharHandle(PLAYER_PED)
-                        local enPos = {GetBodyPartCoordinates(aiming, handle)}
+                        local boneEn = GetBodyPartCoordinates(aiming, handle)
+                        if boneEn then
+                        local enPos = {boneEn}
                         local myPos = {getActiveCameraCoordinates()}
                         local vector = {myPos[1] - enPos[1], myPos[2] - enPos[2], myPos[3] - enPos[3]}
                         if isWidescreenOnInOptions() then coefficentZ = 0.0778 else coefficentZ = 0.103 end
@@ -1524,6 +1533,7 @@ function GetNearestPed(fov)
                                 maxDistance = distance
                             end
                         end
+                        end
                     end
                 end
             end
@@ -1537,7 +1547,9 @@ function SmoothAimBot()
         local handle = GetNearestPed(Fov.v)
         if handle ~= -1 then
             local myPos = {getActiveCameraCoordinates()}
-            local enPos = {GetBodyPartCoordinates(aiming, handle)}
+            local boneEn = GetBodyPartCoordinates(aiming, handle)
+            if not boneEn then return false end
+            local enPos = {boneEn}
             local vector = {myPos[1] - enPos[1], myPos[2] - enPos[2], myPos[3] - enPos[3]}
             if isWidescreenOnInOptions() then coefficentZ = 0.0778 else coefficentZ = 0.103 end
             local angle = {(math.atan2(vector[2], vector[1]) + 0.04253), (math.atan2((math.sqrt((math.pow(vector[1], 2) + math.pow(vector[2], 2)))), vector[3]) - math.pi / 2 - coefficentZ)}
@@ -2359,22 +2371,26 @@ function ClickWP()
 				end
 			elseif triggermode.v == 2 then
 				if not isCharOnAnyBike(PLAYER_PED) and not isCharDead(PLAYER_PED) then
-					local int = readMemory(0xB6F3B8, 4, 0)
-					int = int + 0x79C
-					local intS = readMemory(int, 4, 0)
-					if intS > 0 then
-						local _, ped = getCharPlayerIsTargeting(PLAYER_HANDLE)
-						if _ and not isCharDead(ped) then
-							local _, id = sampGetPlayerIdByCharHandle(ped)
-						end
+					local pool = readMemory(0xB6F3B8, 4, 0)
+					if pool ~= 0 then
+						local int = pool + 0x79C
+						local intS = readMemory(int, 4, 0)
+						if intS > 0 then
+							local _, ped = getCharPlayerIsTargeting(PLAYER_HANDLE)
+							if _ and not isCharDead(ped) then
+								local _, id = sampGetPlayerIdByCharHandle(ped)
+							end
 
-						local a = 0xB73458
-						a = a + 34
-						writeMemory(a, 4, 255, 0)
-						wait(100)
-						local int = readMemory(0xB6F3B8, 4, 0)
-						int = int + 0x79C
-						writeMemory(int, 4, 0, 0)
+							local a = 0xB73458
+							a = a + 34
+							writeMemory(a, 4, 255, 0)
+							wait(100)
+							local pool2 = readMemory(0xB6F3B8, 4, 0)
+							if pool2 ~= 0 then
+								local int2 = pool2 + 0x79C
+								writeMemory(int2, 4, 0, 0)
+							end
+						end
 					end
 				end
 			end
@@ -2838,7 +2854,9 @@ function SmoothAimBott()
         local handle = GetNearestPed(fov)
         if handle ~= -1 then
             local myPos = {getActiveCameraCoordinates()}
-            local enPos = {GetBodyPartCoordinates(3, handle)}
+            local boneEn = GetBodyPartCoordinates(3, handle)
+            if not boneEn then return false end
+            local enPos = {boneEn}
             local vector = {myPos[1] - enPos[1], myPos[2] - enPos[2], myPos[3] - enPos[3]}
             if isWidescreenOnInOptions() then coefficentZ = 0.0778 else coefficentZ = 0.103 end
             local angle = {(math.atan2(vector[2], vector[1]) + 0.04253), (math.atan2((math.sqrt((math.pow(vector[1], 2) + math.pow(vector[2], 2)))), vector[3]) - math.pi / 2 - coefficentZ)}
