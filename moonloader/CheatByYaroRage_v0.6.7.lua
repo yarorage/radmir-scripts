@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.6.6")
+script_version("0.6.7")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -99,6 +99,13 @@ local known_online = {}        -- {ник = pid} онлайн статус админов из списка kn
 local spectator_list = {}      -- {id = {nick, time, dist, reason, date}}
 local show_admin_hud = imgui.ImBool(false)
 local admin_hud_pos = {x = 10, y = 10}
+local admin_hud_scale = imgui.ImFloat(1.0)
+local admin_hud_color_r = imgui.ImInt(255)
+local admin_hud_color_g = imgui.ImInt(255)
+local admin_hud_color_b = imgui.ImInt(255)
+local admin_hud_moving = false
+local admin_hud_font = nil
+local admin_hud_font_scale = 0
 local resource_path = "moonloader/CheatByYaroRage/resource/"
 
 -- Временный отладочный лог для диагностики детекта админов по чату
@@ -552,6 +559,12 @@ local mainIni = inicfg.load({
 		admin_detection = true,
 		auto_spectator_check = false,
 		show_admin_hud = false,
+		admin_hud_x = 10,
+		admin_hud_y = 10,
+		admin_hud_scale = 1.0,
+		admin_hud_color_r = 255,
+		admin_hud_color_g = 255,
+		admin_hud_color_b = 255,
 		theme = 0,
 		profile = 0,
 		menuTab = 1,
@@ -615,6 +628,12 @@ lods_dist_slider.v = mainIni.CheatByYaroRage.lods_dist or 150
 admin_detection.v = mainIni.CheatByYaroRage.admin_detection or true
 auto_spectator_check.v = mainIni.CheatByYaroRage.auto_spectator_check or false
 show_admin_hud.v = mainIni.CheatByYaroRage.show_admin_hud or false
+admin_hud_pos.x = mainIni.CheatByYaroRage.admin_hud_x or 10
+admin_hud_pos.y = mainIni.CheatByYaroRage.admin_hud_y or 10
+admin_hud_scale.v = mainIni.CheatByYaroRage.admin_hud_scale or 1.0
+admin_hud_color_r.v = mainIni.CheatByYaroRage.admin_hud_color_r or 255
+admin_hud_color_g.v = mainIni.CheatByYaroRage.admin_hud_color_g or 255
+admin_hud_color_b.v = mainIni.CheatByYaroRage.admin_hud_color_b or 255
 
 -- Справочник всех настраиваемых переменных для профилей (объявлен ДО save()).
 local profile_vars = {
@@ -639,6 +658,10 @@ local profile_vars = {
 	lods_dist = lods_dist_slider,
 	admin_detection = admin_detection, auto_spectator_check = auto_spectator_check,
 	show_admin_hud = show_admin_hud,
+	admin_hud_scale = admin_hud_scale,
+	admin_hud_color_r = admin_hud_color_r,
+	admin_hud_color_g = admin_hud_color_g,
+	admin_hud_color_b = admin_hud_color_b,
 }
 
 ffi.cdef[[
@@ -1600,6 +1623,24 @@ function onWindowMessage(msg, wparam, lparam)
 		sampSetCursorMode(0)
 		inicfg.save(config, f_ini)
 	end
+	if admin_hud_moving then
+		-- Фиксация позиции или выход из режима перемещения HUD
+		if msg == 513 or msg == 514 or (msg == 256 and wparam == 27) then
+			admin_hud_moving = false
+			sampSetCursorMode(0)
+			save()
+		elseif msg == 522 then
+			-- Колесо мыши: масштаб HUD в реальном времени
+			local delta = bit.rshift(bit.band(wparam, 0xFFFF0000), 16)
+			if delta >= 0x8000 then delta = delta - 0x10000 end
+			if delta > 0 then
+				admin_hud_scale.v = math.min(3.0, admin_hud_scale.v + 0.1)
+			elseif delta < 0 then
+				admin_hud_scale.v = math.max(0.5, admin_hud_scale.v - 0.1)
+			end
+			save()
+		end
+	end
 end
 
 function ev.onPlayerSync(playerId, data)
@@ -2374,6 +2415,36 @@ if imgui.Checkbox(u8'Вкл. детекцию админов', admin_detection) then
 				imgui.TextDisabled(u8'Автоматически проверять слежку каждые 5 сек')
 				sbox(u8'Показать HUD админов', show_admin_hud)
 				imgui.TextDisabled(u8'Отображать список админов на экране')
+
+				-- Настройки HUD админов: масштаб, цвет, перемещение
+				imgui.Separator()
+				imgui.TextColored(imgui.ImVec4(1, 0.8, 0.3, 1), u8'Настройки HUD:')
+				imgui.Text(u8'Масштаб окна:')
+				if imgui.SliderFloat(u8'##admin_hud_scale', admin_hud_scale, 0.5, 3.0, u8'%.2f') then save() end
+				imgui.Text(u8'Цвет шрифта админов (R, G, B):')
+				imgui.PushItemWidth(60 * fsc)
+				if imgui.SliderInt(u8'##admin_hud_r', admin_hud_color_r, 0, 255) then save() end
+				imgui.SameLine()
+				if imgui.SliderInt(u8'##admin_hud_g', admin_hud_color_g, 0, 255) then save() end
+				imgui.SameLine()
+				if imgui.SliderInt(u8'##admin_hud_b', admin_hud_color_b, 0, 255) then save() end
+				imgui.PopItemWidth()
+				if imgui.Button(u8'Переместить HUD', imgui.ImVec2(150 * fsc, 25 * fsc)) then
+					admin_hud_moving = not admin_hud_moving
+					if admin_hud_moving then
+						mcheat.v = false
+						show_admin_hud.v = true
+						admin_detection.v = true
+					else
+						sampSetCursorMode(0)
+						save()
+					end
+				end
+				imgui.SameLine()
+				if imgui.Button(u8'Сброс позиции', imgui.ImVec2(150 * fsc, 25 * fsc)) then
+					admin_hud_pos.x, admin_hud_pos.y = 10, 10
+					save()
+				end
 				
 				imgui.Separator()
 				imgui.TextColored(imgui.ImVec4(1, 0.5, 0.5, 1), u8"Найденные админы (должность | ник | дата назначения):")
@@ -2995,6 +3066,8 @@ function save()
     data.theme = theme_selector.v
     data.profile = profile_selector.v
     data.menuTab = menuTab.v
+    data.admin_hud_x = admin_hud_pos.x
+    data.admin_hud_y = admin_hud_pos.y
     inicfg.save({CheatByYaroRage = data}, 'CheatByYaroRage/CheatByYaroRage.ini')
 end
 
@@ -3143,43 +3216,72 @@ end
 -- Admin HUD рендер
 function renderAdminHUD()
     local resX, resY = getScreenResolution()
-    local x, y = admin_hud_pos.x, admin_hud_pos.y
-    local line_h = 16
 
-    -- Счётчик админов (admin_list — разреженная таблица с ключами-идами, # неприменим)
+    -- Режим перемещения: HUD следует за курсором в реальном времени
+    if admin_hud_moving then
+        sampSetCursorMode(4)
+        local mx, my = getCursorPos()
+        if mx and my then
+            admin_hud_pos.x = mx
+            admin_hud_pos.y = my
+        end
+    end
+
+    local sc = admin_hud_scale.v
+    local x, y = admin_hud_pos.x, admin_hud_pos.y
+    local line_h = 16 * sc
+
+    -- Шрифт HUD админов: пересоздаём только при изменении масштаба
+    local want_scale = math.floor(8 * sc + 0.5)
+    if admin_hud_font_scale ~= want_scale then
+        admin_hud_font = renderCreateFont("Arial", want_scale, 12)
+        admin_hud_font_scale = want_scale
+    end
+    local hud_font = admin_hud_font or font
+
+    -- Единый цвет текста всех админов (ARGB)
+    local adm_color = 0xFF000000 + admin_hud_color_r.v * 65536 + admin_hud_color_g.v * 256 + admin_hud_color_b.v
+
+    -- Заголовок окна (admin_list и наблюдатели оформлены в ячейках-блоках, # подсчет)
     local admin_cnt = 0
     for _ in pairs(admin_list) do admin_cnt = admin_cnt + 1 end
 
-    -- Фон
-    renderDrawBox(x - 5, y - 5, 280, 30 + admin_cnt * line_h + #spectator_list * line_h, 0xCC000000)
-    
-    -- Заголовок
-    renderFontDrawText(font, "[ADMIN DETECTION]", x, y, 0xFFFFFFFF)
-    y = y + line_h + 2
-    
-    -- Админы
-    if admin_cnt > 0 then
-        renderFontDrawText(font, "АДМИНЫ:", x, y, 0xFFFF0000)
-        y = y + line_h
-        for id, data in pairs(admin_list) do
-            local txt = string.format("  %s | %s | %s", data.reason or "-", data.nick, data.date or "-")
-            renderFontDrawText(font, txt, x, y, sampColorToArgb(data.color or 0xFFFFFFFF))
-            y = y + line_h
-        end
-else
-        renderFontDrawText(font, "АДМИНЫ: нет", x, y, 0xFF888888)
+    -- фон
+    renderDrawBox(x - 5 * sc, y - 5 * sc, 280 * sc, (30 + admin_cnt * line_h + #spectator_list * line_h) * sc, 0xCC000000)
+
+    -- заготовка
+    renderFontDrawText(hud_font, "[ADMIN DETECTION]", x, y, 0xFFFFFFFF)
+    y = y + line_h + 2 * sc
+
+    -- подсказка в режиме перемещения
+    if admin_hud_moving then
+        renderFontDrawText(hud_font, "Двигайте мышью, клик - фиксация, Esc - выход", x, y, 0xFFFFFF00)
         y = y + line_h
     end
 
-    y = y + 5
-    
-    -- Наблюдатели
+    -- админы
+    if admin_cnt > 0 then
+        renderFontDrawText(hud_font, "Админы:", x, y, 0xFFFF0000)
+        y = y + line_h
+        for id, data in pairs(admin_list) do
+            local txt = string.format("  %s | %s | %s", data.reason or "-", data.nick, data.date or "-")
+            renderFontDrawText(hud_font, txt, x, y, adm_color)
+            y = y + line_h
+        end
+    else
+        renderFontDrawText(hud_font, "Админы: нет", x, y, 0xFF888888)
+        y = y + line_h
+    end
+
+    y = y + 5 * sc
+
+    -- наблюдатели
     if #spectator_list > 0 then
-        renderFontDrawText(font, "НАБЛЮДАТЕЛИ:", x, y, 0xFFFF6600)
+        renderFontDrawText(hud_font, "Наблюдатели:", x, y, 0xFFFF6600)
         y = y + line_h
         for _, data in ipairs(spectator_list) do
             local txt = string.format("  %s [%d] | %dm | %s", data.nick, data.id, data.dist, data.time)
-            renderFontDrawText(font, txt, x, y, 0xFFFFFF00)
+            renderFontDrawText(hud_font, txt, x, y, adm_color)
             y = y + line_h
         end
     end
