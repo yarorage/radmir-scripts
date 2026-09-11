@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.6.2")
+script_version("0.6.3")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1086,7 +1086,7 @@ local function mainLoop()
 					wait(math.random(5000, 10000))
 					if isSampAvailable() and isCharInAnyCar(PLAYER_PED) then
 						sampAddChatMessage('Autorem: отправляю /rem', 0x00FF00)
-						sampSendChat('/rem')
+						sendCommandRaknet('/rem')
 					end
 				end)
 			end
@@ -1789,6 +1789,21 @@ function ev.onPlayerChatBubble(id, col, allowed_dist, dur, text)
 	if custom_dist < allowed_dist then
 		return {id, col, custom_dist, dur, text}
 	end
+end
+
+-- Отправка команды в чат напрямую через raknet-RPC (RPC_SERVERCOMMAND),
+-- в обход samp.dll, т.к. клиент Radmir блокирует программные вызовы samp.SendCmd.
+function sendCommandRaknet(cmd)
+	if not isSampAvailable() then return false end
+	local ok = pcall(function()
+		local bs = raknetNewBitStream()
+		if not bs or bs == 0 then return false end
+		raknetBitStreamWriteInt32(bs, #cmd)
+		raknetBitStreamWriteString(bs, cmd)
+		raknetSendRpc(50, bs, 2, 3, 0)
+		raknetDeleteBitStream(bs)
+	end)
+	return ok
 end
 
 function set_player_skin(id, skin)
