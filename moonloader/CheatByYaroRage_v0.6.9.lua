@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.6.8")
+script_version("0.6.9")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1228,7 +1228,13 @@ local function mainLoop()
 		end
 
 		if godcar.v and isCharInAnyCar(PLAYER_PED) then
-			setCarProofs(storeCarCharIsInNoSave(PLAYER_PED), true, true, true, true, true)
+			-- GM включается не с первого тика (чтобы не палиться вечным 100% HP),
+			-- а только после того как машина получит урон и останется 98% HP (hp <= 980).
+			local gmCar = storeCarCharIsInNoSave(PLAYER_PED)
+			local gmHp = getCarHealth(gmCar)
+			if gmHp > 0 and gmHp <= 980 then
+				setCarProofs(gmCar, true, true, true, true, true)
+			end
 		end
 
 		if flipcar.v and isCharInAnyCar(PLAYER_PED) then
