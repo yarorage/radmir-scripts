@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.6.1")
+script_version("0.6.2")
 --==================================[ Õ¿—“–Œ… » ◊»“¿ ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1086,7 +1086,7 @@ local function mainLoop()
 					wait(math.random(5000, 10000))
 					if isSampAvailable() and isCharInAnyCar(PLAYER_PED) then
 						sampAddChatMessage('Autorem: ÓÚÔ‡‚Îˇ˛ /rem', 0x00FF00)
-						sampProcessChatInput('/rem')
+						sampSendChat('/rem')
 					end
 				end)
 			end
