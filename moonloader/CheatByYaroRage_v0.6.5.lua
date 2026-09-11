@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.6.4")
+script_version("0.6.5")
 --==================================[ Õ¿—“–Œ… » ◊»“¿ ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1369,7 +1369,7 @@ local function mainLoop()
 				local x, y = getCursorPos()
 				config.settings.x = x
 				config.settings.y = y
-				if isKeyJustPressed(0x01) then
+				if isKeyJustPressed(0x01) or isKeyJustPressed(0x1B) then
 					moving = false
 					sampSetCursorMode(0)
 					inicfg.save(config, f_ini)
@@ -1595,6 +1595,11 @@ end
 
 function onWindowMessage(msg, wparam, lparam)
 	if msg == 261 and wparam == 13 then consumeWindowMessage(true, true) end
+	if moving and (msg == 513 or msg == 514 or (msg == 256 and wparam == 27)) then
+		moving = false
+		sampSetCursorMode(0)
+		inicfg.save(config, f_ini)
+	end
 end
 
 function ev.onPlayerSync(playerId, data)
