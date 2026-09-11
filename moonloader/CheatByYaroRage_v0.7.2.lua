@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.7.1")
+script_version("0.7.2")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -472,6 +472,9 @@ local eyefish = imgui.ImBool(false)
 local allowBunnyhop = imgui.ImBool(false)
 local NoAnimationMoney = imgui.ImBool(false)
 local godcar = imgui.ImBool(false)
+-- Переключатель ускорения по Caps Lock (нажатие включает/выключает).
+-- Глобал (не local) из-за лимита 60 upvalue в mainLoop.
+speedhackCapsOn = false
 -- Хранение handle текущей GM-машины и её случайного порога блокировки HP (90-99%%).
 -- Глобальные (а не local) - иначе mainLoop превысит лимит 60 upvalue.
 gmCarHandle = 0
@@ -1428,8 +1431,13 @@ local function mainLoop()
 		end
 
 		if SpeedHack.v then
-			-- Ускорение зажимается левым Alt или Caps Lock
-			if (isKeyDown(VK_LMENU) or isKeyDown(VK_CAPITAL)) and isCharInAnyCar(PLAYER_PED) then
+			-- Левый Alt - удержание. Caps Lock - переключатель по нажатию.
+			-- НЕ используем isKeyDown(VK_CAPITAL): он возвращает true при включённом Caps Lock,
+			-- т.е. speedhack висел бы постоянно, пока Caps Lock включён.
+			if isKeyJustPressed(VK_CAPITAL) then
+				speedhackCapsOn = not speedhackCapsOn
+			end
+			if (isKeyDown(VK_LMENU) or speedhackCapsOn) and isCharInAnyCar(PLAYER_PED) then
 				local veh = storeCarCharIsInNoSave(PLAYER_PED)
 				local speed = getCarSpeed(veh)
 				setCarForwardSpeed(veh, speed * 1.21)
@@ -2192,7 +2200,7 @@ function drawVehicleTab()
 				sbox(u8'EngineCar', enginecar)
 				imgui.TextDisabled(u8'Всегда заведенный двигатель')
 				sbox(u8'SpeedHack (Alt/CapsLock)', SpeedHack)
-				imgui.TextDisabled(u8'Ускорение машины на Alt или Caps Lock')
+				imgui.TextDisabled(u8'Ускорение: левый Alt - удержание, Caps Lock - переключатель (нажатие)')
 				if imgui.SliderInt(u8'Смут##speed', SpeedSmooth, 1, 100) then save() end
 				
 				imgui.Separator()
