@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.6.7")
+script_version("0.6.8")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1034,32 +1034,33 @@ local carEditX = imgui.ImBuffer(64)
 local carEditY = imgui.ImBuffer(64)
 local carEditZ = imgui.ImBuffer(64)
 
--- Автообновление координат сохранённых машин: перебираем весь пул SAMP
--- и если видим рядом (дистанция < 30 м) сохранённую машину - обновляем её позицию.
--- Вызывается из mainLoop раз в 1 сек (не каждый кадр). Даже если игрок стоит
--- рядом с машиной (но не в ней), координаты обновятся автоматически.
+-- Автообновление координат сохранённых машин: итерируем ТОЛЬКО known.samid из savedCars
+-- вместо перебора всего пула 0..1999 — сокращает вызовы 0AFF в 400+ раз.
+-- Вызывается из mainLoop раз в 1 сек (не каждый кадр).
 local lastProxUpdate = 0
 local function updateProximityCars()
+	if not isSampAvailable() or not doesCharExist(PLAYER_PED) then return end
 	local px, py, pz = getCharCoordinates(PLAYER_PED)
 	local changed = false
-	for i = 0, 1999 do
-		local okV, vehH = sampGetCarHandleBySampVehicleId(i)
-		if okV and vehH and vehH ~= 0 then
-			local cx, cy, cz = getCarCoordinates(vehH)
-			for _, car in ipairs(savedCars) do
-				if car.samid == i then
-					local dist = getDistanceBetweenCoords3d(px, py, pz, cx, cy, cz)
-					if dist <= 30 then
-						if getDistanceBetweenCoords3d(car.x, car.y, car.z, cx, cy, cz) > 0.5 then
-							car.x, car.y, car.z = cx, cy, cz
-							changed = true
-						end
+	for _, car in ipairs(savedCars) do
+		if car.samid and car.samid ~= 0 then
+			local okV, vehH = false, 0
+			pcall(function() okV, vehH = sampGetCarHandleBySampVehicleId(car.samid) end)
+			if okV and vehH and vehH ~= 0 then
+				local cx, cy, cz = getCarCoordinates(vehH)
+				local dist = getDistanceBetweenCoords3d(px, py, pz, cx, cy, cz)
+				if dist <= 30 then
+					if getDistanceBetweenCoords3d(car.x, car.y, car.z, cx, cy, cz) > 0.5 then
+						car.x, car.y, car.z = cx, cy, cz
+						changed = true
 					end
 				end
 			end
 		end
 	end
-	if changed then saveSavedCarsFile() end
+	if changed then
+		saveSavedCarsFile()
+	end
 end
 
 -- Публичная кнопка GUI: открыть/закрыть сохранённую машину по индексу
