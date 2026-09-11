@@ -239,6 +239,10 @@ start_reconnect_watch = function()
             local deadline = (s.saw_loading_after_rec and 35) or 20
             if os.clock() - start_time >= deadline then break end
             wait(500)
+            -- Пауза таймера при активном диалоге восстановления позиции
+            if s.restore_active then
+                start_time = os.clock()
+            end
             if not s.reconnect_watch_active then return end
         end
     end)
@@ -320,6 +324,11 @@ post_loading_login_watch = function()
     local start_time = os.clock()
     while os.clock() - start_time < 30 do
         wait(500)
+        -- Пауза таймера при активном диалоге восстановления позиции:
+        -- игрок не может войти в мир, пока открыт диалог.
+        if s.restore_active then
+            start_time = os.clock()
+        end
         if utils.game_window_active() and s.is_spawned then
             AL.log("Наблюдатель: вход выполнен")
             s.reconnect_watch_retries = 0
