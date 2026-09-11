@@ -1,8 +1,8 @@
--- AutoLoginByYaroRage v1.1.3
+-- AutoLoginByYaroRage v1.1.4
 -- јвтор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.1.3")
+script_version("1.1.4")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -503,18 +503,20 @@ function onReceivePacket(id, bs)
         if is_real then
             s.cef_open_menu_pause_seen = true
         end
-        if not s.login_submitted and not s.is_spawned and not s.is_logging_in then
-            if reconnect_mod._internal.in_close_menu_emul_window() then
-                local now = os.clock()
-                if (now - s.last_close_menu_emul) >= 0.15 then
-                    s.last_close_menu_emul = now
-                    lua_thread.create(function()
-                        wait(50)
-                        if not s.login_submitted and not s.is_spawned and not s.is_logging_in then
-                            reconnect_mod._internal.emulate_close_menu_pause(1)
-                        end
-                    end)
-                end
+        -- ћеню паузы закрываем “ќЋ№ ќ при реконнекте: пока идЄт реконнект
+        -- или в окне эмул€ции после него (CLOSE_MENU_EMUL_AFTER_SEC) и пока
+        -- автовход ещЄ не сработал.  ак только игрок в мире - не трогаем.
+        local in_reconnect_phase = s.is_reconnecting or reconnect_mod._internal.in_close_menu_emul_window()
+        if in_reconnect_phase and not s.login_submitted and not s.is_spawned and not s.is_logging_in then
+            local now = os.clock()
+            if (now - s.last_close_menu_emul) >= 0.15 then
+                s.last_close_menu_emul = now
+                lua_thread.create(function()
+                    wait(50)
+                    if not s.login_submitted and not s.is_spawned and not s.is_logging_in then
+                        reconnect_mod._internal.emulate_close_menu_pause(1)
+                    end
+                end)
             end
         end
     end
