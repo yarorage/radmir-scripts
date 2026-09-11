@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.6.0")
+script_version("0.6.1")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1081,9 +1081,11 @@ local function mainLoop()
 		do
 			local inCar = isCharInAnyCar(PLAYER_PED)
 			if tfirst.v and inCar and not wasInCar then
+				sampAddChatMessage('Autorem: посадка зафиксирована, /rem через 5-10 с', 0x00FF00)
 				lua_thread.create(function()
 					wait(math.random(5000, 10000))
 					if isSampAvailable() and isCharInAnyCar(PLAYER_PED) then
+						sampAddChatMessage('Autorem: отправляю /rem', 0x00FF00)
 						sampProcessChatInput('/rem')
 					end
 				end)
