@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.6.9")
+script_version("0.7.0")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -472,6 +472,10 @@ local eyefish = imgui.ImBool(false)
 local allowBunnyhop = imgui.ImBool(false)
 local NoAnimationMoney = imgui.ImBool(false)
 local godcar = imgui.ImBool(false)
+-- Хранение handle текущей GM-машины и её случайного порога блокировки HP (90-99%%).
+-- Глобальные (а не local) - иначе mainLoop превысит лимит 60 upvalue.
+gmCarHandle = 0
+gmCarThreshold = 0
 local silentmode = imgui.ImInt(3)
 local pslide = imgui.ImBool(false)
 local flipcar = imgui.ImBool(false)
@@ -1227,13 +1231,22 @@ local function mainLoop()
 			end
 		end
 
-		if godcar.v and isCharInAnyCar(PLAYER_PED) then
-			-- GM включается не с первого тика (чтобы не палиться вечным 100% HP),
-			-- а только после того как машина получит урон и останется 98% HP (hp <= 980).
-			local gmCar = storeCarCharIsInNoSave(PLAYER_PED)
-			local gmHp = getCarHealth(gmCar)
-			if gmHp > 0 and gmHp <= 980 then
-				setCarProofs(gmCar, true, true, true, true, true)
+		if godcar.v then
+			if isCharInAnyCar(PLAYER_PED) then
+				-- На каждой новой машине - свой случайный порог блокировки 90-99% HP.
+				-- GM начинает работать только после того как HP упадёт до этого порога.
+				local gmCar = storeCarCharIsInNoSave(PLAYER_PED)
+				if gmCarHandle ~= gmCar then
+					gmCarHandle = gmCar
+					gmCarThreshold = math.random(90, 99) * 10
+				end
+				local gmHp = getCarHealth(gmCar)
+				if gmHp > 0 and gmHp <= gmCarThreshold then
+					setCarProofs(gmCar, true, true, true, true, true)
+				end
+			else
+				-- Вне машины сбрасываем, чтобы при посадке в ту же машину порог пересчитался
+				gmCarHandle = 0
 			end
 		end
 
