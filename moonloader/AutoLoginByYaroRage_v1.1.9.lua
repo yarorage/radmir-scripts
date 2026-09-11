@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.1.8")
+script_version("1.1.9")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -773,6 +773,55 @@ local function timer_render_thread()
     end
 end
 
+-- Keepalive-поток: не даем серверу оборвать соединение при сворачивании окна.
+-- Раз в 7 секунд, если окно свёрнуто и нет реконнекта, шлём лёгкий RakNet-пинг
+-- (PACKET_INTERNAL_PING id=6) и логируем тик. Тики показывают, продолжает ли
+-- крутиться игровой цикл при сворачивании (если тики пропали - цикл замёрз,
+-- keepalive не поможет, нужен другой механизм).
+function keepalive_thread()
+    local s = AL.state
+    local last_tick_log = 0
+    local last_ping_send = 0
+    local tick_count = 0
+    local was_minimized = false
+    while true do
+        wait(7000)
+        if not isSampAvailable() then goto continue end
+        local minimized = utils.game_window_minimized()
+        local now = os.clock()
+        if minimized then
+            tick_count = tick_count + 1
+            if not was_minimized then
+                was_minimized = true
+                AL.log("[Keepalive] окно свёрнуто, включаем keepalive-пинг")
+            end
+            -- Логируем тик раз в ~30 секунд (каждый 5-й), чтобы не спамить лог
+            if tick_count % 5 == 1 or now - last_tick_log > 35 then
+                last_tick_log = now
+                AL.log("[Keepalive] тик #" .. tick_count .. ": игровой цикл работает при свёрнутом окне")
+            end
+            if not s.is_reconnecting and now - last_ping_send > 7 then
+                last_ping_send = now
+                pcall(function()
+                    local bs = raknetNewBitStream()
+                    if bs and bs ~= 0 then
+                        raknetBitStreamWriteInt8(bs, 6) -- PACKET_INTERNAL_PING
+                        raknetBitStreamWriteInt32(bs, math.floor(now * 1000))
+                        raknetSendBitStream(bs)
+                        raknetDeleteBitStream(bs)
+                    end
+                end)
+            end
+        elseif was_minimized then
+            local was_count = tick_count
+            was_minimized = false
+            tick_count = 0
+            AL.log("[Keepalive] окно развёрнуто, keepalive-пинг выключен (тиков было: " .. was_count .. ")")
+        end
+        ::continue::
+    end
+end
+
 function main()
     while not isSampAvailable() do wait(100) end
 
@@ -800,6 +849,7 @@ function main()
     lua_thread.create(auth._internal.login_worker_thread)
     lua_thread.create(antiafk.anti_afk_thread)
     lua_thread.create(antiafk.mafk_hotkey_thread)
+    lua_thread.create(keepalive_thread)
     lua_thread.create(function()
         local cursor_was_on = false
         local cursor_saved = false

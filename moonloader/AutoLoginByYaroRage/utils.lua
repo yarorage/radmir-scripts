@@ -133,6 +133,12 @@ function M.get_game_hwnd()
     return h
 end
 
+function M.game_window_minimized()
+    local hwnd = user32.FindWindowA(GAME_WINDOW_CLASS, nil)
+    if hwnd == nil then return false end
+    return user32.IsIconic(hwnd) ~= 0
+end
+
 function M.game_window_active()
     local hwnd = user32.FindWindowA(GAME_WINDOW_CLASS, nil)
     if hwnd == nil then return false end
