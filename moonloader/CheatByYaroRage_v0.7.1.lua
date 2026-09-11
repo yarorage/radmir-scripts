@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.7.0")
+script_version("0.7.1")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1428,7 +1428,8 @@ local function mainLoop()
 		end
 
 		if SpeedHack.v then
-			if isKeyDown(VK_MENU) and isCharInAnyCar(PLAYER_PED) then
+			-- Ускорение зажимается левым Alt или Caps Lock
+			if (isKeyDown(VK_LMENU) or isKeyDown(VK_CAPITAL)) and isCharInAnyCar(PLAYER_PED) then
 				local veh = storeCarCharIsInNoSave(PLAYER_PED)
 				local speed = getCarSpeed(veh)
 				setCarForwardSpeed(veh, speed * 1.21)
@@ -2190,8 +2191,8 @@ function drawVehicleTab()
 				imgui.TextDisabled(u8'Неуязвимая машина')
 				sbox(u8'EngineCar', enginecar)
 				imgui.TextDisabled(u8'Всегда заведенный двигатель')
-				sbox(u8'SpeedHack (Alt)', SpeedHack)
-				imgui.TextDisabled(u8'Ускорение машины на Alt')
+				sbox(u8'SpeedHack (Alt/CapsLock)', SpeedHack)
+				imgui.TextDisabled(u8'Ускорение машины на Alt или Caps Lock')
 				if imgui.SliderInt(u8'Смут##speed', SpeedSmooth, 1, 100) then save() end
 				
 				imgui.Separator()
