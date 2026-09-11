@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.7.2")
+script_version("0.7.3")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -472,9 +472,6 @@ local eyefish = imgui.ImBool(false)
 local allowBunnyhop = imgui.ImBool(false)
 local NoAnimationMoney = imgui.ImBool(false)
 local godcar = imgui.ImBool(false)
--- Переключатель ускорения по Caps Lock (нажатие включает/выключает).
--- Глобал (не local) из-за лимита 60 upvalue в mainLoop.
-speedhackCapsOn = false
 -- Хранение handle текущей GM-машины и её случайного порога блокировки HP (90-99%%).
 -- Глобальные (а не local) - иначе mainLoop превысит лимит 60 upvalue.
 gmCarHandle = 0
@@ -1430,14 +1427,9 @@ local function mainLoop()
 			renderFontDrawText(font, result, config.settings.x, config.settings.y, "0xFF"..config.settings.color)
 		end
 
-		if SpeedHack.v then
-			-- Левый Alt - удержание. Caps Lock - переключатель по нажатию.
-			-- НЕ используем isKeyDown(VK_CAPITAL): он возвращает true при включённом Caps Lock,
-			-- т.е. speedhack висел бы постоянно, пока Caps Lock включён.
-			if isKeyJustPressed(VK_CAPITAL) then
-				speedhackCapsOn = not speedhackCapsOn
-			end
-			if (isKeyDown(VK_LMENU) or speedhackCapsOn) and isCharInAnyCar(PLAYER_PED) then
+		if SpeedHack.v and isCharInAnyCar(PLAYER_PED) then
+			-- Удержание левого Alt или правой кнопки мыши в авто = ускорение.
+			if isKeyDown(VK_LMENU) or isKeyDown(vKeys.VK_RBUTTON) then
 				local veh = storeCarCharIsInNoSave(PLAYER_PED)
 				local speed = getCarSpeed(veh)
 				setCarForwardSpeed(veh, speed * 1.21)
@@ -2199,8 +2191,8 @@ function drawVehicleTab()
 				imgui.TextDisabled(u8'Неуязвимая машина')
 				sbox(u8'EngineCar', enginecar)
 				imgui.TextDisabled(u8'Всегда заведенный двигатель')
-				sbox(u8'SpeedHack (Alt/CapsLock)', SpeedHack)
-				imgui.TextDisabled(u8'Ускорение: левый Alt - удержание, Caps Lock - переключатель (нажатие)')
+				sbox(u8'SpeedHack (Alt/RMB)', SpeedHack)
+				imgui.TextDisabled(u8'Ускорение авто: держать левый Alt или правую кнопку мыши')
 				if imgui.SliderInt(u8'Смут##speed', SpeedSmooth, 1, 100) then save() end
 				
 				imgui.Separator()
