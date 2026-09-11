@@ -31,9 +31,6 @@ local CONFIG_SCHEMA = {
     HealAmount = { type = "number", default = 100 },
     ArmorAmount = { type = "number", default = 100 },
     HealCooldown = { type = "number", default = 5000 },
-    AutoUpdateEnabled = { type = "boolean", default = true },
-    UpdateCheckInterval = { type = "number", default = 3600 },
-    GitHubRepo = { type = "string", default = "yarorage/radmir-scripts" },
 }
 
 -- Парсинг INI файла

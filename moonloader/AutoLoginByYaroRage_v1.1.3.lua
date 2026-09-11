@@ -1,8 +1,8 @@
--- AutoLoginByYaroRage v1.1.2
+-- AutoLoginByYaroRage v1.1.3
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.1.2")
+script_version("1.1.3")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -182,12 +182,11 @@ end
 
 local function should_close_cef_anytime(text)
     local lower = text:lower()
-    -- Окно бан-сообщения (updateConfigurationBannedMessage) накладывается поверх игры
-    -- и блокирует управление персонажем - закрываем его как диалог античита
-    if lower:find("updateconfigurationbannedmessage") then
-        return "banned-cfg"
-    end
-    -- Прочие команды конфигурации интерфейса (updateConfiguration*) не являются диалогами
+    -- Команды конфигурации интерфейса (updateConfiguration*) не являются диалогами.
+    -- Закрывать их нельзя: после успешного закрытия CEF-окон срабатывал запасной
+    -- ESC, а ESC в мире открывает меню паузы (OnPlayerOpenMenuPause).
+    -- В частности updateConfigurationBannedMessage приходит при КАЖДОМ входе в мир,
+    -- это просто конфигурация бан-окна, а не сам бан-диалог.
     if lower:find("updateconfiguration") then return nil end
     for _, kw in ipairs(close_cef_anytime_keywords) do
         if lower:find(kw) then return kw end
@@ -451,13 +450,8 @@ function onReceivePacket(id, bs)
         end
 
         if should_handle then
-            if matched_anytime == "banned-cfg" then
-                -- Конфиг бан-сообщения: перехват и закрытие окна без реконнекта
-                reconnect_mod._internal.close_cef_window_silent()
-            else
-                s.cef_limit_seen = true
-                reconnect_mod._internal.handle_auth_limit_cef()
-            end
+            s.cef_limit_seen = true
+            reconnect_mod._internal.handle_auth_limit_cef()
             return true
         end
     end
@@ -509,7 +503,6 @@ function onReceivePacket(id, bs)
         if is_real then
             s.cef_open_menu_pause_seen = true
         end
-        s.saw_menu_pause_after_esc = true
         if not s.login_submitted and not s.is_spawned and not s.is_logging_in then
             if reconnect_mod._internal.in_close_menu_emul_window() then
                 local now = os.clock()
@@ -862,14 +855,6 @@ function main()
         end
     end)
 
-    -- Auto-update check thread
-    lua_thread.create(function()
-        while true do
-            wait(300000) -- 5 minutes
-            utils.check_for_updates()
-        end
-    end)
-
     wait(-1)
 end
 
@@ -1091,11 +1076,6 @@ function register_commands()
         end
     end)
 
-    sampRegisterChatCommand("updatecheck", function()
-        AL.chat_msg("Проверка обновлений...")
-        utils.check_for_updates()
-    end)
-
     sampRegisterChatCommand("loglevel", function(arg)
         local s = AL.state
         if not arg or #arg == 0 then
@@ -1146,7 +1126,6 @@ function register_commands()
         AL.chat_msg("/queue - Show queue info")
         AL.chat_msg("/adminshot [on|off] - Admin screenshot")
         AL.chat_msg("/autoheal [heal|armor|threshold <val>|armorthreshold <val>|cooldown <ms>] - Auto-heal/armor")
-        AL.chat_msg("/updatecheck - Check for updates")
         AL.chat_msg("/loglevel [debug|info|warn|error|file] - Log level")
         AL.chat_msg("/runtests - Run unit tests")
         AL.chat_msg("/alstatus - Show status")

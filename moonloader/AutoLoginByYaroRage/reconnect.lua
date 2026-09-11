@@ -106,35 +106,24 @@ function M.handle_auth_limit_cef()
     local spawned_at_entry = s.is_spawned
     lua_thread.create(function()
         AL.log("handle_auth_limit_cef: CEF-закрытие диалога-лимита (в мире=" .. tostring(spawned_at_entry) .. ")")
-        s.saw_menu_pause_after_esc = false
-        if s.cef_dialog_close_tx then
-            local ok1 = M.send_cef_tx_215("MenuInt_OnCloseInterface", { 0 })
-            AL.log("handle_auth_limit_cef: MenuInt_OnCloseInterface ok=" .. tostring(ok1))
-            wait(250)
-            local ok2 = M.send_cef_tx_215("THNT_OnInterfaceDisappear")
-            AL.log("handle_auth_limit_cef: THNT_OnInterfaceDisappear ok=" .. tostring(ok2))
-            wait(400)
-            if not s.is_spawned and not s.is_reconnecting and not s.login_submitted then
-                AL.log("handle_auth_limit_cef: CEF-пакет не закрыл окно -> запасной F11 (/rec)")
-                user32.keybd_event(0x7A, 0, 0, 0)
-                wait(50)
-                user32.keybd_event(0x7A, 0, 2, 0)
-            end
-        else
-            -- Старый путь через Esc (совместимость)
-            pcall(utils.wait_for_focus)
-            wait(200)
-            AL.log("handle_auth_limit_cef: ESC #1")
-            user32.keybd_event(0x1B, 0, 0, 0)
+        if not s.cef_dialog_close_tx then
+            -- ВАЖНО: ESC больше не используется нигде в скрипте. Окна закрываются
+            -- ТОЛЬКО эмуляцией конкретного пакета закрытия конкретного диалога.
+            AL.log("handle_auth_limit_cef: cef_dialog_close_tx выключен - пропуск эмуляции закрытия")
+            s.cef_limit_seen = false
+            return
+        end
+        local ok1 = M.send_cef_tx_215("MenuInt_OnCloseInterface", { 0 })
+        AL.log("handle_auth_limit_cef: MenuInt_OnCloseInterface ok=" .. tostring(ok1))
+        wait(250)
+        local ok2 = M.send_cef_tx_215("THNT_OnInterfaceDisappear")
+        AL.log("handle_auth_limit_cef: THNT_OnInterfaceDisappear ok=" .. tostring(ok2))
+        wait(400)
+        if not s.is_spawned and not s.is_reconnecting and not s.login_submitted then
+            AL.log("handle_auth_limit_cef: CEF-пакет не закрыл окно -> запасной F11 (/rec)")
+            user32.keybd_event(0x7A, 0, 0, 0)
             wait(50)
-            user32.keybd_event(0x1B, 0, 2, 0)
-            wait(400)
-            if s.saw_menu_pause_after_esc then
-                AL.log("handle_auth_limit_cef: OnPlayerOpenMenuPause пришёл -> ESC #2")
-                user32.keybd_event(0x1B, 0, 0, 0)
-                wait(50)
-                user32.keybd_event(0x1B, 0, 2, 0)
-            end
+            user32.keybd_event(0x7A, 0, 2, 0)
         end
         s.cef_limit_seen = false
         AL.log("handle_auth_limit_cef: завершено")
@@ -142,34 +131,6 @@ function M.handle_auth_limit_cef()
         if not s.is_spawned and not s.is_reconnecting then
             mark_manual_reconnect("AuthLimit")
         end
-    end)
-end
-
-function M.close_cef_window_silent()
-    local s = AL.state
-    AL.log("close_cef_window_silent: закрытие CEF-окна без реконнекта")
-    if not s.cef_dialog_close_tx then
-        AL.log("close_cef_window_silent: cef_dialog_close_tx выключен, пропуск")
-        return
-    end
-    lua_thread.create(function()
-        local ok1 = M.send_cef_tx_215("MenuInt_OnCloseInterface", { 0 })
-        AL.log("close_cef_window_silent: MenuInt_OnCloseInterface ok=" .. tostring(ok1))
-        wait(250)
-        local ok2 = M.send_cef_tx_215("THNT_OnInterfaceDisappear")
-        AL.log("close_cef_window_silent: THNT_OnInterfaceDisappear ok=" .. tostring(ok2))
-        -- запасной ESC: только если CEF-пакеты не закрыли окно и игрок не в мире
-        -- (в мире Esc открывает меню паузы OnPlayerOpenMenuPause)
-        wait(400)
-        if (not ok1 or not ok2) and not s.is_spawned then
-            if not s.saw_menu_pause_after_esc then
-                AL.log("close_cef_window_silent: запасной ESC")
-                user32.keybd_event(0x1B, 0, 0, 0)
-                wait(50)
-                user32.keybd_event(0x1B, 0, 2, 0)
-            end
-        end
-        AL.log("close_cef_window_silent: завершено")
     end)
 end
 
@@ -415,7 +376,6 @@ M._internal = {
     post_loading_login_watch = function() post_loading_login_watch() end,
     start_reconnect_watch = function() start_reconnect_watch() end,
     handle_auth_limit_cef = M.handle_auth_limit_cef,
-    close_cef_window_silent = M.close_cef_window_silent,
     start_reconnect_internal = function(r, sec) start_reconnect_internal(r, sec) end,
 }
 

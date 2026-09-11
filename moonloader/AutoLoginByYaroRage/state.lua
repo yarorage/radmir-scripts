@@ -31,7 +31,6 @@ M.state = {
     reconnect_watch_start_time = 0,
     saw_loading_after_rec = false,
     saw_queue_after_rec = false,
-    saw_menu_pause_after_esc = false,
     pending_autologin = false,
     last_login_attempt = 0,
     pending_server_wait_seconds = 0,
@@ -121,12 +120,7 @@ M.state = {
     armor_amount = 100,
     heal_cooldown = 5000,
 
-    -- Auto-updater
-    auto_update_enabled = true,
-    update_check_interval = 3600,
-    github_repo = "yarorage/radmir-scripts",
     current_version = "0.0.0",
-    last_update_check = 0,
 
     -- Logging
     log_level = 2, -- 0=DEBUG, 1=INFO, 2=WARN, 3=ERROR
@@ -247,7 +241,6 @@ M.reset_login_state = function()
     M.state.reconnect_watch_start_time = 0
     M.state.saw_loading_after_rec = false
     M.state.saw_queue_after_rec = false
-    M.state.saw_menu_pause_after_esc = false
     M.state.pending_autologin = false
     M.state.last_login_attempt = 0
     M.state.pending_server_wait_seconds = 0
