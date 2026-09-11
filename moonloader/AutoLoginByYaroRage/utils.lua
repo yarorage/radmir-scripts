@@ -7,6 +7,12 @@ local MOUSEEVENTF_LEFTDOWN = 0x02
 local MOUSEEVENTF_LEFTUP = 0x04
 
 local GAME_WINDOW_CLASS = "Grand theft auto San Andreas"
+local SW_SHOW = 5
+local SW_RESTORE = 9
+local SWP_NOSIZE = 0x0001
+local SWP_NOMOVE = 0x0002
+local SWP_NOZORDER = 0x0004
+local SWP_NOACTIVATE = 0x0010
 
 -- Единый масштаб интерфейса (все разрешения, в т.ч. 4K, независимо от масштаба Windows)
 -- База 1920x1080: берём наименьшее отношение, клэп 0.6..3.0
@@ -127,6 +133,10 @@ function M.get_clipboard_text()
     return result
 end
 
+local saved_window_rect = nil
+local offscreen_x = -20000
+local offscreen_y = -20000
+
 function M.get_game_hwnd()
     local h = user32.FindWindowA(GAME_WINDOW_CLASS, nil)
     if h == nil then return 0 end
@@ -137,6 +147,52 @@ function M.game_window_minimized()
     local hwnd = user32.FindWindowA(GAME_WINDOW_CLASS, nil)
     if hwnd == nil then return false end
     return user32.IsIconic(hwnd) ~= 0
+end
+
+function M.game_window_offset_pos(px, py)
+    local hwnd = user32.FindWindowA(GAME_WINDOW_CLASS, nil)
+    if hwnd == nil then return end
+    user32.SetWindowPos(hwnd, nil, px, py, 0, 0, SWP_NOSIZE + SWP_NOZORDER + SWP_NOACTIVATE)
+end
+
+function M.save_window_rect()
+    local hwnd = user32.FindWindowA(GAME_WINDOW_CLASS, nil)
+    if hwnd == nil then saved_window_rect = nil return nil end
+    local rc = ffi.new("int[4]")
+    if user32.GetWindowRect(hwnd, rc) == 0 then saved_window_rect = nil return nil end
+    local rect = { left = rc[0], top = rc[1], right = rc[2], bottom = rc[3] }
+    saved_window_rect = rect
+    return rect
+end
+
+function M.restore_window_pos()
+    local hwnd = user32.FindWindowA(GAME_WINDOW_CLASS, nil)
+    if hwnd == nil then return end
+    if saved_window_rect ~= nil then
+        local w = saved_window_rect.right - saved_window_rect.left
+        local h = saved_window_rect.bottom - saved_window_rect.top
+        user32.SetWindowPos(hwnd, nil, saved_window_rect.left, saved_window_rect.top, w, h, SWP_NOZORDER + SWP_NOACTIVATE)
+    end
+end
+
+function M.game_window_minimize_to_offscreen()
+    -- Не даём игре встать на паузу: разворачиваем окно и прячем за экран
+    local hwnd = user32.FindWindowA(GAME_WINDOW_CLASS, nil)
+    if hwnd == nil then return false end
+    M.save_window_rect()
+    user32.ShowWindow(hwnd, SW_RESTORE)
+    M.game_window_offset_pos(offscreen_x, offscreen_y)
+    return true
+end
+
+function M.game_window_restore_from_offscreen()
+    -- Возвращаем окно на исходное место и в фокус
+    local hwnd = user32.FindWindowA(GAME_WINDOW_CLASS, nil)
+    if hwnd == nil then return false end
+    M.restore_window_pos()
+    user32.ShowWindow(hwnd, SW_SHOW)
+    user32.SetForegroundWindow(hwnd)
+    return true
 end
 
 function M.game_window_active()

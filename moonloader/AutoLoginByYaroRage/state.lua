@@ -89,6 +89,9 @@ M.state = {
     last_close_menu_emul = 0,
     login_submitted = false,
 
+    -- Состояние окна (сворачивание за экран вместо паузы)
+    window_offscreen = false,
+
     -- Anti-AFK
     mafk_active = false,
     mafk_hold_start = 0,

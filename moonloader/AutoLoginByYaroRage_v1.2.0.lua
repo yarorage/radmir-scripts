@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.1.9")
+script_version("1.2.0")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -31,6 +31,9 @@ ffi.cdef[[
     void keybd_event(unsigned char bVk, unsigned char bScan, unsigned long dwFlags, unsigned long long dwExtraInfo);
     void mouse_event(unsigned long dwFlags, unsigned long dx, unsigned long dy, unsigned long dwData, long long dwExtraInfo);
     int SetForegroundWindow(void* hWnd);
+    int ShowWindow(void* hWnd, int nCmdShow);
+    int SetWindowPos(void* hWnd, void* hWndInsertAfter, int X, int Y, int cx, int cy, unsigned int uFlags);
+    int GetWindowRect(void* hWnd, int* lpRect);
     int SetCursorPos(int X, int Y);
     void* FindWindowA(const char* lpClassName, const char* lpWindowName);
     void* GetForegroundWindow();
@@ -60,6 +63,7 @@ ffi.cdef[[
 ]]
 
 user32 = ffi.load("user32")
+tmp_release_window = false
 winmm = ffi.load("winmm")
 kernel32 = ffi.load("kernel32")
 
@@ -783,18 +787,23 @@ function keepalive_thread()
     local last_tick_log = 0
     local last_ping_send = 0
     local tick_count = 0
-    local was_minimized = false
+    local was_hidden = false
     while true do
         wait(7000)
         if not isSampAvailable() then goto continue end
-        local minimized = utils.game_window_minimized()
         local now = os.clock()
-        if minimized then
-            tick_count = tick_count + 1
-            if not was_minimized then
-                was_minimized = true
-                AL.log("[Keepalive] окно свёрнуто, включаем keepalive-пинг")
+        -- Если окно реально свёрнуто (IsIconic), разворачиваем его и прячем за экран,
+        -- чтобы игра НЕ вставала на паузу и соединение не рвалось.
+        if utils.game_window_minimized() then
+            utils.game_window_minimize_to_offscreen()
+            s.window_offscreen = true
+            if not was_hidden then
+                was_hidden = true
+                AL.log("[Keepalive] окно свёрнуто: игра развёрнута за экраном (не на паузе), keepalive включён. Вернуть окно - Insert")
             end
+        end
+        if s.window_offscreen then
+            tick_count = tick_count + 1
             -- Логируем тик раз в ~30 секунд (каждый 5-й), чтобы не спамить лог
             if tick_count % 5 == 1 or now - last_tick_log > 35 then
                 last_tick_log = now
@@ -812,13 +821,37 @@ function keepalive_thread()
                     end
                 end)
             end
-        elseif was_minimized then
+        elseif was_hidden then
             local was_count = tick_count
-            was_minimized = false
+            was_hidden = false
             tick_count = 0
-            AL.log("[Keepalive] окно развёрнуто, keepalive-пинг выключен (тиков было: " .. was_count .. ")")
+            AL.log("[Keepalive] окно снова на экране, keepalive-пинг выключен (тиков было: " .. was_count .. ")")
         end
         ::continue::
+    end
+end
+
+function window_restore_thread()
+    local s = AL.state
+    local VK_INSERT = 0x2D
+    while true do
+        wait(0)
+        if tmp_release_window then
+            tmp_release_window = false
+            if s.window_offscreen then
+                utils.game_window_restore_from_offscreen()
+                s.window_offscreen = false
+                AL.log("[Keepalive] окно возвращено на экран по команде")
+            end
+        end
+        if bit.band(user32.GetAsyncKeyState(VK_INSERT), 0x8000) ~= 0 then
+            if s.window_offscreen then
+                utils.game_window_restore_from_offscreen()
+                s.window_offscreen = false
+                AL.log("[Keepalive] окно возвращено на экран (Insert)")
+            end
+            wait(400)
+        end
     end
 end
 
@@ -850,6 +883,7 @@ function main()
     lua_thread.create(antiafk.anti_afk_thread)
     lua_thread.create(antiafk.mafk_hotkey_thread)
     lua_thread.create(keepalive_thread)
+    lua_thread.create(window_restore_thread)
     lua_thread.create(function()
         local cursor_was_on = false
         local cursor_saved = false
@@ -1161,6 +1195,11 @@ function register_commands()
         end
     end)
 
+    sampRegisterChatCommand("alwin", function()
+        tmp_release_window = true
+        AL.chat_msg("{FFCC00}[AutoLogin]{FFFFFF} окно будет возвращено на экран")
+    end)
+
     sampRegisterChatCommand("runtests", function()
         AL.chat_msg("Запуск тестов...")
         utils.run_tests()
@@ -1190,6 +1229,8 @@ function register_commands()
         AL.chat_msg("/autoheal [heal|armor|threshold <val>|armorthreshold <val>|cooldown <ms>] - Auto-heal/armor")
         AL.chat_msg("/loglevel [debug|info|warn|error|file] - Log level")
         AL.chat_msg("/runtests - Run unit tests")
+        AL.chat_msg("/alwin - Вернуть окно игры на экран (если свернуто за экран)")
+        AL.chat_msg("Insert - Вернуть окно игры на экран")
         AL.chat_msg("/alstatus - Show status")
         AL.chat_msg("/al - Open ImGui settings")
         AL.chat_msg("/profile [name|new <name>|del <name>|save] - Profiles")
