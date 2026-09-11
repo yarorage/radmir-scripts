@@ -140,7 +140,7 @@ function M.do_fast_reconnect(seconds)
         return
     end
     last_reconnect_time = os.clock()
-    seconds = tonumber(seconds) or 1
+    seconds = tonumber(seconds) or 3
 
     lua_thread.create(function()
         AL.log("do_fast_reconnect: старт, сек=" .. seconds)
@@ -277,7 +277,7 @@ end
 
 start_reconnect_internal = function(reason, seconds)
     local s = AL.state
-    seconds = tonumber(seconds) or 1
+    seconds = tonumber(seconds) or 3
     
     if s.is_reconnecting then
         AL.log("start_reconnect: уже в процессе, пропуск")
@@ -347,12 +347,12 @@ end
 function M.trigger_reconnect(reason)
     local s = AL.state
     AL.log("trigger: " .. tostring(reason) .. " реконнект=" .. tostring(s.is_reconnecting))
-    start_reconnect_internal(reason, 1)
+    start_reconnect_internal(reason, 3)
 end
 
 function M.register_commands()
     sampRegisterChatCommand("rec", function(arg)
-        M.do_fast_reconnect(tonumber(arg) or 1)
+        M.do_fast_reconnect(tonumber(arg) or 3)
     end)
     sampRegisterChatCommand("mrec", function(arg)
         if tonumber(arg) then M.do_fast_reconnect(tonumber(arg)) end

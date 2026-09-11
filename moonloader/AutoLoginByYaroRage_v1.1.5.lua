@@ -1,8 +1,8 @@
--- AutoLoginByYaroRage v1.1.4
+-- AutoLoginByYaroRage v1.1.5
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.1.4")
+script_version("1.1.5")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -562,6 +562,15 @@ function onReceivePacket(id, bs)
         or text:find('updateHungerLevel', 1, true)
         or text:find('removeVoiceChatEntry', 1, true) then
         if s.reconnect_watch_active and not s.is_spawned then
+            -- Вход в мир по CEF-интерфейсу засчитываем только если авторизация
+            -- подтверждена (пароль уже отправлен или ник пришёл от сервера).
+            -- Иначе окно ввода пароля может так и не появиться, а интерфейс
+            -- мира уже отрисуется -> ложный вход -> скрипт зависает навсегда.
+            local auth_confirmed = s.login_submitted or s.cef_world_entered_seen
+            if not auth_confirmed then
+                AL.log("CEF-интерфейс мира: авторизация не подтверждена, вход отложен")
+                return true
+            end
             s.is_spawned = true
             s.player_in_world = true
             s.reconnect_watch_active = false
