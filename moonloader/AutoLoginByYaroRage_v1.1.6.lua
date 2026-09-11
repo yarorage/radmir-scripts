@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.1.5")
+script_version("1.1.6")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -729,6 +729,7 @@ end
 function onSendPacket(id, bs, priority, reliability, orderingChannel)
     if id == 215 then
         handle_cef_tx_packet(bs)
+        restore_mod.handle_send(id, bs)
     end
     return true
 end

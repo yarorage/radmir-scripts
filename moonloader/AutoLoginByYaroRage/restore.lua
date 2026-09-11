@@ -38,12 +38,19 @@ local function build_response_bytes(button)
     push(0); push(0)   -- префикс
     push_int32(#name)  -- длина имени
     for i = 1, #name do push(string.byte(name, i)) end
-    push_int32(8)      -- счётчик параметров
-    push(0x64); push_int32(0)     -- dialogId = 0
-    push(0x64); push_int32(button) -- response (1 = «Да», 0 = «Нет»)
-    push(0x64); push_int32(-1)    -- listboxId = -1
-    push(0x73); push_int32(0)     -- input = ""
-    return p
+    -- аргументы: [int32(2)][тип][значение] как в реальном клиенте
+    -- dialogId = 0
+    push_int32(2)
+    push(0x64); push_int32(0)
+    -- response (1 = «Да», 0 = «Нет»)
+    push_int32(2)
+    push(0x64); push_int32(button)
+    -- listboxId = -1
+    push_int32(2)
+    push(0x64); push_int32(-1)
+    -- input = "" (пустая строка)
+    push_int32(2)
+    push(0x73); push_int32(0)
 end
 
 -- Отправка ответа в CEF через raknetSendBitStream (как в auth.lua)
@@ -67,6 +74,15 @@ function M.send_response(button)
             button, #bytes, tostring(ok_s), tostring(res)))
     end
     raknetDeleteBitStream(bs)
+    lua_thread.create(function()
+        wait(500)
+        pcall(function()
+            user32.keybd_event(0x1B, 0, 0, 0)
+            wait(50)
+            user32.keybd_event(0x1B, 0, 2, 0)
+        end)
+        AL.log("restore: ESC sent to close CEF dialog")
+    end)
     return ok_s
 end
 
