@@ -75,6 +75,37 @@ local mark_manual_reconnect
 local mark_queue_seen
 local last_reconnect_time = 0
 local RECONNECT_COOLDOWN = 5
+-- «апись ника в реестр SA-MP, чтобы при переподключении клиент использовал правильный ник.
+local function set_nick(only_registry)
+    local s = AL.state
+    local nick = s.my_nick or ""
+    if nick == "" then return end
+    local ok_mem, err_mem = pcall(function()
+        if not only_registry then
+            pcall(function() sampSetCurrentNick(nick) end)
+        end
+    end)
+    AL.log("set_nick: sampSetCurrentNick ok=" .. tostring(ok_mem)
+        .. (err_mem and (" err=" .. tostring(err_mem)) or ""))
+    local ffi_ok, ffi_err = pcall(function()
+        local ffi = require("ffi")
+        ffi.cdef[[ typedef long LSTATUS;
+        LSTATUS __stdcall RegOpenKeyExA(void* hKey, const char* lpSubKey, int ulOptions, int samDesired, void** phkResult);
+        LSTATUS __stdcall RegSetValueExA(void* hKey, const char* lpValueName, int Reserved, int dwType, const char* lpData, int cbData);
+        LSTATUS __stdcall RegCloseKey(void* hKey); ]]
+        local HKEY_CURRENT_USER = ffi.cast("void*", 0x80000001)
+        local REG_SZ = 1
+        local KEY_ALL_ACCESS = 0xF003F
+        local phk = ffi.new("void*[1]")
+        local rc = ffi.C.RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\SAMP", 0, KEY_ALL_ACCESS, phk)
+        if rc ~= 0 then return end
+        local data = nick .. "\0"
+        ffi.C.RegSetValueExA(phk[0], "PlayerName", 0, REG_SZ, data, #data)
+        ffi.C.RegCloseKey(phk[0])
+    end)
+    AL.log("set_nick: реестр ok=" .. tostring(ffi_ok)        .. (ffi_err and (" err=" .. tostring(ffi_err)) or ""))
+end
+
 
 function M.apply_fast_reconnect_patch()
     local s = AL.state
@@ -148,6 +179,7 @@ function M.do_fast_reconnect(seconds)
         printStringNow("Reconnect in ~r~" .. seconds .. "  ~w~sec.", 1600)
         pcall(sampDisconnectWithReason, 0)
         wait(seconds * 1000)
+        set_nick()
         pcall(sampSetGamestate, GAMESTATE_WAIT_CONNECT)
         wait(800)
         emulate_reconnect_ui_cleanup()
