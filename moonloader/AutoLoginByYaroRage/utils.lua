@@ -3,6 +3,12 @@ local AL = require("AutoLoginByYaroRage.state")
 local ffi = require("ffi")
 local M = {}
 
+ffi.cdef[[
+    typedef long (__stdcall *WNDPROC_A)(void* hWnd, unsigned int Msg, unsigned int wParam, long lParam);
+    long GetWindowLongA(void* hWnd, int nIndex);
+    long SetWindowLongA(void* hWnd, int nIndex, long dwNewLong);
+    long CallWindowProcA(void* lpPrevWndFunc, void* hWnd, unsigned int Msg, unsigned int wParam, long lParam);
+]]
 local MOUSEEVENTF_LEFTDOWN = 0x02
 local MOUSEEVENTF_LEFTUP = 0x04
 
@@ -13,6 +19,15 @@ local SWP_NOSIZE = 0x0001
 local SWP_NOMOVE = 0x0002
 local SWP_NOZORDER = 0x0004
 local SWP_NOACTIVATE = 0x0010
+
+-- Перехват сворачивания окна: окно не сворачивается, а уезжает за экран
+-- (SW_RESTORE после минимизации рвёт D3D-контекст и крашит skygfx/d3d9)
+local GWL_WNDPROC = -4
+local WM_SYSCOMMAND = 0x0112
+local SC_MINIMIZE = 0xF020
+local minimize_guard_installed = false
+local minimize_guard_oldproc = nil
+local minimize_guard_cb = nil
 
 -- Единый масштаб интерфейса (все разрешения, в т.ч. 4K, независимо от масштаба Windows)
 -- База 1920x1080: берём наименьшее отношение, клэп 0.6..3.0
@@ -193,6 +208,58 @@ function M.game_window_restore_from_offscreen()
     user32.ShowWindow(hwnd, SW_SHOW)
     user32.SetForegroundWindow(hwnd)
     return true
+end
+
+-- Колбэк оконной процедуры: перехватываем SC_MINIMIZE и не даём окну свернуться,
+-- вместо этого уводим его за экран (игра не паузится, D3D не теряет контекст).
+local function wndproc_callback(hwnd, msg, wparam, lparam)
+    if msg == WM_SYSCOMMAND then
+        if bit.band(wparam, 0xFFF0) == SC_MINIMIZE then
+            pcall(function()
+                M.save_window_rect()
+                M.game_window_offset_pos(offscreen_x, offscreen_y)
+                AL.state.window_offscreen = true
+            end)
+            return 0
+        end
+    end
+    if minimize_guard_oldproc ~= nil then
+        return user32.CallWindowProcA(minimize_guard_oldproc, hwnd, msg, wparam, lparam)
+    end
+    return 0
+end
+
+function M.install_minimize_guard()
+    if minimize_guard_installed then return true end
+    local hwnd = user32.FindWindowA(GAME_WINDOW_CLASS, nil)
+    if hwnd == nil then return false end
+    local old = user32.GetWindowLongA(hwnd, GWL_WNDPROC)
+    if old == 0 then return false end
+    minimize_guard_oldproc = ffi.cast("void*", old)
+    minimize_guard_cb = ffi.cast("WNDPROC_A", wndproc_callback)
+    local res = user32.SetWindowLongA(hwnd, GWL_WNDPROC, ffi.cast("long", ffi.cast("void*", minimize_guard_cb)))
+    if res == 0 then
+        minimize_guard_oldproc = nil
+        minimize_guard_cb = nil
+        return false
+    end
+    minimize_guard_installed = true
+    return true
+end
+
+function M.uninstall_minimize_guard()
+    if not minimize_guard_installed then return end
+    local hwnd = user32.FindWindowA(GAME_WINDOW_CLASS, nil)
+    if hwnd ~= nil and minimize_guard_oldproc ~= nil then
+        user32.SetWindowLongA(hwnd, GWL_WNDPROC, ffi.cast("long", minimize_guard_oldproc))
+    end
+    minimize_guard_installed = false
+    minimize_guard_oldproc = nil
+    minimize_guard_cb = nil
+end
+
+function M.minimize_guard_active()
+    return minimize_guard_installed
 end
 
 function M.game_window_active()

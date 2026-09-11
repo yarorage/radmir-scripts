@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.2.0")
+script_version("1.2.1")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -792,14 +792,14 @@ function keepalive_thread()
         wait(7000)
         if not isSampAvailable() then goto continue end
         local now = os.clock()
-        -- Если окно реально свёрнуто (IsIconic), разворачиваем его и прячем за экран,
-        -- чтобы игра НЕ вставала на паузу и соединение не рвалось.
+        -- Окно НЕ разворачиваем после минимизации: это рвёт D3D-контекст и крашит skygfx/d3d9.
+        -- В нормальном режиме SC_MINIMIZE перехвачен WNDPROC-хуком, и окно уезжает за экран
+        -- без сворачивания. Эта ветка - страховка на случай сворачивания другим способом (Win+D и т.п.).
         if utils.game_window_minimized() then
-            utils.game_window_minimize_to_offscreen()
             s.window_offscreen = true
             if not was_hidden then
                 was_hidden = true
-                AL.log("[Keepalive] окно свёрнуто: игра развёрнута за экраном (не на паузе), keepalive включён. Вернуть окно - Insert")
+                AL.log("[Keepalive] окно реально свёрнуто: разворот НЕ выполняется (не рвём D3D). Вернуть окно - Insert")
             end
         end
         if s.window_offscreen then
@@ -882,8 +882,23 @@ function main()
     lua_thread.create(auth._internal.login_worker_thread)
     lua_thread.create(antiafk.anti_afk_thread)
     lua_thread.create(antiafk.mafk_hotkey_thread)
+    -- Перехват сворачивания окна: окно уезжает за экран вместо минимизации,
+    -- чтобы игра не паузилась и D3D-контекст не рвался (SW_RESTORE после минимизации крашит skygfx/d3d9).
+    if utils.install_minimize_guard() then
+        AL.log("[Keepalive] перехват сворачивания окна включён: окно уводится за экран, игра не на паузе")
+    else
+        AL.log("[Keepalive] не удалось включить перехват сворачивания окна (режим keepalive-пинга)")
+    end
+
     lua_thread.create(keepalive_thread)
     lua_thread.create(window_restore_thread)
+
+    -- При завершении скрипта снимаем WNDPROC-хук, чтобы не оставлять висячий указатель
+    addEventHandler("onScriptTerminate", function(scr)
+        if scr == script.this then
+            pcall(utils.uninstall_minimize_guard)
+        end
+    end)
     lua_thread.create(function()
         local cursor_was_on = false
         local cursor_saved = false
