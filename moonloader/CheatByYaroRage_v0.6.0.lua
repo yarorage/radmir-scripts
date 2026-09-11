@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.5.9")
+script_version("0.6.0")
 --==================================[ Õ¿—“–Œ… » ◊»“¿ ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1081,10 +1081,9 @@ local function mainLoop()
 		do
 			local inCar = isCharInAnyCar(PLAYER_PED)
 			if tfirst.v and inCar and not wasInCar then
-				local entered = getCarCharIsUsing(PLAYER_PED)
 				lua_thread.create(function()
 					wait(math.random(5000, 10000))
-					if isSampAvailable() and getCarCharIsUsing(PLAYER_PED) == entered then
+					if isSampAvailable() and isCharInAnyCar(PLAYER_PED) then
 						sampProcessChatInput('/rem')
 					end
 				end)
