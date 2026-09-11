@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.6.5")
+script_version("0.6.6")
 --==================================[ Õ¿—“–Œ… » ◊»“¿ ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -2654,7 +2654,7 @@ function ClickWP()
 		wait(1)
 		while isPauseMenuActive() do
 			if cursorEnabled then
-				showCursor(false)
+				setCheatCursor(false)
 			end
 			wait(100)
 		end
@@ -2967,7 +2967,7 @@ function setEntityCoordinates(entityPtr, x, y, z)
 	end
 end
 
-function showCursor(toggle)
+function setCheatCursor(toggle)
 	if toggle then
 		sampSetCursorMode(CMODE_LOCKCAM)
 	else
@@ -2982,7 +2982,7 @@ function onScriptTerminate(script, quit)
 		imgui.Process = false
 		imgui.ShowCursor = false
 		imgui.DisableInput = false
-		showCursor(false, false)
+		setCheatCursor(false)
 	end
 end
 
