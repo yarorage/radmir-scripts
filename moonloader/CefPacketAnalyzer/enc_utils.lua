@@ -12,14 +12,17 @@ local function getEncoding()
     return nil
 end
 
--- Строка в байтах CP1251 (литерал движка) -> строка в UTF-8
+-- Строка в байтах CP1251 (литерал движка) -> строка в UTF-8.
+-- Кодировку задаём ЯВНО (без опоры на encoding.default): по умолчанию движок
+-- хранит encoding.default = "ASCII", и конвертация через default ломает
+-- кириллицу (знаки вопроса). Явный параметр второй аргумент encode(...).
 function M.bytesCpToUtf8(s)
     local enc = getEncoding()
     if not enc then
         return tostring(s or "")
     end
     local ok, res = pcall(function()
-        return enc.UTF8:encode(enc.CP1251:decode(tostring(s or "")))
+        return enc.UTF8:encode(tostring(s or ""), "CP1251")
     end)
     if ok and res then
         return res
@@ -27,14 +30,15 @@ function M.bytesCpToUtf8(s)
     return tostring(s or "")
 end
 
--- Строка в UTF-8 -> байты CP1251 (для файлов с charset windows-1251)
+-- Строка в UTF-8 -> байты CP1251 (для файлов с charset windows-1251).
+-- Аналогично: кодировки задаются явно, encoding.default не используется.
 function M.utf8ToBytesCp(s)
     local enc = getEncoding()
     if not enc then
         return tostring(s or "")
     end
     local ok, res = pcall(function()
-        return enc.CP1251:encode(enc.UTF8:decode(tostring(s or "")))
+        return enc.CP1251:encode(tostring(s or ""), "UTF-8")
     end)
     if ok and res then
         return res

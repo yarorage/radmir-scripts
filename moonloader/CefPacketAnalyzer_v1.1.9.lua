@@ -1,4 +1,4 @@
--- CefPacketAnalyzer v1.1.8
+-- CefPacketAnalyzer v1.1.9
 -- Анализатор CEF-пакетов Radmir CRMP.
 -- Перехватывает RakNet-пакеты (в первую очередь id=215 - команды интерфейса,
 -- id=61 - диалоги) и текстовые потоки, классифицирует их по базе знаний
@@ -11,10 +11,16 @@
 --   packets_unique_table.html - итоговая таблица без дублей, сгруппированная по категориям (CP1251)
 -- Команды: /cpa, /cpa save, /cpa clear, /cpa log on|off, /cpa len N, /cpa status.
 script_name("CefPacketAnalyzer")
-script_version("1.1.8")
+script_version("1.1.9")
 
 require "moonloader"
 require "lib.samp.events"
+
+-- Задаём кодировку движка латиницей в явном виде. Без этого encoding.default
+-- по умолчанию равен "ASCII" (encoding_lua.cpp), и конвертации через модуль
+-- encoding (в т.ч. enc_utils при загрузке модулей) ломают кириллицу.
+local encoding = require "encoding"
+encoding.default = "CP1251"
 
 local state   = require("CefPacketAnalyzer.state")
 local capture = require("CefPacketAnalyzer.capture")
@@ -183,7 +189,7 @@ function main()
     setupOutputDir()
     registerCommands()
     state.state.startTime = os.date("%Y-%m-%d %H:%M:%S")
-    state.log("CefPacketAnalyzer v1.1.8 запущен. Команды: /cpa")
+    state.log("CefPacketAnalyzer v1.1.9 запущен. Команды: /cpa")
 
     -- В геймплее тяжёлые отчёты НЕ пересобираются (чтобы не лагать).
     -- Поток packets_stream.txt дописывается автоматически вживую,

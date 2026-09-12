@@ -90,17 +90,13 @@ end
 
 function M.chat(msg)
     msg = tostring(msg or "")
-    -- Перекодируем байты CP1251 в UTF-8: клиент рендерит чат в UTF-8,
-    -- иначе кириллица из литералов превращается в знаки вопроса сплошняком.
-    local okEnc, enc = pcall(require, "encoding")
-    if okEnc and enc then
-        local okConv, conv = pcall(function()
-            return enc.UTF8:encode(enc.CP1251:decode(msg))
-        end)
-        if okConv and conv then
-            msg = conv
-        end
-    end
+    -- Передаём байты КАК ЕСТЬ (CP1251). Движок sampAddChatMessage сам решает:
+    -- строка - валидный UTF-8 -> конвертирует в UTF8 в CP1251, иначе пропускает
+    -- как есть (а литералы скрипта и так в CP1251). Раньше здесь была конвертация
+    -- enc.UTF8:encode(enc.CP1251:decode(msg)), которая полагалась на encoding.default;
+    -- по умолчанию движок ставит encoding.default = "ASCII" (encoding_lua.cpp),
+    -- и тогда кириллица превращалась в "????????". Ник из CEF (UTF-8) уже
+    -- перекодируется в CP1251 в upload.statusText() перед подстановкой.
     if isSampAvailable and isSampAvailable() then
         sampAddChatMessage("{66CCFF}[CefPkt]{FFFFFF} " .. msg, -1)
     end

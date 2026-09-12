@@ -4,6 +4,7 @@
 -- пакетов. Пакет маленький, отправка редкая, чтобы не грузить игру и не
 -- упираться в лимиты Google. Ник идёт в UTF-8 (JSON).
 local state = require("CefPacketAnalyzer.state")
+local encUtils = require("CefPacketAnalyzer.enc_utils")
 
 local M = {}
 
@@ -186,7 +187,7 @@ local function buildPayload()
 
     return {
         script = "CefPacketAnalyzer",
-        version = "1.1.8",
+        version = "1.1.9",
         nick = localNick() or "unknown",
         ts = os.time(),
         ts_text = os.date("%Y-%m-%d %H:%M:%S"),
@@ -278,6 +279,18 @@ function M.statusText()
     if link and link ~= "" and #link > 60 then
         link = link:sub(1, 57) .. "..."
     end
+    -- Ник из CEF хранится в UTF-8, а чат и литералы работают в CP1251
+    -- (M.chat передаёт байты как есть). Перекодируем ник в CP1251,
+    -- иначе кириллический ник в чате будет "кракозябрами".
+    local nick = localNick()
+    if nick and nick ~= "" then
+        nick = encUtils.utf8ToBytesCp(nick)
+    elseif nick == "" then
+        nick = nil
+    end
+    if not nick or nick == "" then
+        nick = "не подключён"
+    end
     return string.format(
         "отправка: %s | режим: %s | адрес: %s | интервал: %d сек (±%d) | ник: %s",
         st.uploadEnabled and "вкл" or "выкл",
@@ -285,7 +298,7 @@ function M.statusText()
         link and link ~= "" and link or "не задан",
         st.uploadEvery or 600,
         st.uploadJitter or 0,
-        localNick() or "не подключён"
+        nick
     )
 end
 
