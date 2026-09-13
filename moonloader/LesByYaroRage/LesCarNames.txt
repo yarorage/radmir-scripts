@@ -19,7 +19,7 @@
 416=Sprinter W907 A (Медицинский)
 417=Большой вертолет
 418=Moonbeam (Автобус)
-419=Opel Astra GTC
+419=Ford Focus 2 RS
 420=Ford Focus 3 (Такси)
 421=Peugeout 406
 422=JEEP GC
