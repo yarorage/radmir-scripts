@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.7.7")
+script_version("0.7.8")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -486,6 +486,10 @@ gmHpPercent = 95
 -- Глобалы MaxSpeed: отрабатываются в mainLoop, поэтому не local (лимит 60 upvalue).
 maxSpeedOn = false
 maxSpeedLimit = 220
+maxSpeedVeh = 0
+maxSpeedPrev = 0
+maxSpeedPlateauCnt = 0
+maxSpeedBoosting = false
 local silentmode = imgui.ImInt(3)
 local pslide = imgui.ImBool(false)
 local flipcar = imgui.ImBool(false)
@@ -1457,15 +1461,44 @@ local function mainLoop()
 		end
 
 		-- MaxSpeed: расширение максималки авто выше штатной.
-		-- Подтягиваем скорость к лимиту (с потолком), пока машина сама разогналась выше 30 км/ч.
-		-- Порог исключает «езду на заглушенном двигателе с места», а isCarEngineOn тут не гейт
-		-- (на Radmir у локальной машины флаг двигателя часто false и разгон просто не работал).
+		-- Темп разгона НЕ меняем: пока машина сама набирает скорость, чит молчит.
+		-- Как только скорость при зажатой W перестала расти (плато — упёрлась в СВОЙ пик),
+		-- подтягиваем её к maxSpeedLimit с шагом 1.5/кадр и держим лимит после достижения.
+		-- Порог speed > 30 — фактическая проверка живого двигателя (заглушенная с места не тронется,
+		-- isCarEngineOn по памяти на Radmir не используем: даёт ложный false).
 		if maxSpeedOn and isCharInAnyCar(PLAYER_PED) and isKeyDown(VK_W) then
 			local veh = storeCarCharIsInNoSave(PLAYER_PED)
-			local speed = getCarSpeed(veh)
-			if speed >= 30 and speed < maxSpeedLimit then
-				setCarForwardSpeed(veh, math.min(speed + 1.2, maxSpeedLimit))
+			if maxSpeedVeh ~= veh then
+				maxSpeedVeh = veh
+				maxSpeedBoosting = false
+				maxSpeedPlateauCnt = 0
+				maxSpeedPrev = 0
 			end
+			local speed = getCarSpeed(veh)
+			if speed > 30 then
+				if not maxSpeedBoosting then
+					-- Детект плато: скорость при W почти не растёт несколько кадров подряд.
+					if speed <= maxSpeedPrev + 0.3 then
+						maxSpeedPlateauCnt = maxSpeedPlateauCnt + 1
+					else
+						maxSpeedPlateauCnt = 0
+					end
+					if maxSpeedPlateauCnt >= 5 then
+						maxSpeedBoosting = true
+					end
+				else
+					setCarForwardSpeed(veh, math.min(speed + 1.5, maxSpeedLimit))
+				end
+			else
+				maxSpeedBoosting = false
+				maxSpeedPlateauCnt = 0
+			end
+			maxSpeedPrev = speed
+		elseif maxSpeedOn then
+			maxSpeedVeh = 0
+			maxSpeedBoosting = false
+			maxSpeedPlateauCnt = 0
+			maxSpeedPrev = 0
 		end
 
 		-- FlyCar
@@ -2229,7 +2262,7 @@ function drawVehicleTab()
 				imgui.TextDisabled(u8'Ускорение авто: держать левый Alt или правую кнопку мыши')
 				if imgui.SliderInt(u8'Смут##speed', SpeedSmooth, 1, 100) then save() end
 				if imgui.Checkbox(u8'MaxSpeed', maxspeed) then maxSpeedOn = maxspeed.v save() end
-				imgui.TextDisabled(u8'Расширение максималки: при W машина тянется до лимита (от 30 км/ч)')
+				imgui.TextDisabled(u8'Расширение максималки: после штатного пика машина тянется до лимита (W, от 30 км/ч)')
 				if imgui.SliderInt(u8'Лимит (км/ч)', maxspeed_limit, 100, 400) then maxSpeedLimit = maxspeed_limit.v save() end
 				
 				imgui.Separator()
