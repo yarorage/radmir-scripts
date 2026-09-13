@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.7.3")
+script_version("0.7.4")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -472,10 +472,13 @@ local eyefish = imgui.ImBool(false)
 local allowBunnyhop = imgui.ImBool(false)
 local NoAnimationMoney = imgui.ImBool(false)
 local godcar = imgui.ImBool(false)
--- Хранение handle текущей GM-машины и её случайного порога блокировки HP (90-99%%).
+-- Ползунок GM: до какого %% HP машина может ломаться, дальше HP блокируется (50-99).
+local gm_hp_slider = imgui.ImInt(95)
+-- Хранение handle текущей GM-машины и порога блокировки HP.
 -- Глобальные (а не local) - иначе mainLoop превысит лимит 60 upvalue.
 gmCarHandle = 0
 gmCarThreshold = 0
+gmHpPercent = 95
 local silentmode = imgui.ImInt(3)
 local pslide = imgui.ImBool(false)
 local flipcar = imgui.ImBool(false)
@@ -536,6 +539,7 @@ local mainIni = inicfg.load({
 		antistun = false,
 		shotmax = false,
 		godcar = false,
+		gm_hp_percent = 95,
 		NoAnimationMoney = false,
 		Fov = 5.0,
 		damageinf = false,
@@ -576,6 +580,8 @@ local mainIni = inicfg.load({
 }, 'CheatByYaroRage/CheatByYaroRage.ini')
 
 godcar.v = mainIni.CheatByYaroRage.godcar or false
+gm_hp_slider.v = tonumber(mainIni.CheatByYaroRage.gm_hp_percent) or 95
+gmHpPercent = gm_hp_slider.v
 NoAnimationMoney.v = mainIni.CheatByYaroRage.NoAnimationMoney or false
 sbivx.v = mainIni.CheatByYaroRage.sbivx or false
 SpeedHack.v = mainIni.CheatByYaroRage.SpeedHack or false
@@ -641,7 +647,7 @@ admin_hud_color_b.v = mainIni.CheatByYaroRage.admin_hud_color_b or 255
 
 -- Справочник всех настраиваемых переменных для профилей (объявлен ДО save()).
 local profile_vars = {
-	godcar = godcar, sbivx = sbivx, SpeedHack = SpeedHack, SpeedSmooth = SpeedSmooth,
+	godcar = godcar, gm_hp_slider = gm_hp_slider, sbivx = sbivx, SpeedHack = SpeedHack, SpeedSmooth = SpeedSmooth,
 	fullskillgun = fullskillgun, pslide = pslide, trigger = trigger,
 	autokick = autokick, airbrake = airbrake, Speed = Speed,
 	ifastconnect = ifastconnect, enginecar = enginecar, noReload = noReload,
@@ -1233,12 +1239,12 @@ local function mainLoop()
 
 		if godcar.v then
 			if isCharInAnyCar(PLAYER_PED) then
-				-- На каждой новой машине - свой случайный порог блокировки 90-99% HP.
-				-- GM начинает работать только после того как HP упадёт до этого порога.
+				-- GM блокирует HP только после того как машина потеряет урон до порога
+				-- (ползунок GM HP%, глобал gmHpPercent: не local - лимит upvalue).
 				local gmCar = storeCarCharIsInNoSave(PLAYER_PED)
 				if gmCarHandle ~= gmCar then
 					gmCarHandle = gmCar
-					gmCarThreshold = math.random(90, 99) * 10
+					gmCarThreshold = gmHpPercent * 10
 				end
 				local gmHp = getCarHealth(gmCar)
 				if gmHp > 0 and gmHp <= gmCarThreshold then
@@ -2189,6 +2195,8 @@ function drawVehicleTab()
 				imgui.TextDisabled(u8'Переворот машины клавишей Del (удержание 0.5с)')
 				sbox(u8'GM Car', godcar)
 				imgui.TextDisabled(u8'Неуязвимая машина')
+				if imgui.SliderInt(u8'GM HP%% (ломается до)', gm_hp_slider, 50, 99) then gmHpPercent = gm_hp_slider.v save() end
+				imgui.TextDisabled(u8'До какого %% HP машина теряет урон, далее GM блокирует HP')
 				sbox(u8'EngineCar', enginecar)
 				imgui.TextDisabled(u8'Всегда заведенный двигатель')
 				sbox(u8'SpeedHack (Alt/RMB)', SpeedHack)
