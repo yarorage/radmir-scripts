@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.7.6")
+script_version("0.7.7")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -486,8 +486,6 @@ gmHpPercent = 95
 -- Глобалы MaxSpeed: отрабатываются в mainLoop, поэтому не local (лимит 60 upvalue).
 maxSpeedOn = false
 maxSpeedLimit = 220
-maxSpeedVeh = 0
-maxSpeedSamId = -1
 local silentmode = imgui.ImInt(3)
 local pslide = imgui.ImBool(false)
 local flipcar = imgui.ImBool(false)
@@ -1459,20 +1457,14 @@ local function mainLoop()
 		end
 
 		-- MaxSpeed: расширение максималки авто выше штатной.
-		-- Плавный разгон к лимиту; работает только при заведённом двигателе и зажатом W.
-		-- SAMP id машины кэшируется при её смене, чтобы не дёргать 0AFF каждый кадр.
+		-- Подтягиваем скорость к лимиту (с потолком), пока машина сама разогналась выше 30 км/ч.
+		-- Порог исключает «езду на заглушенном двигателе с места», а isCarEngineOn тут не гейт
+		-- (на Radmir у локальной машины флаг двигателя часто false и разгон просто не работал).
 		if maxSpeedOn and isCharInAnyCar(PLAYER_PED) and isKeyDown(VK_W) then
 			local veh = storeCarCharIsInNoSave(PLAYER_PED)
-			if maxSpeedVeh ~= veh then
-				maxSpeedVeh = veh
-				local okS, samid = sampGetVehicleIdByCarHandle(veh)
-				maxSpeedSamId = samid or -1
-			end
-			if maxSpeedSamId >= 0 and isCarEngineOn(maxSpeedSamId) then
-				local speed = getCarSpeed(veh)
-				if speed < maxSpeedLimit then
-					setCarForwardSpeed(veh, speed + 0.4)
-				end
+			local speed = getCarSpeed(veh)
+			if speed >= 30 and speed < maxSpeedLimit then
+				setCarForwardSpeed(veh, math.min(speed + 1.2, maxSpeedLimit))
 			end
 		end
 
@@ -2237,7 +2229,7 @@ function drawVehicleTab()
 				imgui.TextDisabled(u8'Ускорение авто: держать левый Alt или правую кнопку мыши')
 				if imgui.SliderInt(u8'Смут##speed', SpeedSmooth, 1, 100) then save() end
 				if imgui.Checkbox(u8'MaxSpeed', maxspeed) then maxSpeedOn = maxspeed.v save() end
-				imgui.TextDisabled(u8'Расширение максималки: плавный разгон к лимиту при заведённом движке и W')
+				imgui.TextDisabled(u8'Расширение максималки: при W машина тянется до лимита (от 30 км/ч)')
 				if imgui.SliderInt(u8'Лимит (км/ч)', maxspeed_limit, 100, 400) then maxSpeedLimit = maxspeed_limit.v save() end
 				
 				imgui.Separator()
