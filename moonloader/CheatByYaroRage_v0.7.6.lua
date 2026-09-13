@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.7.5")
+script_version("0.7.6")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -486,6 +486,8 @@ gmHpPercent = 95
 -- Глобалы MaxSpeed: отрабатываются в mainLoop, поэтому не local (лимит 60 upvalue).
 maxSpeedOn = false
 maxSpeedLimit = 220
+maxSpeedVeh = 0
+maxSpeedSamId = -1
 local silentmode = imgui.ImInt(3)
 local pslide = imgui.ImBool(false)
 local flipcar = imgui.ImBool(false)
@@ -1457,12 +1459,20 @@ local function mainLoop()
 		end
 
 		-- MaxSpeed: расширение максималки авто выше штатной.
-		-- При зажатом W машина разгоняется к лимиту (глобалы из-за лимита upvalue).
+		-- Плавный разгон к лимиту; работает только при заведённом двигателе и зажатом W.
+		-- SAMP id машины кэшируется при её смене, чтобы не дёргать 0AFF каждый кадр.
 		if maxSpeedOn and isCharInAnyCar(PLAYER_PED) and isKeyDown(VK_W) then
 			local veh = storeCarCharIsInNoSave(PLAYER_PED)
-			local speed = getCarSpeed(veh)
-			if speed < maxSpeedLimit then
-				setCarForwardSpeed(veh, speed + 3)
+			if maxSpeedVeh ~= veh then
+				maxSpeedVeh = veh
+				local okS, samid = sampGetVehicleIdByCarHandle(veh)
+				maxSpeedSamId = samid or -1
+			end
+			if maxSpeedSamId >= 0 and isCarEngineOn(maxSpeedSamId) then
+				local speed = getCarSpeed(veh)
+				if speed < maxSpeedLimit then
+					setCarForwardSpeed(veh, speed + 0.4)
+				end
 			end
 		end
 
@@ -2226,9 +2236,9 @@ function drawVehicleTab()
 				sbox(u8'SpeedHack (Alt/RMB)', SpeedHack)
 				imgui.TextDisabled(u8'Ускорение авто: держать левый Alt или правую кнопку мыши')
 				if imgui.SliderInt(u8'Смут##speed', SpeedSmooth, 1, 100) then save() end
-				sbox(u8'MaxSpeed', maxspeed)
-				imgui.TextDisabled(u8'Расширение максималки авто: при W машина тянется к лимиту')
-				if imgui.SliderInt(u8'Лимит (км/ч)', maxspeed_limit, 100, 400) then save() end
+				if imgui.Checkbox(u8'MaxSpeed', maxspeed) then maxSpeedOn = maxspeed.v save() end
+				imgui.TextDisabled(u8'Расширение максималки: плавный разгон к лимиту при заведённом движке и W')
+				if imgui.SliderInt(u8'Лимит (км/ч)', maxspeed_limit, 100, 400) then maxSpeedLimit = maxspeed_limit.v save() end
 				
 				imgui.Separator()
 				sbox(u8'Autorem', tfirst)
@@ -3243,6 +3253,9 @@ function loadProfile(name)
                 profile_vars[k].v = v
             end
         end
+        gmHpPercent = gm_hp_slider.v
+        maxSpeedOn = maxspeed.v
+        maxSpeedLimit = maxspeed_limit.v
         save()
         ywelcome("CheatByYaroRage", "Профиль '" .. name .. "' загружен!")
     else
