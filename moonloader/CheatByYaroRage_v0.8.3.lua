@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.8.2")
+script_version("0.8.3")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -482,10 +482,6 @@ gmHpPercent = 95
 -- Глобалы MaxSpeed: отрабатываются в mainLoop, поэтому не local (лимит 60 upvalue).
 maxSpeedOn = false
 maxSpeedLimit = 220
-maxSpeedVeh = 0
-maxSpeedPrev = 0
-maxSpeedPlateauCnt = 0
-maxSpeedBoosting = false
 local silentmode = imgui.ImInt(3)
 local pslide = imgui.ImBool(false)
 local flipcar = imgui.ImBool(false)
@@ -1458,56 +1454,23 @@ local function mainLoop()
 		end
 
 		-- MaxSpeed: расширение максималки авто выше штатной.
-		-- Темп разгона НЕ меняем: пока машина сама набирает скорость, чит молчит.
-		-- Как только машина при зажатой W упёрлась в СВОЙ пик (длительное плато: 20 кадров
-		-- прироста < 0.5 км/ч), буст включается и держит лимит ПОСТОЯННО до отпускания W —
-		-- без ветки «speed >= limit» (иначе машина со штатным пиком ниже лимита скатывалась
-		-- обратно, и был цикл «чуть больше 100 -> сброс до 100»).
-		-- Буст только вверх: если машина сама быстрее лимита, гвард target > speed молчит.
-		-- Порог speed > 30 — фактическая проверка живого двигателя (заглушенная с места не тронется,
-		-- isCarEngineOn по памяти на Radmir не используем: даёт ложный false).
+		-- Принцип как у SpeedHack: каждый кадр при зажатой W множим скорость на 1.21.
+		-- Этот множитель проверен и пробивает сопротивление физики движка: на 1.08 машина
+		-- упиралась в ~100, потому что физика гасила ~15-20% между кадрами и 1.08 не хватало.
+		-- Лимит (слайдер 100-400) — потолок: буст не тянет выше maxSpeedLimit.
+		-- Гвард target > speed: если машина сама быстрее лимита (например 265 при лимите 220),
+		-- буст молчит и не тормозит — машина едет свои 265.
+		-- Порог speed > 30 — заглушенная с места не тронется, isCarEngineOn лжёт на Radmir.
 		if maxSpeedOn and isCharInAnyCar(PLAYER_PED) and isKeyDown(VK_W) then
 			local veh = storeCarCharIsInNoSave(PLAYER_PED)
-			if maxSpeedVeh ~= veh then
-				maxSpeedVeh = veh
-				maxSpeedBoosting = false
-				maxSpeedPlateauCnt = 0
-				maxSpeedPrev = 0
-			end
 			local speed = getCarSpeed(veh)
 			if speed > 30 then
-				if not maxSpeedBoosting then
-					-- Детект плато: машина упёрлась в СВОЙ пик под зажатой W.
-					-- Требуем длительное отсутствие роста (20 кадров подряд с приростом < 0.5 км/ч),
-					-- чтобы не ловить кратковременные спады разгона на переключении передач.
-					if speed <= maxSpeedPrev + 0.5 then
-						maxSpeedPlateauCnt = maxSpeedPlateauCnt + 1
-					else
-						maxSpeedPlateauCnt = 0
-					end
-					if maxSpeedPlateauCnt >= 20 then
-						maxSpeedBoosting = true
-					end
-				else
-					-- Буст ТОЛЬКО вверх, никогда не ниже текущей скорости машины (не тормозим).
-					local target = math.max(speed * 1.08, speed + 2.5)
-					target = math.min(target, speed + 10.0, maxSpeedLimit)
-					if target > speed then
-						setCarForwardSpeed(veh, target)
-					end
-					-- Если машина сама не ниже лимита (собственные 265 при лимите 220),
-					-- target <= speed и буст молчит, не мешая штатному разгону.
+				local target = speed * 1.21
+				if target > maxSpeedLimit then target = maxSpeedLimit end
+				if target > speed then
+					setCarForwardSpeed(veh, target)
 				end
-			else
-				maxSpeedBoosting = false
-				maxSpeedPlateauCnt = 0
 			end
-			maxSpeedPrev = speed
-		elseif maxSpeedOn then
-			maxSpeedVeh = 0
-			maxSpeedBoosting = false
-			maxSpeedPlateauCnt = 0
-			maxSpeedPrev = 0
 		end
 
 		-- FlyCar
