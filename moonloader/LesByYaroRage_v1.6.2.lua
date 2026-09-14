@@ -728,7 +728,11 @@ function main()
         local players = {}      -- Живые игроки
         local deadAnimals = {}  -- Мёртвые животные
         local aimCandidates = {} -- Кандидаты для аима
+        local needScan = Les.Wh.v or Les.WhPlayers.v or Les.LineAnimals.v or Les.LinePlayers.v
+            or Les.LineCorpses.v or Les.HeadDot.v or Les.ShowDistance.v or Les.EspTush.v
+            or Les.Clear.v or Les.Aim.v or Les.AimPlayers.v or Les.Triggerbot.v
 
+        if needScan then
         for _, value in pairs(getAllChars()) do
             if doesCharExist(value) and value ~= PLAYER_PED and isCharOnScreen(value) then
                 local modelid = getCharModel(value)
@@ -761,7 +765,9 @@ function main()
                             handle = value, modelid = modelid, posX = posX, posY = posY, posZ = posZ,
                             screenX = _X, screenY = _Y, dist = dist, health = health,
                             headX = hxx, headY = hyy, okScreen = okScreen, okHead = okHead,
-                            nick = sampGetPlayerNickname(pid) or "Игрок"
+                            nick = sampGetPlayerNickname(pid) or "Игрок",
+                            armor = Les.WhPlayers.v and getCharArmour(value) or 0,
+                            weapon = Les.WhPlayers.v and getCurrentCharWeapon(value) or 0
                         })
                     end
                 else
@@ -787,11 +793,12 @@ function main()
                 end
             end
         end
+        end
 
         -- Рендер ESP (трупы/машины/игроки/пикапы)
-        if Les.EspTush.v and type(renderEspTush) == "function" then pcall(renderEspTush) end
+        if Les.EspTush.v and type(renderEspTush) == "function" then pcall(renderEspTush, deadAnimals) end
         if Les.EspCars.v and type(renderEspCars) == "function" then pcall(renderEspCars) end
-        if Les.WhPlayers.v and type(renderEspPlayers) == "function" then pcall(renderEspPlayers) end
+        if Les.WhPlayers.v and type(renderEspPlayers) == "function" then pcall(renderEspPlayers, players) end
         if Les.EspPickups.v and type(renderEspPickups) == "function" then pcall(renderEspPickups) end
         if Les.ClearFol.v then
             if not Les.FolApplied then
@@ -1475,91 +1482,68 @@ function drawCharBox(handle, color)
 end
 
 -- WH Трупы: коробка + линия + дистанция + инфо
-function renderEspTush()
-    if type(getAllChars) ~= "function" then return end
+function renderEspTush(dead)
+    if not dead or #dead == 0 then return end
     local camX, camY, camZ = getActiveCameraCoordinates()
     local lookX, lookY, lookZ = getActiveCameraPointAt()
     local dirX, dirY, dirZ = lookX - camX, lookY - camY, lookZ - camZ
-    for _, v in pairs(getAllChars()) do
-        if doesCharExist(v) and v ~= PLAYER_PED then
-            local m = getCharModel(v)
-            if (m == MODEL_DEER or m == MODEL_BEAR) and getCharHealth(v) <= 0 then
-                local lx, ly, lz = getCharCoordinates(v)
-                -- рисуем только трупы перед камерой, иначе координаты зеркаляются
-                if (lx - camX) * dirX + (ly - camY) * dirY + (lz - camZ) * dirZ > 0 then
-                    local X, Y = convert3DCoordsToScreen(lx, ly, lz)
-                    if X and Y and X > 0 and X < 8000 and Y > 0 and Y < 6000 then
-                        local px, py, pz = getCharCoordinates(PLAYER_PED)
-                        local d = math.sqrt((lx-px)^2 + (ly-py)^2 + (lz-pz)^2)
-                        local animalName = (m == MODEL_DEER) and "Олень" or "Медведь"
-                        renderFontDrawText(font_whGreen, animalName .. " (труп)", X, Y, 0xFFFF0000)
-                        renderFontDrawText(font_whGreen, string.format("%.0f м", d), X, Y - uiScaled(10), 0xFFFFAAAA)
-                    end
-                end
-            end
-        end
-    end
-end
-
-function renderEspPlayers()
-    if not Les.WhPlayers.v or type(getAllChars) ~= "function" then return end
     local px, py, pz = getCharCoordinates(PLAYER_PED)
-    for _, v in pairs(getAllChars()) do
-        if doesCharExist(v) and v ~= PLAYER_PED and isCharOnScreen(v) then
-            local isPlayer = false
-            local resPid, pid = sampGetPlayerIdByCharHandle(v)
-            if not resPid then goto continue end
-            isPlayer = true
-            
-            local posX, posY, posZ = getCharCoordinates(v)
-            local _X, _Y = convert3DCoordsToScreen(posX, posY, posZ)
-            local dist = math.sqrt((posX - px)^2 + (posY - py)^2 + (posZ - pz)^2)
-            
-            if Les.DistPlayers.v > 0 and dist > Les.DistPlayers.v then goto continue end
-            
-            if _X and _Y and _X > -50 and _X < 8050 and _Y > -50 and _Y < 6050 then
-                local health = getCharHealth(v)
-                local armor = getCharArmour(v)
-                local weapon = getCurrentCharWeapon(v)
-                local weaponName = getWeaponName(weapon)
-                local nick = sampGetPlayerNickname(pid) or "Unknown"
-                
-                local healthColor = 0xFF00FF00
-                if health < 500 then healthColor = 0xFFFFFF00 end
-                if health < 250 then healthColor = 0xFFFF0000 end
-                
-                local yOffset = 0
-                if Les.PlayerShowNick.v then
-                    renderFontDrawText(font_whGreen, nick, _X, _Y + yOffset, 0xFF00CCFF); yOffset = yOffset + uiScaled(12)
-                end
-                if Les.PlayerShowHP.v then
-                    renderFontDrawText(font_whGreen, string.format("HP: %.0f", health/10), _X, _Y + yOffset, healthColor); yOffset = yOffset + uiScaled(12)
-                end
-                if Les.PlayerShowAP.v and armor > 0 then
-                    renderFontDrawText(font_whGreen, "AP: " .. armor, _X, _Y + yOffset, 0xFF00AAFF); yOffset = yOffset + uiScaled(12)
-                end
-                if Les.PlayerShowWeapon.v then
-                    renderFontDrawText(font_whGreen, weaponName, _X, _Y + yOffset, 0xFFFFFFFF); yOffset = yOffset + uiScaled(12)
-                end
-                if Les.PlayerShowDistance.v then
-                    renderFontDrawText(font_whGreen, string.format("%.0f м", dist), _X, _Y + yOffset, 0xFFFFAAAA)
-                end
-                
-                -- Линия к игроку
-                if Les.LinePlayers.v then
-                    local hx, hy, hz = GetBodyPartCoordinates(8, v)
-                    local hX, hY = convert3DCoordsToScreen(hx, hy, hz)
-                    local sw, sh = getScreenResolution()
-                    if hX and hY then
-                        renderDrawLine(sw/2, sh/2, hX, hY, 1.0, 0xFF00CCFF)
-                    end
-                end
+    for _, d in ipairs(dead) do
+        local m = d.modelid
+        local lx, ly, lz = d.posX, d.posY, d.posZ
+        -- рисуем только трупы перед камерой, иначе координаты зеркаляются
+        if (lx - camX) * dirX + (ly - camY) * dirY + (lz - camZ) * dirZ > 0 then
+            local X, Y = convert3DCoordsToScreen(lx, ly, lz)
+            if X and Y and X > 0 and X < 8000 and Y > 0 and Y < 6000 then
+                local dist = math.sqrt((lx-px)^2 + (ly-py)^2 + (lz-pz)^2)
+                local animalName = (m == MODEL_DEER) and "Олень" or "Медведь"
+                renderFontDrawText(font_whGreen, animalName .. " (труп)", X, Y, 0xFFFF0000)
+                renderFontDrawText(font_whGreen, string.format("%.0f м", dist), X, Y - uiScaled(10), 0xFFFFAAAA)
             end
-            ::continue::
         end
     end
 end
 
+function renderEspPlayers(players)
+    if not Les.WhPlayers.v then return end
+    if not players or #players == 0 then return end
+    for _, p in ipairs(players) do
+        if p.okScreen and (Les.DistPlayers.v <= 0 or p.dist <= Les.DistPlayers.v) then
+            local _X, _Y = p.screenX, p.screenY
+            local dist = p.dist
+            local health = p.health
+            local armor = p.armor or 0
+            local weaponName = getWeaponName(p.weapon)
+            local nick = p.nick or "Unknown"
+
+            local healthColor = 0xFF00FF00
+            if health < 500 then healthColor = 0xFFFFFF00 end
+            if health < 250 then healthColor = 0xFFFF0000 end
+
+            local yOffset = 0
+            if Les.PlayerShowNick.v then
+                renderFontDrawText(font_whGreen, nick, _X, _Y + yOffset, 0xFF00CCFF); yOffset = yOffset + uiScaled(12)
+            end
+            if Les.PlayerShowHP.v then
+                renderFontDrawText(font_whGreen, string.format("HP: %.0f", health/10), _X, _Y + yOffset, healthColor); yOffset = yOffset + uiScaled(12)
+            end
+            if Les.PlayerShowAP.v and armor > 0 then
+                renderFontDrawText(font_whGreen, "AP: " .. armor, _X, _Y + yOffset, 0xFF00AAFF); yOffset = yOffset + uiScaled(12)
+            end
+            if Les.PlayerShowWeapon.v then
+                renderFontDrawText(font_whGreen, weaponName, _X, _Y + yOffset, 0xFFFFFFFF); yOffset = yOffset + uiScaled(12)
+            end
+            if Les.PlayerShowDistance.v then
+                renderFontDrawText(font_whGreen, string.format("%.0f м", dist), _X, _Y + yOffset, 0xFFFFAAAA)
+            end
+
+            if Les.LinePlayers.v and p.okHead then
+                local sw, sh = getScreenResolution()
+                renderDrawLine(sw/2, sh/2, p.headX, p.headY, 1.0, 0xFF00CCFF)
+            end
+        end
+    end
+end
 -- Вспомогательная: название оружия по ID
 function getWeaponName(id)
     local names = {

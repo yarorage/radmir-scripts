@@ -143,7 +143,7 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/LesByYaroRage_v1.6.1.lua",
+                      "path":  "moonloader/LesByYaroRage_v1.6.2.lua",
                       "sha256":  "f88083fd3bda11b773da539d15f202a5cca28621579016ef2fa0f2449187f569",
                       "size":  97096,
                       "dest":  "gameRoot"
