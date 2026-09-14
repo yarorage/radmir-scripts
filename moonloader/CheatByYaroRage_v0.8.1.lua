@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.8.0")
+script_version("0.8.1")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1459,8 +1459,9 @@ local function mainLoop()
 
 		-- MaxSpeed: расширение максималки авто выше штатной.
 		-- Темп разгона НЕ меняем: пока машина сама набирает скорость, чит молчит.
-		-- Как только скорость при зажатой W перестала расти (плато — упёрлась в СВОЙ пик),
-		-- подтягиваем её к maxSpeedLimit с шагом 1.5/кадр и держим лимит после достижения.
+		-- Как только машина при зажатой W упёрлась в СВОЙ пик (длительное плато: 20 кадров
+		-- прироста < 0.5 км/ч), подтягиваем её к maxSpeedLimit и держим лимит.
+		-- Буст только вверх: если машина сама быстрее лимита, чит не вмешивается.
 		-- Порог speed > 30 — фактическая проверка живого двигателя (заглушенная с места не тронется,
 		-- isCarEngineOn по памяти на Radmir не используем: даёт ложный false).
 		if maxSpeedOn and isCharInAnyCar(PLAYER_PED) and isKeyDown(VK_W) then
@@ -1473,22 +1474,30 @@ local function mainLoop()
 			end
 			local speed = getCarSpeed(veh)
 			if speed > 30 then
-				if not maxSpeedBoosting then
-					-- Детект плато: скорость при W почти не растёт несколько кадров подряд.
-						if speed <= maxSpeedPrev + 1.0 then
+				-- Если машина уже быстрее лимита (например собственные 265 при лимите 220),
+				-- ничего не делаем: чит никогда не притормаживает и не прижимает скорость.
+				if speed >= maxSpeedLimit then
+					maxSpeedBoosting = false
+					maxSpeedPlateauCnt = 0
+				elseif not maxSpeedBoosting then
+					-- Детект плато: машина упёрлась в СВОЙ пик под зажатой W.
+					-- Требуем длительное отсутствие роста (20 кадров подряд с приростом < 0.5 км/ч),
+					-- чтобы не ловить кратковременные спады разгона на переключении передач.
+					if speed <= maxSpeedPrev + 0.5 then
 						maxSpeedPlateauCnt = maxSpeedPlateauCnt + 1
 					else
 						maxSpeedPlateauCnt = 0
 					end
-					if maxSpeedPlateauCnt >= 4 then
+					if maxSpeedPlateauCnt >= 20 then
 						maxSpeedBoosting = true
 					end
 				else
-					-- Буст к лимиту множителем: чистый +1.5/кадр съедается сопротивлением на 100+.
-					-- Прирост капаем (+8 км/ч за кадр), чтобы не было рывка.
-					local target = math.max(speed * 1.06, speed + 2.0)
-					target = math.min(target, speed + 8.0, maxSpeedLimit)
-					setCarForwardSpeed(veh, target)
+					-- Буст ТОЛЬКО вверх, никогда не ниже текущей скорости машины.
+					local target = math.max(speed * 1.08, speed + 2.5)
+					target = math.min(target, speed + 10.0, maxSpeedLimit)
+					if target > speed then
+						setCarForwardSpeed(veh, target)
+					end
 				end
 			else
 				maxSpeedBoosting = false

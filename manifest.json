@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.3",
     "launcherVersion":  "1.1.3",
-    "updatedAt":  "2026-09-14 03:22",
+    "updatedAt":  "2026-09-14 03:30",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -120,8 +120,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage_v1.2.2.lua",
-                      "sha256":  "06f457c12848a62b7865959b17037699c84026bff550bac592168c62a96d7291",
-                      "size":  50327,
+                      "sha256":  "ddb8b4ca0bcf2c23939c654c38d7fef5af53eed29bf575ec5f89ffc56ecc0e3e",
+                      "size":  50780,
                       "dest":  "gameRoot"
                   },
                   {
@@ -137,9 +137,9 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/CheatByYaroRage_v0.8.0.lua",
-                      "sha256":  "51457ee2f13b0579887f700cb4129fe67fafbdda5d4ff2c865975e3e5e4c0847",
-                      "size":  121266,
+                      "path":  "moonloader/CheatByYaroRage_v0.8.1.lua",
+                      "sha256":  "e587fe650d5722e0d26e587c6fdd748bd0c10bd8df0985e1e9179c91abfbacb9",
+                      "size":  121700,
                       "dest":  "gameRoot"
                   },
                   {
@@ -168,8 +168,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/admin_detection.lua",
-                      "sha256":  "411b998c7d90af2352a4f517ef0382e555f44de15b7211cd905d592b834cf032",
-                      "size":  2946,
+                      "sha256":  "92b3ed0b8be7c375541058477e12727a21b6ea79d2fcb1a68cef4f24e16e07f6",
+                      "size":  3162,
                       "dest":  "gameRoot"
                   },
                   {
@@ -204,8 +204,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/state.lua",
-                      "sha256":  "7a9bd6b9434917842f1c0ef63e16e9c8b7a6566c1cc0bff0d1f18364aa9d4665",
-                      "size":  9728,
+                      "sha256":  "1bf33f0fc5743aee08f4310212e94468fec713b2265396906e95d87a703b82fc",
+                      "size":  10137,
                       "dest":  "gameRoot"
                   },
                   {
