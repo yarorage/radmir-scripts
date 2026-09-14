@@ -134,17 +134,36 @@ end
 -- как в CLEO char_goto. GTA:SA перезаписывает CPad каждый кадр из реального
 -- ввода, поэтому редка€ запись (~30мс) не работает. ѕр€ма€ запись в пам€ть
 -- не зависит от фокуса окна - нажати€ идут только в игру.
-local function hold_run(duration, backwards)
+local function hold_run(duration, backwards, heading_deg)
     local s = AL.state
-    local elapsed = 0
     local off = backwards and OFF_BACKWARD or OFF_FORWARD
+    -- —охран€ем позицию дл€ контрол€ упора (проверка каждые ~15 кадров)
+    local last_px, last_py = getCharCoordinates(PLAYER_PED)
+    local check_counter = 0
+    local elapsed = 0
     while elapsed < duration do
         if not s.mafk_active then break end
         if not doesCharExist(PLAYER_PED) then break end
+        --  ак в char_goto: пишем heading + камеру за спиной каждый кадр,
+        -- иначе в GTA:SA бег идЄт по направлению камеры, а не педа
+        if heading_deg then
+            set_forced_heading(heading_deg)
+            pcall(setCameraBehindPlayer)
+        end
         writeMemory(CONTROL_BASE + off, 1, 255, true)
         writeMemory(CONTROL_BASE + OFF_SPRINT, 1, 255, true)
         wait(0)
         elapsed = elapsed + 1
+        check_counter = check_counter + 1
+        -- ≈сли персонаж застр€л (не сдвинулс€ за ~15 кадров) - прерываем ход
+        if check_counter >= 15 then
+            check_counter = 0
+            local cx, cy = getCharCoordinates(PLAYER_PED)
+            if cx and math.abs(cx - last_px) + math.abs(cy - last_py) < 0.03 then
+                break
+            end
+            last_px, last_py = cx, cy
+        end
     end
     -- —брос записей после остановки
     pcall(function()
@@ -191,22 +210,25 @@ function M.anti_afk_thread()
 
                 -- выбираем свободное направление и бежим туда
                 local target_heading = direction_to_heading(step.dx, step.dy)
+                local move_heading = target_heading
                 local target_clear = is_path_clear(px, py, pz, target_heading, s.RAYCAST_DISTANCE)
                 if target_clear then
                     turn_towards(target_heading)
                 else
                     local clear_heading = find_clear_direction(px, py, pz, target_heading)
                     if clear_heading then
+                        move_heading = clear_heading
                         turn_towards(clear_heading)
                     else
                         local jitter_heading = normalize_angle(target_heading + 60 + math.random(0, 120))
+                        move_heading = jitter_heading
                         pcall(setCharHeading, PLAYER_PED, jitter_heading)
                         set_forced_heading(jitter_heading)
                         wait(100)
                     end
                 end
 
-                hold_run(step.dur, false)
+                hold_run(step.dur, false, move_heading)
 
                 if check_stuck(px, py, pz) then
                     local h = getCharHeading(PLAYER_PED)
