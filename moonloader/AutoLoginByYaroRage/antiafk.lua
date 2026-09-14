@@ -159,7 +159,6 @@ function M.anti_afk_thread()
         wait(100)
         if not s.mafk_active then goto continue end
         if not isSampAvailable() then goto continue end
-        if not s.player_in_world then goto continue end
         if not doesCharExist(PLAYER_PED) then goto continue end
 
         local ok, err = pcall(function()
