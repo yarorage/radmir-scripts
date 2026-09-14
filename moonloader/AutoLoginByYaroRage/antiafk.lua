@@ -3,11 +3,8 @@ local AL = require("AutoLoginByYaroRage.state")
 local config = require("AutoLoginByYaroRage.config")
 local M = {}
 
--- Оффсеты контрол-блока GTA:SA (для прямой эмуляции ввода в фоне):
--- 0xB73458 + 0x03 = движение вперёд (byte 255/0)
--- 0xB73458 + 0x20 = спринт
--- Поворот педа: setCharHeading напрямую (struct + 0x558)
-local CONTROL_BASE = 0xB73458
+local ffi = require("ffi")
+local user32 = ffi.load("user32")
 
 local afk_templates = {
     {dx = 1.0, dy = 0.0, dur = 2000},
@@ -23,6 +20,34 @@ local afk_templates = {
     {dx = 0.0, dy = 0.5, dur = 3000},
 }
 
+local function heading_to_direction(heading)
+    local rad = math.rad(heading)
+    return -math.sin(rad), math.cos(rad)
+end
+
+local function is_path_clear(px, py, pz, heading, distance)
+    local s = AL.state
+    local dx, dy = heading_to_direction(heading)
+    local end_x = px + dx * distance
+    local end_y = py + dy * distance
+    local result, _ = processLineOfSight(
+        px, py, pz + 0.5,
+        end_x, end_y, pz + 0.5,
+        true, true, false, true, false, false, false, false
+    )
+    return not result
+end
+
+local function find_clear_direction(px, py, pz, heading)
+    local s = AL.state
+    local offsets = {0, s.RAYCAST_ANGLE_OFFSET, -s.RAYCAST_ANGLE_OFFSET, math.pi/2, -math.pi/2, math.pi}
+    for _, offset in ipairs(offsets) do
+        if is_path_clear(px, py, pz, heading + offset, s.RAYCAST_DISTANCE) then
+            return heading + offset
+        end
+    end
+    return nil
+end
 
 local function generate_afk_route(template)
     local route = {}
@@ -41,136 +66,55 @@ local function generate_afk_route(template)
     return route
 end
 
-local function normalize_angle(deg)
-    deg = deg % 360
-    if deg < 0 then deg = deg + 360 end
-    return deg
-end
-
-local function angle_diff(from, to)
-    local d = normalize_angle(to) - normalize_angle(from)
-    if d > 180 then d = d - 360 elseif d <= -180 then d = d + 360 end
-    return d
-end
-
-local function heading_to_direction(heading)
-    local rad = math.rad(heading)
-    return -math.sin(rad), math.cos(rad)
-end
-
-local function direction_to_heading(dx, dy)
-    local rad = math.atan2(-dx, dy)
-    return normalize_angle(math.deg(rad))
-end
-
--- Вращение персонажа к целевому углу напрямую через setCharHeading
-local function turn_towards(target)
-    local s = AL.state
-    local tolerance = s.AFK_TURN_TOLERANCE or 6
-    local max_steps = 200
-    for _ = 1, max_steps do
-        if not s.mafk_active then return end
-        if not doesCharExist(PLAYER_PED) then return end
-        local heading = getCharHeading(PLAYER_PED)
-        if not heading then return end
-        local dist = math.abs(angle_diff(heading, target))
-        if dist <= tolerance then return end
-        local step = math.min(dist, 3)
-        local dir = angle_diff(heading, target) > 0 and 1 or -1
-        pcall(setCharHeading, PLAYER_PED, normalize_angle(heading + dir * step))
-        wait(30)
-    end
-end
-
--- Удержание движения вперёд: записываем 255 в контрол-блок каждые 30мс
--- (GTA:SA перезаписывает 0xB73458 каждый кадр из реального ввода).
-local function hold_forward(duration)
-    local s = AL.state
-    local elapsed = 0
-    local STEP = 30
-    while elapsed < duration do
-        if not s.mafk_active then break end
-        if not doesCharExist(PLAYER_PED) then break end
-        local px, py, pz = getCharCoordinates(PLAYER_PED)
-        if not px then break end
-        writeMemory(CONTROL_BASE + 0x03, 1, 255, true)
-        writeMemory(CONTROL_BASE + 0x20, 1, 255, true)
-        wait(STEP)
-        elapsed = elapsed + STEP
-    end
-    -- Сброс контрол-блока
-    pcall(function()
-        writeMemory(CONTROL_BASE + 0x03, 1, 0, true)
-        writeMemory(CONTROL_BASE + 0x20, 1, 0, true)
-    end)
-end
-
--- Проверка застревания: если координаты не изменились за 1.5 сек - разворачиваемся
-local function check_stuck(px, py, pz)
-    local s = AL.state
-    local elapsed = 0
-    while elapsed < 1500 do
-        if not s.mafk_active then return false end
-        wait(200)
-        elapsed = elapsed + 200
-        local cx, cy, cz = getCharCoordinates(PLAYER_PED)
-        if cx and math.abs(cx - px) + math.abs(cy - py) > 0.15 then
-            return false
-        end
-    end
-    return true
+local function press_key(vk, duration)
+    user32.keybd_event(vk, 0, 0, 0)
+    wait(duration)
+    user32.keybd_event(vk, 0, 2, 0)
 end
 
 function M.anti_afk_thread()
     local s = AL.state
+    local VK_W = 0x57
+    local VK_A = 0x41
+    local VK_S = 0x53
+    local VK_D = 0x44
+    local VK_C = 0x43
 
     while true do
         wait(100)
-        if not s.mafk_active then goto continue end
-        if not isSampAvailable() then goto continue end
-        if not s.player_in_world then goto continue end
-        if not doesCharExist(PLAYER_PED) then goto continue end
-
-        local ok, err = pcall(function()
+        if s.mafk_active and isSampAvailable() then
             local route = generate_afk_route(s.afk_mode)
             for _, step in ipairs(route) do
                 if not s.mafk_active then break end
-                if not doesCharExist(PLAYER_PED) then break end
-
-                local target = direction_to_heading(step.dx, step.dy)
-                turn_towards(target)
-
                 local px, py, pz = getCharCoordinates(PLAYER_PED)
-                if px then
-                    hold_forward(step.dur)
-                    if check_stuck(px, py, pz) then
-                        local h = getCharHeading(PLAYER_PED)
-                        if h then
-                            local jitter = 60 + math.random(0, 60)
-                            pcall(setCharHeading, PLAYER_PED, normalize_angle(h + jitter))
-                            wait(100)
-                        end
+                local heading = getCharHeading(PLAYER_PED)
+                local clear_heading = find_clear_direction(px, py, pz, heading)
+                if clear_heading then
+                    local dx, dy = heading_to_direction(clear_heading)
+                    if math.abs(dx) > math.abs(dy) then
+                        press_key(dx > 0 and VK_W or VK_S, step.dur)
+                    else
+                        press_key(dy > 0 and VK_D or VK_A, step.dur)
+                    end
+                else
+                    if step.dx > 0 then press_key(VK_W, step.dur)
+                    elseif step.dx < 0 then press_key(VK_S, step.dur)
+                    elseif step.dy > 0 then press_key(VK_D, step.dur)
+                    elseif step.dy < 0 then press_key(VK_A, step.dur)
                     end
                 end
+                if math.random(1, 10) <= 2 then press_key(VK_C, 100) end
+                wait(100)
             end
-        end)
-
-        if not ok and err then
-            AL.chat_msg("{FF6600}[Anti-AFK]{FFFFFF} Ошибка потока: " .. tostring(err))
-            wait(5000)
         end
-
-        ::continue::
     end
 end
 
 function M.mafk_hotkey_thread()
     local s = AL.state
-    local ffi = require("ffi")
-    local user32 = ffi.load("user32")
     local VK_RCONTROL = 0xA3
     while true do
-        wait(150)
+        wait(0)
         if bit.band(user32.GetAsyncKeyState(VK_RCONTROL), 0x8000) ~= 0 then
             if s.mafk_hold_start == 0 then
                 s.mafk_hold_start = os.clock()
