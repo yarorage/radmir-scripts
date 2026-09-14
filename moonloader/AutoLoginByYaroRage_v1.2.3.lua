@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.2.2")
+script_version("1.2.3")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -288,7 +288,9 @@ function sampevents.onServerMessage(color, text)
 
     if s.tg_enabled and admin_det.is_admin_message(color, text) then
         local safe_text = text:gsub("<[^>]+>", ""):sub(1, 500)
-        telegram.send_message("[Admin] " .. safe_text)
+        lua_thread.create(function()
+            telegram.send_message("[Admin] " .. safe_text)
+        end)
     end
 end
 
@@ -374,15 +376,25 @@ function onReceivePacket(id, bs)
     local pkt_log = string.format("[PKT] id=%d size=%d", id, len)
     local pkt_time = os.clock()
 
+    -- Текст читаем только там, где он используется (CEF-интерфейс и диалоги),
+    -- чтобы не перечитывать байты каждого входящего пакета (экономит CPU).
+    if id ~= 215 and id ~= 61 then
+        return true
+    end
+
     local text = ""
     local max_len = math.min(len, 4096)
+    local parts = {}
+    local np = 0
     for i = 1, max_len do
         local ok_byte, byte = pcall(raknetBitStreamReadInt8, bs)
         if not ok_byte then break end
         if byte >= 32 and byte <= 255 then
-            text = text .. string.char(byte)
+            np = np + 1
+            parts[np] = string.char(byte)
         end
     end
+    text = table.concat(parts)
     raknetBitStreamResetReadPointer(bs)
 
     local is_real = s.cef_emul_depth == 0
@@ -685,13 +697,17 @@ local function handle_cef_tx_packet(bs)
     if not ok_len or not len or len < 14 then return end
     local text = ""
     local max_n = math.min(len, 512)
+    local parts = {}
+    local np = 0
     for i = 1, max_n do
         local ok_b, byte = pcall(raknetBitStreamReadInt8, bs)
         if not ok_b then break end
         if byte and byte >= 32 and byte <= 255 then
-            text = text .. string.char(byte)
+            np = np + 1
+            parts[np] = string.char(byte)
         end
     end
+    text = table.concat(parts)
     raknetBitStreamResetReadPointer(bs)
 
     if text:find('OnPlayerDeviceLost', 1, true) then

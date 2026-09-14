@@ -142,16 +142,26 @@ M.state = {
 
 M.state.AUTH_SOUND_PATH = nil
 
+local log_file_handle = nil
+
 function M.log(msg)
     local line = string.format("[%s] [AutoLogin] %s", os.date("%H:%M:%S"), tostring(msg))
     print(line)
     local s = M.state
     if s and s.config_folder and #s.config_folder > 0 then
         pcall(function()
-            local f = io.open(s.config_folder .. "\\AutoLoginByYaroRage.log", "a")
-            if f then
-                f:write(line, "\n")
-                f:close()
+            if not log_file_handle then
+                log_file_handle = io.open(s.config_folder .. "\\AutoLoginByYaroRage.log", "a")
+            end
+            if log_file_handle then
+                log_file_handle:write(line, "\n")
+                log_file_handle:flush()
+            end
+        end, function()
+            -- Если запись не удалась (файл удалён/перезаписан) - переоткрыть в следующий раз
+            if log_file_handle then
+                pcall(function() log_file_handle:close() end)
+                log_file_handle = nil
             end
         end)
     end
