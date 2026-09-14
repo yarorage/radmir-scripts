@@ -112,7 +112,8 @@ end
 local function turn_towards(target)
     local s = AL.state
     local tolerance = s.AFK_TURN_TOLERANCE or 6
-    local max_steps = 60
+    local max_steps = 90
+    local speed = 1.0
     for _ = 1, max_steps do
         if not s.mafk_active then return end
         if not doesCharExist(PLAYER_PED) then return end
@@ -120,14 +121,15 @@ local function turn_towards(target)
         if not heading then return end
         local dist = math.abs(angle_diff(heading, target))
         if dist <= tolerance then return end
-        local step = math.min(dist, 5)
+        -- Разгон поворота, как у живого человека
+        speed = math.min(s.AFK_TURN_SPEED or 4, speed + 0.4)
+        local step = math.min(dist, speed)
         local dir = angle_diff(heading, target) > 0 and 1 or -1
         local next_heading = normalize_angle(heading + dir * step)
         pcall(setCharHeading, PLAYER_PED, next_heading)
         set_forced_heading(next_heading)
         wait(0)
     end
-    set_forced_heading(target)
 end
 
 -- Движение вперёд: записываем 255 в контрол-блок НА КАЖДОМ КАДРЕ (wait 0),
@@ -137,6 +139,12 @@ end
 local function hold_run(duration, backwards, heading_deg)
     local s = AL.state
     local off = backwards and OFF_BACKWARD or OFF_FORWARD
+    -- Плавный доворот к цели и чередование спринта с шагом (выносливость)
+    local tolerance = s.AFK_TURN_TOLERANCE or 6
+    local turn_speed = s.AFK_TURN_SPEED or 3
+    -- Начинаем с короткого шага, затем спринт рывками
+    local walk_left = 20
+    local sprint_left = 0
     -- Сохраняем позицию для контроля упора (проверка каждые ~15 кадров)
     local last_px, last_py = getCharCoordinates(PLAYER_PED)
     local check_counter = 0
@@ -147,11 +155,31 @@ local function hold_run(duration, backwards, heading_deg)
         -- Как в char_goto: пишем heading + камеру за спиной каждый кадр,
         -- иначе в GTA:SA бег идёт по направлению камеры, а не педа
         if heading_deg then
-            set_forced_heading(heading_deg)
+            local cur = getCharHeading(PLAYER_PED)
+            if cur then
+                local dd = angle_diff(cur, heading_deg)
+                if math.abs(dd) > tolerance then
+                    -- Плавно доворачиваем, чтобы не было резких скачков угла
+                    local sp = math.min(math.abs(dd), turn_speed)
+                    local next_h = normalize_angle(cur + (dd > 0 and 1 or -1) * sp)
+                    pcall(setCharHeading, PLAYER_PED, next_h)
+                    set_forced_heading(next_h)
+                else
+                    set_forced_heading(heading_deg)
+                end
+            end
             pcall(setCameraBehindPlayer)
         end
         writeMemory(CONTROL_BASE + off, 1, 255, true)
-        writeMemory(CONTROL_BASE + OFF_SPRINT, 1, 255, true)
+        if walk_left > 0 then
+            walk_left = walk_left - 1
+            writeMemory(CONTROL_BASE + OFF_SPRINT, 1, 0, true)
+            if walk_left == 0 then sprint_left = math.random(70, 130) end
+        else
+            sprint_left = sprint_left - 1
+            writeMemory(CONTROL_BASE + OFF_SPRINT, 1, 255, true)
+            if sprint_left == 0 then walk_left = math.random(50, 100) end
+        end
         wait(0)
         elapsed = elapsed + 1
         check_counter = check_counter + 1
@@ -222,8 +250,7 @@ function M.anti_afk_thread()
                     else
                         local jitter_heading = normalize_angle(target_heading + 60 + math.random(0, 120))
                         move_heading = jitter_heading
-                        pcall(setCharHeading, PLAYER_PED, jitter_heading)
-                        set_forced_heading(jitter_heading)
+                        turn_towards(jitter_heading)
                         wait(100)
                     end
                 end
@@ -234,7 +261,7 @@ function M.anti_afk_thread()
                     local h = getCharHeading(PLAYER_PED)
                     if h then
                         local jitter = 60 + math.random(0, 60)
-                        pcall(setCharHeading, PLAYER_PED, normalize_angle(h + jitter))
+                        turn_towards(normalize_angle(h + jitter))
                         wait(100)
                     end
                 end
