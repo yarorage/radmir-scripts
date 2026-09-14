@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.7.9")
+script_version("0.8.0")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -660,7 +660,7 @@ admin_hud_color_b.v = mainIni.CheatByYaroRage.admin_hud_color_b or 255
 
 -- Справочник всех настраиваемых переменных для профилей (объявлен ДО save()).
 local profile_vars = {
-	godcar = godcar, gm_hp_slider = gm_hp_slider, maxspeed = maxspeed, maxspeed_limit = maxspeed_limit,
+	godcar = godcar, gm_hp_percent = gm_hp_slider, maxspeed = maxspeed, maxspeed_limit = maxspeed_limit,
 	sbivx = sbivx, SpeedHack = SpeedHack, SpeedSmooth = SpeedSmooth,
 	fullskillgun = fullskillgun, pslide = pslide, trigger = trigger,
 	autokick = autokick, airbrake = airbrake, Speed = Speed,
@@ -685,6 +685,7 @@ local profile_vars = {
 	admin_hud_scale = admin_hud_scale,
 	admin_hud_color_r = admin_hud_color_r,
 	admin_hud_color_g = admin_hud_color_g,
+	NoAnimationMoney = NoAnimationMoney,
 	admin_hud_color_b = admin_hud_color_b,
 }
 
@@ -1474,16 +1475,20 @@ local function mainLoop()
 			if speed > 30 then
 				if not maxSpeedBoosting then
 					-- Детект плато: скорость при W почти не растёт несколько кадров подряд.
-					if speed <= maxSpeedPrev + 0.3 then
+						if speed <= maxSpeedPrev + 1.0 then
 						maxSpeedPlateauCnt = maxSpeedPlateauCnt + 1
 					else
 						maxSpeedPlateauCnt = 0
 					end
-					if maxSpeedPlateauCnt >= 5 then
+					if maxSpeedPlateauCnt >= 4 then
 						maxSpeedBoosting = true
 					end
 				else
-					setCarForwardSpeed(veh, math.min(speed + 1.5, maxSpeedLimit))
+					-- Буст к лимиту множителем: чистый +1.5/кадр съедается сопротивлением на 100+.
+					-- Прирост капаем (+8 км/ч за кадр), чтобы не было рывка.
+					local target = math.max(speed * 1.06, speed + 2.0)
+					target = math.min(target, speed + 8.0, maxSpeedLimit)
+					setCarForwardSpeed(veh, target)
 				end
 			else
 				maxSpeedBoosting = false
@@ -2250,7 +2255,7 @@ function drawVehicleTab()
 				imgui.TextDisabled(u8'Переворот машины клавишей Del (удержание 0.5с)')
 				sbox(u8'GM Car', godcar)
 				imgui.TextDisabled(u8'Неуязвимая машина')
-				if imgui.SliderInt(u8'GM HP%% (ломается до)', gm_hp_slider, 50, 99) then gmHpPercent = gm_hp_slider.v save() end
+				if imgui.SliderInt(u8'GM HP%% (ломается до)', gm_hp_slider, 50, 100) then gmHpPercent = gm_hp_slider.v save() end
 				imgui.TextDisabled(u8'До какого %% HP машина теряет урон, далее GM блокирует HP')
 				sbox(u8'EngineCar', enginecar)
 				imgui.TextDisabled(u8'Всегда заведенный двигатель')
