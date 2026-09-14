@@ -1227,7 +1227,7 @@ function imgui.OnDrawFrame()
                     if Les.EspCars.v then
                         imgui.SameLine()
                         imgui.Text(u8"Показ:")
-                        if imgui.Checkbox(u8"HP", Les.CarShowHP) then end
+                        if imgui.Checkbox(u8"HP##cars", Les.CarShowHP) then end
                         imgui.SameLine()
                         if imgui.Checkbox(u8"Модель", Les.CarShowModel) then end
                         imgui.SameLine()
@@ -1243,7 +1243,7 @@ function imgui.OnDrawFrame()
                         imgui.Text(u8"Показ:")
                         if imgui.Checkbox(u8"Ник", Les.PlayerShowNick) then end
                         imgui.SameLine()
-                        if imgui.Checkbox(u8"HP", Les.PlayerShowHP) then end
+                        if imgui.Checkbox(u8"HP##players", Les.PlayerShowHP) then end
                         imgui.SameLine()
                         if imgui.Checkbox(u8"Броня", Les.PlayerShowAP) then end
                         imgui.SameLine()
