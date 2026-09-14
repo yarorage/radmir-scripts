@@ -63,20 +63,43 @@ function M.is_admin_message(color, text)
     return false
 end
 
-function M.handle_admin_kick(source_text, where)
+local KICK_VERBS = {
+    "кикнул", "кикнула", "кикает",
+    "kick", "kicked", "ban", "banned",
+    "забанил", "забанила",
+    "исключил", "исключила",
+    "выгнал", "выгнала",
+    "выкинул", "удалил",
+}
+
+function M.is_admin_kick_of_self(text)
     local s = AL.state
-    if not M.has_known_admin(source_text) then return end
-    AL.log(where .. ": Обнаружен админ в игре")
-    
-    -- Take screenshot if enabled
-    if s.auto_screenshot_admin then
-        local utils = require("AutoLoginByYaroRage.utils")
-        local filename = "admin_detected_" .. os.date("%Y%m%d_%H%M%S") .. ".png"
-        utils.take_screenshot(filename)
-        AL.log("Screenshot saved: " .. filename)
+    local nick = (s.my_nick or ""):lower()
+    if #nick == 0 then return false end
+    local lower_text = (text or ""):lower()
+
+    -- 1. Сообщение принадлежит администратору
+    local has_admin = lower_text:find("администратор", 1, true)
+        or lower_text:find("administrator", 1, true)
+        or lower_text:find("admin", 1, true)
+    if not has_admin then return false end
+
+    -- 2. Содержит глагол кика
+    local has_kick_verb = false
+    for _, verb in ipairs(KICK_VERBS) do
+        if lower_text:find(verb, 1, true) then has_kick_verb = true break end
     end
-    
-    
+    if not has_kick_verb then return false end
+
+    -- 3. Упоминается наш ник
+    if not lower_text:find(nick, 1, true) then return false end
+    return true
+end
+
+function M.handle_admin_kick(source_text, where)
+    if not M.is_admin_kick_of_self(source_text) then return end
+    local s = AL.state
+    AL.log(where .. ": админ кикнул нас, выполняю реконнект")
     s.is_spawned = false
     local reconnect = require("AutoLoginByYaroRage.reconnect")
     reconnect.trigger_reconnect("admin_kick")

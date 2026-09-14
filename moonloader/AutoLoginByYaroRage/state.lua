@@ -79,8 +79,6 @@ M.state = {
     render_disabled_until = 0,
     cursor_was_visible = false,
 
-    -- Admin screenshot
-    auto_screenshot_admin = true,
 
     -- Авторизация (внутреннее)
     CLOSE_MENU_EMUL_AFTER_SEC = 5,

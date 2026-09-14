@@ -404,19 +404,6 @@ function M.get_password_field_pos(sw, sh)
     return math.max(0, math.min(default_x, sw - 1)), math.max(0, math.min(default_y, sh - 1))
 end
 
--- Take screenshot using GTA SA's built-in function
-function M.take_screenshot(filename)
-    local filepath = getWorkingDirectory() .. "\\AutoLoginByYaroRage\\resource\\" .. filename
-    local ok, err = pcall(function()
-        saveScreenshot(filepath)
-    end)
-    if ok then
-        AL.log("Screenshot saved: " .. filepath)
-    else
-        AL.log("Screenshot failed: " .. tostring(err))
-    end
-    return ok, filepath
-end
 
 -- Password encryption (XOR + Base64)
 local ENCRYPTION_KEY = "YaroRage2024AutoLoginKey"

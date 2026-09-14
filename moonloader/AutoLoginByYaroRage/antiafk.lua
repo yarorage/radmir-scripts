@@ -82,12 +82,14 @@ function M.anti_afk_thread()
 
     while true do
         wait(100)
-        if s.mafk_active and isSampAvailable() then
+        if s.mafk_active and isSampAvailable() and s.player_in_world then
             local route = generate_afk_route(s.afk_mode)
             for _, step in ipairs(route) do
                 if not s.mafk_active then break end
+                if not isCharExists(PLAYER_PED) then break end
                 local px, py, pz = getCharCoordinates(PLAYER_PED)
                 local heading = getCharHeading(PLAYER_PED)
+                if not px or not py or not pz or not heading then break end
                 local clear_heading = find_clear_direction(px, py, pz, heading)
                 if clear_heading then
                     local dx, dy = heading_to_direction(clear_heading)
@@ -114,7 +116,7 @@ function M.mafk_hotkey_thread()
     local s = AL.state
     local VK_RCONTROL = 0xA3
     while true do
-        wait(0)
+        wait(150)
         if bit.band(user32.GetAsyncKeyState(VK_RCONTROL), 0x8000) ~= 0 then
             if s.mafk_hold_start == 0 then
                 s.mafk_hold_start = os.clock()

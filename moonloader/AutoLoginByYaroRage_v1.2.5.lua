@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.2.4")
+script_version("1.2.5")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -1087,25 +1087,7 @@ function register_commands()
         end
     end)
 
-    sampRegisterChatCommand("adminshot", function(arg)
-        local s = AL.state
-        if not arg or #arg == 0 then
-            AL.chat_msg("Admin screenshot: " .. (s.auto_screenshot_admin and "{33FF33}ON" or "{FF3333}OFF"))
-            return
-        end
-        
-        if arg == "on" then
-            s.auto_screenshot_admin = true
-            config.save()
-            AL.chat_msg("{33FF33}Admin screenshot ON")
-        elseif arg == "off" then
-            s.auto_screenshot_admin = false
-            config.save()
-            AL.chat_msg("{FF3333}Admin screenshot OFF")
-        else
-            AL.chat_msg("Usage: /adminshot [on|off]")
-        end
-    end)
+
 
     sampRegisterChatCommand("autoheal", function(arg)
         local s = AL.state
@@ -1205,7 +1187,7 @@ function register_commands()
         AL.chat_msg("/rec <sec> - Fast reconnect")
         AL.chat_msg("/fastrec - Toggle fast reconnect patch")
         AL.chat_msg("/queue - Show queue info")
-        AL.chat_msg("/adminshot [on|off] - Admin screenshot")
+
         AL.chat_msg("/autoheal [heal|armor|threshold <val>|armorthreshold <val>|cooldown <ms>] - Auto-heal/armor")
         AL.chat_msg("/loglevel [debug|info|warn|error|file] - Log level")
         AL.chat_msg("/runtests - Run unit tests")
