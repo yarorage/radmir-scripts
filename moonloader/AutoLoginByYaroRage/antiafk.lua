@@ -13,6 +13,21 @@ local OFF_FORWARD = 0x03
 local OFF_BACKWARD = 0x04
 local OFF_SPRINT = 0x20
 
+-- ffi для принудительной записи heading в память педа (struct + 0x558), как в CLEO char_goto
+local ffi_h = require("ffi")
+
+local function set_forced_heading(heading_deg)
+    if not doesCharExist(PLAYER_PED) then return false end
+    local ped_ok, ped_addr = pcall(function()
+        return tonumber(ffi_h.cast("unsigned int", getCharPointer(PLAYER_PED)))
+    end)
+    if not ped_ok or not ped_addr then return false end
+    local f = ffi_h.new("float[1]", math.rad(heading_deg))
+    local i = ffi_h.new("int[1]")
+    ffi_h.copy(i, f, 4)
+    return pcall(writeMemory, ped_addr + 0x558, 4, i[0], true)
+end
+
 local afk_templates = {
     {dx = 1.0, dy = 0.0, dur = 2000},
     {dx = -1.0, dy = 0.0, dur = 2000},
@@ -107,9 +122,12 @@ local function turn_towards(target)
         if dist <= tolerance then return end
         local step = math.min(dist, 5)
         local dir = angle_diff(heading, target) > 0 and 1 or -1
-        pcall(setCharHeading, PLAYER_PED, normalize_angle(heading + dir * step))
+        local next_heading = normalize_angle(heading + dir * step)
+        pcall(setCharHeading, PLAYER_PED, next_heading)
+        set_forced_heading(next_heading)
         wait(0)
     end
+    set_forced_heading(target)
 end
 
 -- Движение вперёд: записываем 255 в контрол-блок НА КАЖДОМ КАДРЕ (wait 0),
@@ -172,13 +190,20 @@ function M.anti_afk_thread()
                 local heading = getCharHeading(PLAYER_PED)
 
                 -- выбираем свободное направление и бежим туда
-                local clear_heading = find_clear_direction(px, py, pz, heading)
-                if clear_heading then
-                    turn_towards(clear_heading)
+                local target_heading = direction_to_heading(step.dx, step.dy)
+                local target_clear = is_path_clear(px, py, pz, target_heading, s.RAYCAST_DISTANCE)
+                if target_clear then
+                    turn_towards(target_heading)
                 else
-                    -- тупик: разворачиваемся на случайный угол
-                    pcall(setCharHeading, PLAYER_PED, normalize_angle(heading + 60 + math.random(0, 120)))
-                    wait(100)
+                    local clear_heading = find_clear_direction(px, py, pz, target_heading)
+                    if clear_heading then
+                        turn_towards(clear_heading)
+                    else
+                        local jitter_heading = normalize_angle(target_heading + 60 + math.random(0, 120))
+                        pcall(setCharHeading, PLAYER_PED, jitter_heading)
+                        set_forced_heading(jitter_heading)
+                        wait(100)
+                    end
                 end
 
                 hold_run(step.dur, false)
