@@ -95,12 +95,15 @@ end
 -- 0xB73458 + 0x20 = спринт
 -- Поворот педа: запись heading напрямую (struct + 0x558)
 -- writeMemory(0xB73458 + 0x03, 1, 255, true) / writeMemory(..., 0, true)
--- ВНИМАНИЕ: сейчас временно отключено, т.к. герой не бегает. Механизм теста - user32.keybd_event. ]]
+-- ВНИМАНИЕ: сейчас временно отключено (герой не бегал). Механизм теста - SAMPFUNCS setVirtualKeyDown, работает в фоне. ]]
 local function press_key(vk, duration)
-    -- Физическое нажатие клавиши через user32.keybd_event (работало в фокусе окна).
-    user32.keybd_event(vk, 0, 0, 0)
+    -- Нажатие через SAMPFUNCS setVirtualKeyDown: пишет прямо в состояние клавиатуры
+    -- игры (GTA:SA читает ввод через DirectInput), поэтому работает и при
+    -- свёрнутом окне. keybd_event не работает, т.к. шлёт Windows-сообщения.
+    if not isSampfuncsLoaded() then return end
+    setVirtualKeyDown(vk, true)
     wait(duration)
-    user32.keybd_event(vk, 0, 2, 0)
+    setVirtualKeyDown(vk, false)
 end
 
 -- Плавный доворот персонажа к целевому углу с адаптивным выбором стороны поворота
