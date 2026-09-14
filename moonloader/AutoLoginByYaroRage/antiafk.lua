@@ -21,30 +21,54 @@ local afk_templates = {
     {dx = 0.0, dy = 0.5, dur = 3000},
 }
 
+local function normalize_angle(deg)
+    deg = deg % 360
+    if deg < 0 then deg = deg + 360 end
+    return deg
+end
+
+local function angle_diff(from, to)
+    local d = normalize_angle(to) - normalize_angle(from)
+    if d > 180 then d = d - 360 elseif d <= -180 then d = d + 360 end
+    return d
+end
+
 local function heading_to_direction(heading)
     local rad = math.rad(heading)
     return -math.sin(rad), math.cos(rad)
 end
 
+local function direction_to_heading(dx, dy)
+    local rad = math.atan2(-dx, dy)
+    return normalize_angle(math.deg(rad))
+end
+
 local function is_path_clear(px, py, pz, heading, distance)
-    local s = AL.state
     local dx, dy = heading_to_direction(heading)
     local end_x = px + dx * distance
     local end_y = py + dy * distance
     local result, _ = processLineOfSight(
-        px, py, pz + 0.5,
-        end_x, end_y, pz + 0.5,
-        true, true, false, true, false, false, false, false
+        px, py, pz + 0.8,
+        end_x, end_y, pz + 0.8,
+        true, true, true, true, false, false, false, false
     )
     return not result
 end
 
+-- ѕоиск ближайшего свободного направлени€ методом сканировани€ веера
 local function find_clear_direction(px, py, pz, heading)
     local s = AL.state
-    local offsets = {0, s.RAYCAST_ANGLE_OFFSET, -s.RAYCAST_ANGLE_OFFSET, math.pi/2, -math.pi/2, math.pi}
-    for _, offset in ipairs(offsets) do
-        if is_path_clear(px, py, pz, heading + offset, s.RAYCAST_DISTANCE) then
-            return heading + offset
+    local scan = {
+        {delta = 0}, {delta = 25}, {delta = -25},
+        {delta = 50}, {delta = -50},
+        {delta = 90}, {delta = -90},
+        {delta = 130}, {delta = -130},
+        {delta = 180},
+    }
+    for _, cand in ipairs(scan) do
+        local target = normalize_angle(heading + cand.delta)
+        if is_path_clear(px, py, pz, target, s.RAYCAST_DISTANCE) then
+            return target
         end
     end
     return nil
@@ -82,6 +106,66 @@ local function press_key(vk, duration)
     if waited < duration then wait(duration - waited) end
 end
 
+-- ѕлавный доворот персонажа к целевому углу с адаптивным выбором стороны поворота
+local function turn_towards(target)
+    local s = AL.state
+    local VK_A = 0x41
+    local VK_D = 0x44
+    local tolerance = s.AFK_TURN_TOLERANCE or 6
+    local deadline = os.clock() + (s.AFK_MAX_TURN_TIME or 4000) / 1000
+    local last_dist = nil
+    local dir = nil
+    while true do
+        if not s.mafk_active then return end
+        if not isCharExists(PLAYER_PED) then return end
+        local heading = getCharHeading(PLAYER_PED)
+        if not heading then return end
+        local dist = math.abs(angle_diff(heading, target))
+        if dist <= tolerance then return end
+        -- долго не дошли - доворачиваем напр€мую и выходим
+        if os.clock() > deadline then
+            pcall(setCharHeading, PLAYER_PED, target)
+            return
+        end
+        if dir == nil then
+            local diff = angle_diff(heading, target)
+            dir = diff > 0 and 1 or -1
+            last_dist = dist
+        elseif last_dist and last_dist < dist then
+            -- крутимс€ не в ту сторону - мен€ем сторону поворота
+            dir = -dir
+        end
+        last_dist = dist
+        if dir == 1 then
+            press_key(VK_D, 200)
+        else
+            press_key(VK_A, 200)
+        end
+        wait(60)
+    end
+end
+
+-- Ѕег вперЄд с периодической проверкой: если впереди преп€тствие - останавливаемс€
+local function run_forward(duration)
+    local s = AL.state
+    local VK_W = 0x57
+    local elapsed = 0
+    local chunk = s.AFK_RUN_CHUNK or 250
+    while elapsed < duration do
+        if not s.mafk_active then return end
+        if not isCharExists(PLAYER_PED) then return end
+        local px, py, pz = getCharCoordinates(PLAYER_PED)
+        local heading = getCharHeading(PLAYER_PED)
+        if not px or not heading then return end
+        if not is_path_clear(px, py, pz, heading, s.AFK_STOP_DISTANCE or 3.0) then
+            return
+        end
+        local step_ms = math.min(chunk, duration - elapsed)
+        press_key(VK_W, step_ms)
+        elapsed = elapsed + step_ms
+    end
+end
+
 function M.anti_afk_thread()
     local s = AL.state
     local VK_W = 0x57
@@ -93,30 +177,31 @@ function M.anti_afk_thread()
     while true do
         wait(100)
         if s.mafk_active and isSampAvailable() and s.player_in_world then
-            local route = generate_afk_route(s.afk_mode)
-            for _, step in ipairs(route) do
-                if not s.mafk_active then break end
-                if not isCharExists(PLAYER_PED) then break end
-                local px, py, pz = getCharCoordinates(PLAYER_PED)
-                local heading = getCharHeading(PLAYER_PED)
-                if not px or not py or not pz or not heading then break end
-                local clear_heading = find_clear_direction(px, py, pz, heading)
-                if clear_heading then
-                    local dx, dy = heading_to_direction(clear_heading)
-                    if math.abs(dx) > math.abs(dy) then
-                        press_key(dx > 0 and VK_W or VK_S, step.dur)
+            if isCharExists(PLAYER_PED) then
+                local route = generate_afk_route(s.afk_mode)
+                for _, step in ipairs(route) do
+                    if not s.mafk_active then break end
+                    if not isCharExists(PLAYER_PED) then break end
+                    local px, py, pz = getCharCoordinates(PLAYER_PED)
+                    local heading = getCharHeading(PLAYER_PED)
+                    if not px or not py or not pz or not heading then break end
+                    -- ¬ыбираем направление: если путь в сторону маршрута зан€т - ищем свободный угол
+                    local preff_heading = direction_to_heading(step.dx, step.dy)
+                    local target = preff_heading
+                    if not is_path_clear(px, py, pz, target, s.RAYCAST_DISTANCE) then
+                        target = find_clear_direction(px, py, pz, heading)
+                    end
+                    if target then
+                        turn_towards(target)
+                        run_forward(step.dur)
                     else
-                        press_key(dy > 0 and VK_D or VK_A, step.dur)
+                        -- ¬округ всЄ зан€то - разворачиваемс€ в противоположную сторону
+                        turn_towards(normalize_angle(heading + 180))
+                        wait(200)
                     end
-                else
-                    if step.dx > 0 then press_key(VK_W, step.dur)
-                    elseif step.dx < 0 then press_key(VK_S, step.dur)
-                    elseif step.dy > 0 then press_key(VK_D, step.dur)
-                    elseif step.dy < 0 then press_key(VK_A, step.dur)
-                    end
+                    if math.random(1, 10) <= 2 then press_key(VK_C, 100) end
+                    wait(100)
                 end
-                if math.random(1, 10) <= 2 then press_key(VK_C, 100) end
-                wait(100)
             end
         end
     end

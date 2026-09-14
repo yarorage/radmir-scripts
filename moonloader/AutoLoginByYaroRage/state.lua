@@ -122,8 +122,12 @@ M.state = {
     log_file_path = nil,
 
     -- Дистанция рейкаста
-    RAYCAST_DISTANCE = 2.0,
+    RAYCAST_DISTANCE = 6.0,
     RAYCAST_ANGLE_OFFSET = math.pi / 4,
+    AFK_STOP_DISTANCE = 3.0,
+    AFK_TURN_TOLERANCE = 6,
+    AFK_MAX_TURN_TIME = 4000,
+    AFK_RUN_CHUNK = 250,
 
     -- Debug
     debug_step = 0,
