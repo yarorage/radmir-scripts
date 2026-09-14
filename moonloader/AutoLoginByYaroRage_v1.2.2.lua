@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.2.1")
+script_version("1.2.2")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -536,7 +536,9 @@ function onReceivePacket(id, bs)
                 s.cef_loading_seen = true
             end
             s.saw_loading_after_rec = true
-            lua_thread.create(reconnect_mod._internal.post_loading_login_watch)
+            if not s.is_spawned then
+                lua_thread.create(reconnect_mod._internal.post_loading_login_watch)
+            end
         end
     end
 

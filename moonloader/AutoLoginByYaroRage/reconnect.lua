@@ -352,6 +352,12 @@ end
 
 post_loading_login_watch = function()
     local s = AL.state
+    if s.post_loading_watch_active then return end
+    s.post_loading_watch_active = true
+    if s.is_spawned then
+        s.post_loading_watch_active = false
+        return
+    end
     AL.log("Наблюдатель: ожидание входа 30 сек")
     local start_time = os.clock()
     while os.clock() - start_time < 30 do
@@ -362,11 +368,13 @@ post_loading_login_watch = function()
             start_time = os.clock()
         end
         if utils.game_window_active() and s.is_spawned then
+            s.post_loading_watch_active = false
             AL.log("Наблюдатель: вход выполнен")
             s.reconnect_watch_retries = 0
             return
         end
     end
+    s.post_loading_watch_active = false
     AL.log("Наблюдатель: таймаут 30с - вход не выполнен, реконнект")
     if not s.is_spawned and not s.login_submitted then
         mark_manual_reconnect("PostLoadingStuck")

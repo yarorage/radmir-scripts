@@ -29,6 +29,7 @@ M.state = {
     reconnect_cooldown_until = 0,
     reconnect_watch_active = false,
     reconnect_watch_start_time = 0,
+    post_loading_watch_active = false,
     saw_loading_after_rec = false,
     saw_queue_after_rec = false,
     pending_autologin = false,
