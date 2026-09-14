@@ -1,7 +1,6 @@
 -- Модуль Anti-AFK AutoLoginByYaroRage
 local AL = require("AutoLoginByYaroRage.state")
 local config = require("AutoLoginByYaroRage.config")
-
 local M = {}
 
 local ffi = require("ffi")
@@ -91,43 +90,28 @@ local function generate_afk_route(template)
     return route
 end
 
--- Контрол-блок гта:SA (0xB73458) работает даже при свёрнутом окне, в отличие от
--- user32.keybd_event и CEF OnPlayerClientSideKey. Оффсеты подтверждены CLEO-скриптом
--- char_goto: +0x03 = движение вперёд, +0x20 = спринт. 255 = зажато, 0 = отпущено.
-local CONTROL_BASE = 0xB73458
-local CONTROL_FORWARD = 0x03
-local CONTROL_SPRINT = 0x20
-
--- Зажимает и держит контрол указанное количество миллисекунд, затем отпускает
-local function control_press(offset, duration)
-    writeMemory(CONTROL_BASE + offset, 1, 255)
-    local waited = 0
-    while waited < duration do
-        local step = math.min(50, duration - waited)
-        wait(step)
-        waited = waited + step
-        writeMemory(CONTROL_BASE + offset, 1, 255)
-    end
-    writeMemory(CONTROL_BASE + offset, 1, 0)
+--[[ ЗАПОМНЕНО ДЛЯ БУДУЩЕГО ВОЗВРАТА (прямая запись в контрол-блок GTA:SA):
+-- 0xB73458 + 0x03 = движение вперёд (byte, 255/0), работает при свёрнутом окне
+-- 0xB73458 + 0x20 = спринт
+-- Поворот педа: запись heading напрямую (struct + 0x558)
+-- writeMemory(0xB73458 + 0x03, 1, 255, true) / writeMemory(..., 0, true)
+-- ВНИМАНИЕ: сейчас временно отключено, т.к. герой не бегает. Механизм теста - user32.keybd_event. ]]
+local function press_key(vk, duration)
+    -- Физическое нажатие клавиши через user32.keybd_event (работало в фокусе окна).
+    user32.keybd_event(vk, 0, 0, 0)
+    wait(duration)
+    user32.keybd_event(vk, 0, 2, 0)
 end
 
--- Ходьба вперёд (аналог удержания W)
-local function press_forward(duration)
-    control_press(CONTROL_FORWARD, duration)
-end
-
--- Кратковременный спринт для «живости» персонажа
-local function press_sprint(duration)
-    control_press(CONTROL_SPRINT, duration)
-end
-
--- Плавный поворот в направлении цели через heading (без эмуляции клавиш A/D)
+-- Плавный доворот персонажа к целевому углу с адаптивным выбором стороны поворота
 local function turn_towards(target)
     local s = AL.state
+    local VK_A = 0x41
+    local VK_D = 0x44
     local tolerance = s.AFK_TURN_TOLERANCE or 6
     local deadline = os.clock() + (s.AFK_MAX_TURN_TIME or 4000) / 1000
-    local dir = nil
     local last_dist = nil
+    local dir = nil
     while true do
         if not s.mafk_active then return end
         if not doesCharExist(PLAYER_PED) then return end
@@ -135,26 +119,33 @@ local function turn_towards(target)
         if not heading then return end
         local dist = math.abs(angle_diff(heading, target))
         if dist <= tolerance then return end
-        -- Не успели за отведённое время - ставим поворот напрямую
+        -- долго не дошли - доворачиваем напрямую и выходим
         if os.clock() > deadline then
             pcall(setCharHeading, PLAYER_PED, target)
             return
         end
         if dir == nil then
-            dir = angle_diff(heading, target) > 0 and 1 or -1
+            local diff = angle_diff(heading, target)
+            dir = diff > 0 and 1 or -1
             last_dist = dist
         elseif last_dist and last_dist < dist then
+            -- крутимся не в ту сторону - меняем сторону поворота
             dir = -dir
         end
         last_dist = dist
-        local step = 3 * dir
-        pcall(setCharHeading, PLAYER_PED, normalize_angle(heading + step))
-        wait(50)
+        if dir == 1 then
+            press_key(VK_D, 200)
+        else
+            press_key(VK_A, 200)
+        end
+        wait(60)
     end
 end
 
+-- Бег вперёд с периодической проверкой: если впереди препятствие - останавливаемся
 local function run_forward(duration)
     local s = AL.state
+    local VK_W = 0x57
     local elapsed = 0
     local chunk = s.AFK_RUN_CHUNK or 250
     while elapsed < duration do
@@ -167,13 +158,18 @@ local function run_forward(duration)
             return
         end
         local step_ms = math.min(chunk, duration - elapsed)
-        press_forward(step_ms)
+        press_key(VK_W, step_ms)
         elapsed = elapsed + step_ms
     end
 end
 
 function M.anti_afk_thread()
     local s = AL.state
+    local VK_W = 0x57
+    local VK_A = 0x41
+    local VK_S = 0x53
+    local VK_D = 0x44
+    local VK_C = 0x43
 
     while true do
         wait(100)
@@ -200,7 +196,7 @@ function M.anti_afk_thread()
                         turn_towards(normalize_angle(heading + 180))
                         wait(200)
                     end
-                    if math.random(1, 10) <= 2 then press_sprint(150) end
+                    if math.random(1, 10) <= 2 then press_key(VK_C, 100) end
                     wait(100)
                 end
             end
