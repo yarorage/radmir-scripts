@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.2.5")
+script_version("1.2.6")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -90,12 +90,9 @@ if not doesDirectoryExist(s.config_folder) then
 end
 
 local reconnect_keywords = {
-    "лимит на подключение", "запрещено на сервере", "time limit", "disconnected",
-    "античит", "anti-cheat", "anti cheat", "блокировка", "читер", "cheat",
-    "много попыток", "превышение лимит", "too many", "limit", "attempts", "try again",
-    "заблокирован", "вы забанены", "были забанены", "аккаунт забанен",
-    "забанили", "забанил", "выдал бан", "получил бан", "бан навсегда",
-    "банлист", "бан-лист", "block", "banned",
+    "лимит на подключение", "time limit", "disconnected",
+    "anti-cheat", "anti cheat",
+    "много попыток", "превышение лимит", "too many", "attempts", "try again",
 }
 
 local queue_keywords = {

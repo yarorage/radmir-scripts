@@ -65,11 +65,10 @@ end
 
 local KICK_VERBS = {
     "кикнул", "кикнула", "кикает",
-    "kick", "kicked", "ban", "banned",
-    "забанил", "забанила",
+    "kick", "kicked",
     "исключил", "исключила",
     "выгнал", "выгнала",
-    "выкинул", "удалил",
+    "выкинул",
 }
 
 function M.is_admin_kick_of_self(text)
