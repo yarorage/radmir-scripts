@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.8.3")
+script_version("0.8.4")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -474,6 +474,7 @@ local gm_hp_slider = imgui.ImInt(95)
 -- Значения для GUI; в mainLoop читаются глобалы maxSpeedOn/maxSpeedLimit.
 local maxspeed = imgui.ImBool(false)
 local maxspeed_limit = imgui.ImInt(220)
+local maxspeed_mul = imgui.ImFloat(1.21)
 -- Хранение handle текущей GM-машины и порога блокировки HP.
 -- Глобальные (а не local) - иначе mainLoop превысит лимит 60 upvalue.
 gmCarHandle = 0
@@ -482,6 +483,7 @@ gmHpPercent = 95
 -- Глобалы MaxSpeed: отрабатываются в mainLoop, поэтому не local (лимит 60 upvalue).
 maxSpeedOn = false
 maxSpeedLimit = 220
+maxSpeedMul = 1.21
 local silentmode = imgui.ImInt(3)
 local pslide = imgui.ImBool(false)
 local flipcar = imgui.ImBool(false)
@@ -589,8 +591,10 @@ gm_hp_slider.v = tonumber(mainIni.CheatByYaroRage.gm_hp_percent) or 95
 gmHpPercent = gm_hp_slider.v
 maxspeed.v = mainIni.CheatByYaroRage.maxspeed or false
 maxspeed_limit.v = tonumber(mainIni.CheatByYaroRage.maxspeed_limit) or 220
+maxspeed_mul.v = tonumber(mainIni.CheatByYaroRage.maxspeed_mul) or 1.21
 maxSpeedOn = maxspeed.v
 maxSpeedLimit = maxspeed_limit.v
+maxSpeedMul = maxspeed_mul.v
 NoAnimationMoney.v = mainIni.CheatByYaroRage.NoAnimationMoney or false
 sbivx.v = mainIni.CheatByYaroRage.sbivx or false
 SpeedHack.v = mainIni.CheatByYaroRage.SpeedHack or false
@@ -656,7 +660,7 @@ admin_hud_color_b.v = mainIni.CheatByYaroRage.admin_hud_color_b or 255
 
 -- Справочник всех настраиваемых переменных для профилей (объявлен ДО save()).
 local profile_vars = {
-	godcar = godcar, gm_hp_percent = gm_hp_slider, maxspeed = maxspeed, maxspeed_limit = maxspeed_limit,
+	godcar = godcar, gm_hp_percent = gm_hp_slider, maxspeed = maxspeed, maxspeed_limit = maxspeed_limit, maxspeed_mul = maxspeed_mul,
 	sbivx = sbivx, SpeedHack = SpeedHack, SpeedSmooth = SpeedSmooth,
 	fullskillgun = fullskillgun, pslide = pslide, trigger = trigger,
 	autokick = autokick, airbrake = airbrake, Speed = Speed,
@@ -1465,7 +1469,7 @@ local function mainLoop()
 			local veh = storeCarCharIsInNoSave(PLAYER_PED)
 			local speed = getCarSpeed(veh)
 			if speed > 30 then
-				local target = speed * 1.21
+				local target = speed * maxSpeedMul
 				if target > maxSpeedLimit then target = maxSpeedLimit end
 				if target > speed then
 					setCarForwardSpeed(veh, target)
@@ -2236,6 +2240,7 @@ function drawVehicleTab()
 				if imgui.Checkbox(u8'MaxSpeed', maxspeed) then maxSpeedOn = maxspeed.v save() end
 				imgui.TextDisabled(u8'Расширение максималки: после штатного пика машина тянется до лимита (W, от 30 км/ч)')
 				if imgui.SliderInt(u8'Лимит (км/ч)', maxspeed_limit, 100, 400) then maxSpeedLimit = maxspeed_limit.v save() end
+				if imgui.SliderFloat(u8'Коэффициент', maxspeed_mul, 1.0, 2.0, '%.2f') then maxSpeedMul = maxspeed_mul.v save() end
 				
 				imgui.Separator()
 				sbox(u8'Autorem', tfirst)
@@ -3253,6 +3258,7 @@ function loadProfile(name)
         gmHpPercent = gm_hp_slider.v
         maxSpeedOn = maxspeed.v
         maxSpeedLimit = maxspeed_limit.v
+        maxSpeedMul = maxspeed_mul.v
         save()
         ywelcome("CheatByYaroRage", "Профиль '" .. name .. "' загружен!")
     else
