@@ -117,7 +117,7 @@ local function turn_towards(target)
     local dir = nil
     while true do
         if not s.mafk_active then return end
-        if not isCharExists(PLAYER_PED) then return end
+        if not doesCharExist(PLAYER_PED) then return end
         local heading = getCharHeading(PLAYER_PED)
         if not heading then return end
         local dist = math.abs(angle_diff(heading, target))
@@ -153,7 +153,7 @@ local function run_forward(duration)
     local chunk = s.AFK_RUN_CHUNK or 250
     while elapsed < duration do
         if not s.mafk_active then return end
-        if not isCharExists(PLAYER_PED) then return end
+        if not doesCharExist(PLAYER_PED) then return end
         local px, py, pz = getCharCoordinates(PLAYER_PED)
         local heading = getCharHeading(PLAYER_PED)
         if not px or not heading then return end
@@ -177,11 +177,11 @@ function M.anti_afk_thread()
     while true do
         wait(100)
         if s.mafk_active and isSampAvailable() and s.player_in_world then
-            if isCharExists(PLAYER_PED) then
+            if doesCharExist(PLAYER_PED) then
                 local route = generate_afk_route(s.afk_mode)
                 for _, step in ipairs(route) do
                     if not s.mafk_active then break end
-                    if not isCharExists(PLAYER_PED) then break end
+                    if not doesCharExist(PLAYER_PED) then break end
                     local px, py, pz = getCharCoordinates(PLAYER_PED)
                     local heading = getCharHeading(PLAYER_PED)
                     if not px or not py or not pz or not heading then break end
