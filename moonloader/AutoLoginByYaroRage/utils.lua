@@ -346,6 +346,44 @@ function M.send_key(vk)
     user32.keybd_event(vk, 0, 2, 0)
 end
 
+-- ќтправка CEF-пакета id=215 с командой OnPlayerClientSideKey (эмул€ци€ клавиши)
+-- ‘ормат (41 байт): D7 | 02 00 00 00 | 00 00 | len=21 | "OnPlayerClientSideKey" | 02 00 00 00 | 0x64 | VK-код int32
+--  лавиши кодируютс€ Windows VK-кодами (W=0x57, A=0x41, S=0x53, D=0x44, C=0x43, ...)
+local function int32_le_bytes(v)
+    v = v % 4294967296
+    return { v % 256, math.floor(v / 256) % 256, math.floor(v / 65536) % 256, math.floor(v / 16777216) % 256 }
+end
+
+local client_side_key_name = { string.byte("OnPlayerClientSideKey", 1, 21) }
+
+function M.send_cef_client_side_key(vk)
+    if not vk or vk <= 0 then return false end
+    if not (isSampAvailable and isSampAvailable()) then return false end
+    local body = {}
+    local function push(x) body[#body + 1] = x end
+    for i = 1, 4 do push(int32_le_bytes(2)[i]) end
+    push(0); push(0)
+    for i = 1, 4 do push(int32_le_bytes(21)[i]) end
+    for i = 1, 21 do push(client_side_key_name[i]) end
+    for i = 1, 4 do push(int32_le_bytes(2)[i]) end
+    push(0x64)
+    for i = 1, 4 do push(int32_le_bytes(vk)[i]) end
+    local full = { 215 }
+    for i = 1, #body do full[#full + 1] = body[i] end
+    local ok_bs, bs = pcall(raknetNewBitStream)
+    if not ok_bs or not bs then return false end
+    local ok_w = pcall(function()
+        for i = 1, #full do raknetBitStreamWriteInt8(bs, full[i]) end
+    end)
+    if not ok_w then
+        raknetDeleteBitStream(bs)
+        return false
+    end
+    local ok_s, res_s = pcall(raknetSendBitStream, bs)
+    raknetDeleteBitStream(bs)
+    return ok_s and res_s
+end
+
 function M.is_scoreboard_or_dialog_open()
     if isSampAvailable and isSampAvailable() then
         if sampIsDialogActive() then return true end

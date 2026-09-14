@@ -1,6 +1,7 @@
 -- ћодуль Anti-AFK AutoLoginByYaroRage
 local AL = require("AutoLoginByYaroRage.state")
 local config = require("AutoLoginByYaroRage.config")
+local utils = require("AutoLoginByYaroRage.utils")
 local M = {}
 
 local ffi = require("ffi")
@@ -67,9 +68,18 @@ local function generate_afk_route(template)
 end
 
 local function press_key(vk, duration)
-    user32.keybd_event(vk, 0, 0, 0)
-    wait(duration)
-    user32.keybd_event(vk, 0, 2, 0)
+    -- Ёмул€ци€ нажати€ клавиши через CEF-пакет OnPlayerClientSideKey (id=215)
+    -- ¬место физического user32.keybd_event. ќтправл€ем пакет сразу и повтор€ем
+    -- каждые ~700 мс на врем€ удержани€, как это делает сама игра при зажатой клавише.
+    local REPEAT_INTERVAL = 700
+    utils.send_cef_client_side_key(vk)
+    local waited = 0
+    while waited + REPEAT_INTERVAL < duration do
+        wait(REPEAT_INTERVAL)
+        waited = waited + REPEAT_INTERVAL
+        utils.send_cef_client_side_key(vk)
+    end
+    if waited < duration then wait(duration - waited) end
 end
 
 function M.anti_afk_thread()
