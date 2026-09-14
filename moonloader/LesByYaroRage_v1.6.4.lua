@@ -142,6 +142,7 @@ local defaultConfig = {
     EspCars = false,
     CarShowHP = true,
     CarShowModel = true,
+    CarShowModelId = true,
     CarShowDoor = true,
     CarShowDriver = true,
     PlayerShowNick = true,
@@ -230,6 +231,9 @@ local function applyConfig(cfg)
     local _chm = cfg.CarShowModel
     if _chm == nil then _chm = true end
     Les.CarShowModel.v = _chm
+    local _chmi = cfg.CarShowModelId
+    if _chmi == nil then _chmi = true end
+    Les.CarShowModelId.v = _chmi
     local _chd = cfg.CarShowDoor
     if _chd == nil then _chd = true end
     Les.CarShowDoor.v = _chd
@@ -295,6 +299,7 @@ local function gatherConfig()
         EspCars = Les.EspCars.v,
         CarShowHP = Les.CarShowHP.v,
         CarShowModel = Les.CarShowModel.v,
+        CarShowModelId = Les.CarShowModelId.v,
         CarShowDoor = Les.CarShowDoor.v,
         CarShowDriver = Les.CarShowDriver.v,
         PlayerShowNick = Les.PlayerShowNick.v,
@@ -491,7 +496,8 @@ Les = {
     EspTush = imgui.ImBool(false),     -- WH трупов (коробки + линии + дистанция)
     EspCars = imgui.ImBool(false),     -- WH машин
     CarShowHP = imgui.ImBool(true),      -- HP у машин
-    CarShowModel = imgui.ImBool(true),   -- Модель у машин
+    CarShowModel = imgui.ImBool(true),
+    CarShowModelId = imgui.ImBool(true),   -- Модель у машин
     CarShowDoor = imgui.ImBool(true),    -- Дверь у машин
     CarShowDriver = imgui.ImBool(true),  -- Водитель у машин
     PlayerShowNick = imgui.ImBool(true),   -- ник в ESP игроков
@@ -548,6 +554,7 @@ Les.EspTush.v = false
 Les.EspCars.v = false
 Les.CarShowHP.v = true
 Les.CarShowModel.v = true
+Les.CarShowModelId.v = true
 Les.CarShowDoor.v = true
 Les.CarShowDriver.v = true
 Les.PlayerShowNick.v = true
@@ -1231,6 +1238,8 @@ function imgui.OnDrawFrame()
                         imgui.SameLine()
                         if imgui.Checkbox(u8"Модель", Les.CarShowModel) then end
                         imgui.SameLine()
+                        if imgui.Checkbox(u8"ID##cars", Les.CarShowModelId) then end
+                        imgui.SameLine()
                         if imgui.Checkbox(u8"Дверь", Les.CarShowDoor) then end
                         imgui.SameLine()
                         if imgui.Checkbox(u8"Водитель", Les.CarShowDriver) then end
@@ -1728,6 +1737,10 @@ function renderEspCars()
                         renderFontDrawText(font_whGreen, string.format("%.0f м", d), VX, VY + yOff - uiScaled(10), 0xFFFFFFFF)
                         if Les.CarShowModel.v then
                             renderFontDrawText(font_whGreen, modelName, VX, VY + yOff, 0xFF00CCFF)
+                            yOff = yOff + uiScaled(12)
+                        end
+                        if Les.CarShowModelId.v then
+                            renderFontDrawText(font_whGreen, "ID: " .. model, VX, VY + yOff, 0xFFAAAAFF)
                             yOff = yOff + uiScaled(12)
                         end
                         if Les.CarShowHP.v then
