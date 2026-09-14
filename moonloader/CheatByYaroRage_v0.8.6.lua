@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.8.5")
+script_version("0.8.6")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -476,6 +476,7 @@ local maxspeed = imgui.ImBool(false)
 local maxspeed_limit = imgui.ImInt(220)
 local maxspeed_mul = imgui.ImFloat(1.21)
 local maxspeed_minspeed = imgui.ImInt(30)
+local maxspeed_step = imgui.ImInt(30) -- Плавность: макс. прирост скорости за кадр (км/ч).
 -- Хранение handle текущей GM-машины и порога блокировки HP.
 -- Глобальные (а не local) - иначе mainLoop превысит лимит 60 upvalue.
 gmCarHandle = 0
@@ -485,6 +486,7 @@ gmHpPercent = 95
 maxSpeedOn = false
 maxSpeedLimit = 220
 maxSpeedMul = 1.21
+maxSpeedStep = 30
 minSpeedActivation = 30
 local silentmode = imgui.ImInt(3)
 local pslide = imgui.ImBool(false)
@@ -549,6 +551,7 @@ local mainIni = inicfg.load({
 		gm_hp_percent = 95,
 		maxspeed = false,
 		maxspeed_limit = 220,
+		maxspeed_step = 30,
 		NoAnimationMoney = false,
 		Fov = 5.0,
 		damageinf = false,
@@ -595,10 +598,12 @@ maxspeed.v = mainIni.CheatByYaroRage.maxspeed or false
 maxspeed_limit.v = tonumber(mainIni.CheatByYaroRage.maxspeed_limit) or 220
 maxspeed_mul.v = tonumber(mainIni.CheatByYaroRage.maxspeed_mul) or 1.21
 maxspeed_minspeed.v = tonumber(mainIni.CheatByYaroRage.maxspeed_minspeed) or 30
+maxspeed_step.v = tonumber(mainIni.CheatByYaroRage.maxspeed_step) or 30
 minSpeedActivation = maxspeed_minspeed.v
 maxSpeedOn = maxspeed.v
 maxSpeedLimit = maxspeed_limit.v
 maxSpeedMul = maxspeed_mul.v
+maxSpeedStep = maxspeed_step.v
 NoAnimationMoney.v = mainIni.CheatByYaroRage.NoAnimationMoney or false
 sbivx.v = mainIni.CheatByYaroRage.sbivx or false
 SpeedHack.v = mainIni.CheatByYaroRage.SpeedHack or false
@@ -664,7 +669,7 @@ admin_hud_color_b.v = mainIni.CheatByYaroRage.admin_hud_color_b or 255
 
 -- Справочник всех настраиваемых переменных для профилей (объявлен ДО save()).
 local profile_vars = {
-	godcar = godcar, gm_hp_percent = gm_hp_slider, maxspeed = maxspeed, maxspeed_limit = maxspeed_limit, maxspeed_mul = maxspeed_mul, maxspeed_minspeed = maxspeed_minspeed,
+	godcar = godcar, gm_hp_percent = gm_hp_slider, maxspeed = maxspeed, maxspeed_limit = maxspeed_limit, maxspeed_mul = maxspeed_mul, maxspeed_minspeed = maxspeed_minspeed, maxspeed_step = maxspeed_step,
 	sbivx = sbivx, SpeedHack = SpeedHack, SpeedSmooth = SpeedSmooth,
 	fullskillgun = fullskillgun, pslide = pslide, trigger = trigger,
 	autokick = autokick, airbrake = airbrake, Speed = Speed,
@@ -1462,18 +1467,20 @@ local function mainLoop()
 		end
 
 		-- MaxSpeed: расширение максималки авто выше штатной.
-		-- Принцип как у SpeedHack: каждый кадр при зажатой W множим скорость на 1.21.
-		-- Этот множитель проверен и пробивает сопротивление физики движка: на 1.08 машина
-		-- упиралась в ~100, потому что физика гасила ~15-20% между кадрами и 1.08 не хватало.
+		-- Принцип: при зажатой W скорость тянется к лимиту, но прирост ЗА КАДР ограничен
+		-- (maxSpeedStep). Это убирает экспоненциальный взрыв множителя и частично самолёт:
+		-- на 1.20 машина едва пробивала 100 и взлетала на прямике, на 1.21 неслась слишком резко.
+		-- Теперь на низкой/средней скорости работает mind(speed*mul, speed+step), на высокой
+		-- прирост плавно останавливается, не давая набору самопроизвольно разгоняться.
 		-- Лимит (слайдер 100-400) — потолок: буст не тянет выше maxSpeedLimit.
 		-- Гвард target > speed: если машина сама быстрее лимита (например 265 при лимите 220),
 		-- буст молчит и не тормозит — машина едет свои 265.
-		-- Порог speed > 30 — заглушенная с места не тронется, isCarEngineOn лжёт на Radmir.
+		-- Порог speed > minSpeedActivation (слайдер 1-400) — заглушенная с места не тронется.
 		if maxSpeedOn and isCharInAnyCar(PLAYER_PED) and isKeyDown(VK_W) then
 			local veh = storeCarCharIsInNoSave(PLAYER_PED)
 			local speed = getCarSpeed(veh)
 			if speed > minSpeedActivation then
-				local target = speed * maxSpeedMul
+				local target = math.min(speed * maxSpeedMul, speed + maxSpeedStep)
 				if target > maxSpeedLimit then target = maxSpeedLimit end
 				if target > speed then
 					setCarForwardSpeed(veh, target)
@@ -2242,10 +2249,11 @@ function drawVehicleTab()
 				imgui.TextDisabled(u8'Ускорение авто: держать левый Alt или правую кнопку мыши')
 				if imgui.SliderInt(u8'Смут##speed', SpeedSmooth, 1, 100) then save() end
 				if imgui.Checkbox(u8'MaxSpeed', maxspeed) then maxSpeedOn = maxspeed.v save() end
-				imgui.TextDisabled(u8'Расширение максималки: после штатного пика машина тянется до лимита (W, от 30 км/ч)')
+				imgui.TextDisabled(u8'Расширение максималки: после штатного пика машина тянется до лимита (W, от порога активации)')
 				if imgui.SliderInt(u8'Лимит (км/ч)', maxspeed_limit, 100, 400) then maxSpeedLimit = maxspeed_limit.v save() end
 				if imgui.SliderFloat(u8'Коэффициент', maxspeed_mul, 1.0, 2.0, '%.2f') then maxSpeedMul = maxspeed_mul.v save() end
-				if imgui.SliderInt(u8'Активация от (км/ч)', maxspeed_minspeed, 10, 100) then minSpeedActivation = maxspeed_minspeed.v save() end
+				if imgui.SliderInt(u8'Плавность (прирост/кадр)', maxspeed_step, 1, 100) then maxSpeedStep = maxspeed_step.v save() end
+				if imgui.SliderInt(u8'Активация от (км/ч)', maxspeed_minspeed, 1, 400) then minSpeedActivation = maxspeed_minspeed.v save() end
 				
 				imgui.Separator()
 				sbox(u8'Autorem', tfirst)
@@ -3264,6 +3272,7 @@ function loadProfile(name)
         maxSpeedOn = maxspeed.v
         maxSpeedLimit = maxspeed_limit.v
         maxSpeedMul = maxspeed_mul.v
+        maxSpeedStep = maxspeed_step.v
         minSpeedActivation = maxspeed_minspeed.v
         save()
         ywelcome("CheatByYaroRage", "Профиль '" .. name .. "' загружен!")
