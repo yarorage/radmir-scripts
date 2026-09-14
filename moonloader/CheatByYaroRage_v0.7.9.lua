@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.7.8")
+script_version("0.7.9")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -249,33 +249,44 @@ local function loadAdminListFile()
 end
 
 -- Функция проверки, является ли игрок админом (по точному списку или приписке)
+-- Кэш никнеймов в нижнем регистре: мгновенный поиск админа без перебора (устраняет микрофризы).
+local known_admin_lower = {}
+local chat_admin_lower = {}
+local function rebuildAdminLower()
+    known_admin_lower = {}
+    for _, a in ipairs(known_admins) do
+        known_admin_lower[string.lower(a.nick)] = a
+    end
+    chat_admin_lower = {}
+    for nick in pairs(chat_admins) do
+        chat_admin_lower[string.lower(nick)] = true
+    end
+end
+
 local function isPlayerAdmin(id)
     if not sampIsPlayerConnected(id) then return false, nil, nil end
     local nick = sampGetPlayerNickname(id)
+    local low_nick = string.lower(nick)
 
-    -- Точное совпадение с официальным списком действующих администраторов (без учёта регистра)
-    local low_nick = nick:lower()
-    for _, a in ipairs(known_admins) do
-        if low_nick == a.nick:lower() then
-            return true, a.post, a.date
-        end
+    -- Известные админы из списка: мгновенный поиск по кэшу.
+    local a = known_admin_lower[low_nick]
+    if a then
+        return true, a.post, a.date
     end
 
-    -- Приписка "Администратор" / "Аdmin" в нике
-    local low = nick:lower()
-    if low:find("админ") or low:find("admin") then
-        return true, "Ник с припиской Администратор", nil
+    -- Подпись "Администратор" / "admin" в нике.
+    if low_nick:find("админ") or low_nick:find("admin") then
+        return true, "Ник в списке администраторов", nil
     end
 
-    -- Админ, выявленный по системному сообщению сервера ("Администратор X ...") без учёта регистра
-    for chat_nick in pairs(chat_admins) do
-        if low == chat_nick:lower() then
-            return true, "Админ (по сообщению сервера)", nil
-        end
+    -- Админ, выявленный по сообщениям сервера.
+    if chat_admin_lower[low_nick] then
+        return true, "Админ (из сообщений сервера)", nil
     end
 
     return false, nil, nil
 end
+
 
 -- Поиск игрока по нику без учёта регистра (для чат-детекта админов)
 function findPlayerByNickname(nick)
@@ -299,68 +310,53 @@ function updateAdminList()
         return
     end
 
-    -- Карта пула игроков: lower(ник) -> id (для быстрого поиска)
-    local poolByNick = {}
-    for i = 0, sampGetMaxPlayerId(false) do
-        if sampIsPlayerConnected(i) then
-            local n = sampGetPlayerNickname(i) or ""
-            if n ~= "" then
-                local k = string.lower(n)
-                if not poolByNick[k] then poolByNick[k] = i end
-            end
-        end
-    end
+    -- Кэш нижнего регистра пересобираем один раз за проход.
+    rebuildAdminLower()
 
-    -- Статус «онлайн» для админов из официального списка (без репортов)
-    for _, a in ipairs(known_admins) do
-        local pid = poolByNick[string.lower(a.nick)]
-        if pid and sampIsPlayerConnected(pid) then
-            known_online[a.nick] = pid
-        end
-    end
+    -- id и координаты игрока вычисляем ОДИН раз (в цикле дублировались).
+    local _, my_id = sampGetPlayerIdByCharHandle(PLAYER_PED)
+    local mx, my, mz = getCharCoordinates(PLAYER_PED)
 
     for i = 0, sampGetMaxPlayerId(false) do
         if sampIsPlayerConnected(i) then
-            local is_admin, post, date = isPlayerAdmin(i)
-            if is_admin then
-                local data = {
-                    nick = sampGetPlayerNickname(i),
-                    color = sampGetPlayerColor(i),
-                    score = sampGetPlayerScore(i),
-                    reason = post,
-                    date = date,
-                    dist = 0
-                }
-                -- Дистанция до нас
-                local _, my_id = sampGetPlayerIdByCharHandle(PLAYER_PED)
-                if my_id ~= i then
-                    local _, ped = sampGetCharHandleBySampPlayerId(i)
-                    if ped and doesCharExist(ped) then
-                        local mx, my, mz = getCharCoordinates(PLAYER_PED)
-                        local px, py, pz = getCharCoordinates(ped)
-                        data.dist = math.floor(getDistanceBetweenCoords3d(mx, my, mz, px, py, pz))
-                    end
+            local nick = sampGetPlayerNickname(i)
+            if nick and nick ~= "" then
+                local low_nick = string.lower(nick)
+                local known = known_admin_lower[low_nick]
+                local is_admin, post, date = false, nil, nil
+                if known then
+                    is_admin, post, date = true, known.post, known.date
+                elseif low_nick:find("админ") or low_nick:find("admin") then
+                    is_admin, post, date = true, "Ник в списке администраторов", nil
+                elseif chat_admin_lower[low_nick] then
+                    is_admin, post, date = true, "Админ (из сообщений сервера)", nil
                 end
-                admin_list[i] = data
+                if is_admin then
+                    if known then
+                        known_online[nick] = i
+                    end
+                    local data = {
+                        nick = nick,
+                        color = sampGetPlayerColor(i),
+                        score = sampGetPlayerScore(i),
+                        reason = post,
+                        date = date,
+                        dist = 0
+                    }
+                    if my_id ~= i then
+                        local _, ped = sampGetCharHandleBySampPlayerId(i)
+                        if ped and doesCharExist(ped) then
+                            local px, py, pz = getCharCoordinates(ped)
+                            data.dist = math.floor(getDistanceBetweenCoords3d(mx, my, mz, px, py, pz))
+                        end
+                    end
+                    admin_list[i] = data
+                end
             end
-        end
-    end
-
-    -- Дополнительно: выявленные по сообщениям сервера админы, найденные напрямую по нику
-    for nick in pairs(chat_admins) do
-        local pid = poolByNick[string.lower(nick)]
-        if pid and sampIsPlayerConnected(pid) and not admin_list[pid] then
-            admin_list[pid] = {
-                nick = nick,
-                color = sampGetPlayerColor(pid),
-                score = sampGetPlayerScore(pid),
-                reason = "Админ (по сообщению сервера)",
-                date = nil,
-                dist = 0
-            }
         end
     end
 end
+
 function checkSpectators()
     spectator_list = {}
     if not PLAYER_PED or not doesCharExist(PLAYER_PED) then
@@ -1110,7 +1106,7 @@ local function mainLoop()
 		-- Admin Detection обновление (каждые 2 сек, работает и без чекбокса детекции — для трекера онлайн)
 		do
 			local cur_time = os.clock()
-			if not last_admin_check or cur_time - last_admin_check >= 2.0 then
+			if admin_detection.v and (not last_admin_check or cur_time - last_admin_check >= 5.0) then
 				updateAdminList()
 				if admin_detection.v then
 					checkSpectators()
@@ -1169,7 +1165,7 @@ local function mainLoop()
 
 		-- Автообновление координат сохранённых машин по близости (раз в 1 сек).
 		local _now = os.clock()
-		if _now - (lastProxUpdate or 0) >= 1.0 then
+		if _now - (lastProxUpdate or 0) >= 3.0 and #savedCars > 0 then
 			updateProximityCars()
 			lastProxUpdate = _now
 		end
