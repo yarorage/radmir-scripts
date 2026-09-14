@@ -1,4 +1,4 @@
--- CefPacketAnalyzer v1.1.9
+-- CefPacketAnalyzer v1.2.0
 -- Анализатор CEF-пакетов Radmir CRMP.
 -- Перехватывает RakNet-пакеты (в первую очередь id=215 - команды интерфейса,
 -- id=61 - диалоги) и текстовые потоки, классифицирует их по базе знаний
@@ -11,7 +11,7 @@
 --   packets_unique_table.html - итоговая таблица без дублей, сгруппированная по категориям (CP1251)
 -- Команды: /cpa, /cpa save, /cpa clear, /cpa log on|off, /cpa len N, /cpa status.
 script_name("CefPacketAnalyzer")
-script_version("1.1.9")
+script_version("1.2.0")
 
 require "moonloader"
 require "lib.samp.events"
@@ -90,9 +90,11 @@ local function onCommand(param)
     if p == "" or p == "help" then
         printHelp()
     elseif p == "save" then
+        capture.drainAll()
         output.finalize()
         state.chat("Отчёты перезаписаны.")
     elseif p == "clear" or p == "new" then
+        capture.drainAll()
         state.resetSession()
         output.clearOutput()
         upload.reset()
@@ -177,6 +179,7 @@ function onDisconnect(reason)
     state.state.connected = false
     state.state.phase = "idle"
     state.state.cursorOn = false
+    capture.drainAll()
     pcall(output.finalize)
 end
 
@@ -189,14 +192,19 @@ function main()
     setupOutputDir()
     registerCommands()
     state.state.startTime = os.date("%Y-%m-%d %H:%M:%S")
-    state.log("CefPacketAnalyzer v1.1.9 запущен. Команды: /cpa")
+    state.log("CefPacketAnalyzer v1.2.0 запущен. Команды: /cpa")
 
     -- В геймплее тяжёлые отчёты НЕ пересобираются (чтобы не лагать).
-    -- Поток packets_stream.txt дописывается автоматически вживую,
-    -- а полные отчёты — по /cpa save, при отключении и при выгрузке скрипта.
+    -- Поток packets_stream.txt дописывается автоматически вживую (через
+    -- отложенную очередь с бюджетом времени на кадр), а полные отчёты —
+    -- по /cpa save, при отключении и при выгрузке скрипта.
     while true do
         wait(0)
-        -- редкая отправка агрегатов на сервер (троттлинг внутри upload)
+        -- Обработка накопленных пакетов: жёсткий бюджет ~1.5 мс и лимит
+        -- записей за кадр. Если пакетов больше — остаются в очереди и будут
+        -- обработаны в следующих кадрах. Так ни кадр, ни сетевой хук не
+        -- блокируются скриптом.
+        capture.drain(0.0015, 30)
         upload.tick()
     end
 end
@@ -204,7 +212,9 @@ end
 -- Финализация при выгрузке/перезагрузке скрипта.
 -- ВАЖНО: полные отчёты при выходе НЕ пересобираются (buildHtml/unique/JSON
 -- уже дописаны вживую на каждый пакет; пересборка в кадре на Ctrl+R и была
--- источником фриза). Только аккуратно закрываем потоки — это мгновенно.
+-- источником фриза). Сначала сливаем очередь захваченных пакетов (чтобы
+-- ничего не потерялось), затем аккуратно закрываем потоки — это мгновенно.
 function onScriptExit()
+    pcall(capture.drainAll)
     pcall(output.closeStream)
 end

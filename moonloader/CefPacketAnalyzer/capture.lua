@@ -130,22 +130,30 @@ local function sanitizeUtf8(s)
     return s
 end
 
--- Читаем тело пакета из bitstream и возвращаем текст + массив байт
+-- Читаем тело пакета из bitstream и возвращаем строку байт + длину.
+-- Чтение ограничено сверху READ_CAP байт: загружаемые страницы и крупные
+-- CEF-тела не должны стоить в сетевом хуке больше одного-двух тактов.
+-- Текст и HEX и так ограничены state.maxBodyLen (4096), поэтому потери нет.
+local READ_CAP = 4096
 local function readPacketBody(bs)
     local n = raknetBitStreamGetNumberOfBytesUsed(bs)
     if not n or n < 0 then
         return "", 0, 0
     end
-    local bytes = {}
+    local readN = n
+    if readN > READ_CAP then
+        readN = READ_CAP
+    end
     -- Читаем тело одним pcall (не на каждый байт): ошибки чтения битстрима
     -- ловятся здесь, а указатель сбрасываем ниже. Это заметно дешевле.
+    local rawBuf = {}
     local ok = pcall(function()
-        for i = 1, n do
+        for i = 1, readN do
             local b = raknetBitStreamReadInt8(bs)
             if type(b) ~= "number" then
-                bytes[i] = 0
+                rawBuf[i] = string.char(0)
             else
-                bytes[i] = b
+                rawBuf[i] = string.char(b % 256)
             end
         end
     end)
@@ -154,12 +162,7 @@ local function readPacketBody(bs)
     if not ok then
         return "", 0, 0
     end
-    local raw = {}
-    for i = 1, #bytes do
-        raw[i] = string.char(bytes[i] % 256)
-    end
-    local rawStr = table.concat(raw)
-    return rawStr, #bytes, n
+    return table.concat(rawBuf), n, n
 end
 
 -- Определяем, является ли тело пакета "текстовым" (длинные печатные последовательности)
@@ -258,8 +261,252 @@ local function updatePhase(record)
     end
 end
 
--- Пользовательская заглушка: вызывается для каждой захваченной записи.
+-- Пользовательская заглушка: вызывается в главном цикле для каждой записи.
 local emitCallback = nil
+
+-- Очередь захваченных пакетов на обработку в главном цикле.
+-- Пакеты попадают в хук СЕТЕВОГО ПОТОКА (onReceivePacket/onSendPacket),
+-- а тяжёлая обработка (decodeBody, классификация по базе знаний, hex, JSON,
+-- запись на диск) выполняется ТОЛЬКО в главном цикле с жёстким бюджетом
+-- времени за кадр. Это исключает фризы в игровом потоке: хук лишь копит
+-- дешёвые мини-записи, а главный цикл не даёт обработать больше, чем
+-- укладывается в ~1-1.5 мс за кадр.
+local pendingQueue = {}
+local pendingHead = 1
+local pendingTail = 1
+local pendingCount = 0
+local PENDING_CAP = 2000
+
+-- Содержательные пакеты (id 215/61/62/200, серверные сообщения/тексты/диалоги
+-- или пакеты с текстовым телом) кладутся в очередь с минимумом полей.
+-- Здесь же вычисляется isText - дешёвый линейный проход по телу (без разбора).
+local function enqueuePending(seq, dir, id, bodyLen, totalBytes, rawStr, timeVal, dateStrVal, isTextVal)
+    -- Защита от переполнения очереди при всплеске: если очередь растёт быстрее,
+    -- чем её успевает разбирать главный цикл (потоковый спам при больших окнах),
+    -- вытесняем самые старые записи. Счётчики при этом уже учтены.
+    if pendingCount >= PENDING_CAP then
+        -- вытесняем самый старый элемент
+        pendingQueue[pendingHead] = nil
+        pendingHead = pendingHead + 1
+        pendingCount = pendingCount - 1
+    end
+    pendingQueue[pendingTail] = {
+        seq = seq,
+        dir = dir,
+        id = id,
+        bodyLen = bodyLen,
+        size = totalBytes or bodyLen,
+        time = timeVal,
+        dateStr = dateStrVal,
+        text = rawStr,
+        isText = isTextVal,
+    }
+    pendingTail = pendingTail + 1
+    pendingCount = pendingCount + 1
+end
+
+-- Обработка очереди в главном цикле: разбираем не больше maxCount записей
+-- и не дольше budgetSec за один вызов. Возвращает число обработанных.
+local function processPending(budgetSec, maxCount)
+    local start = os.clock()
+    local processed = 0
+    while pendingCount > 0 do
+        if processed >= maxCount then
+            break
+        end
+        if os.clock() - start >= budgetSec then
+            break
+        end
+        local pend = pendingQueue[pendingHead]
+        pendingQueue[pendingHead] = nil
+        pendingHead = pendingHead + 1
+        pendingCount = pendingCount - 1
+        if not pend then
+            break
+        end
+
+        local st = state.state
+        local dir = pend.dir
+        local id = pend.id
+        local bodyLen = pend.bodyLen
+        local rawStr = pend.text or ""
+
+        -- Полный разбор и классификация (уже вне сетевого потока)
+        local text = ""
+        if bodyLen > 0 then
+            text = decodeBody(rawStr)
+            text = sanitizeUtf8(text)
+        end
+
+        local isText = pend.isText or (#text >= (st.minTextRun or 6))
+
+        -- Ограничиваем тело
+        local bodyForStore = text
+        if #bodyForStore > st.maxBodyLen then
+            bodyForStore = bodyForStore:sub(1, st.maxBodyLen)
+        end
+
+        local ctx = snapshotContext()
+
+        local record = {
+            seq = pend.seq,
+            dir = dir,
+            id = id,
+            bodyLen = bodyLen,
+            size = pend.size or bodyLen,
+            time = pend.time,
+            dateStr = pend.dateStr,
+            text = bodyForStore,
+            isText = isText,
+            ctx = ctx,
+            phaseAtCapture = st.phase,
+            phaseName = state.phaseName(),
+            sig = classify.signature(bodyForStore),
+        }
+        record.dedupKey = dir .. "|" .. tostring(id) .. "|" .. record.sig
+
+        local cls = classify.classify(record)
+        record.category = cls.category
+        record.categoryTitle = cls.categoryTitle
+        record.categoryDesc = cls.categoryDesc
+        record.title = cls.title
+        record.events = cls.events
+        record.tokens = cls.tokens
+        record.params = cls.params
+        record.analysis = cls.analysis
+        record.description = cls.description
+        record.pktName = cls.pktName
+        record.pktIdDesc = cls.pktIdDesc
+        record.phaseHint = cls.phaseHint
+        record.cmd = cls.cmd
+        record.uiUrl = cls.url
+        record.win = cls.win
+        record.dataKeys = cls.dataKeys
+        record.nick = cls.nick
+        record.fn = cls.fn
+
+        -- HEX строится по реально прочитанным байтам (rawStr усечён до READ_CAP,
+        -- а bodyLen - полная длина по битстриму). Для длинных тел достаточно
+        -- первых байт: все данные этого анализатора уже усекаются на 4096.
+        local rawLen = #rawStr
+        if rawLen > 0 then
+            local h = {}
+            local n = math.min(rawLen, 512)
+            for i = 1, n do
+                h[i] = string.format("%02X", rawStr:byte(i) or 0)
+            end
+            record.bodyHex = table.concat(h)
+        end
+        if record.dir == "TX" and record.id == 215 and rawLen > 0 then
+            local h = {}
+            for i = 1, rawLen do
+                h[i] = string.format("%02X", rawStr:byte(i) or 0)
+            end
+            record.bodyHex = table.concat(h)
+            local txEntry = {
+                ts = record.time,
+                dateStr = record.dateStr,
+                dir = record.dir,
+                id = record.id,
+                len = bodyLen,
+                hex = record.bodyHex,
+                cmd = record.cmd or "",
+                url = record.uiUrl or "",
+            }
+            local txList = st.txHexList or {}
+            txList[#txList + 1] = txEntry
+            if #txList > 500 then
+                table.remove(txList, 1)
+            end
+            st.txHexList = txList
+        end
+        if record.nick and record.nick ~= "" then
+            st.gameNick = record.nick
+        end
+
+        updatePhase(record)
+
+        local cnt = st.counters[record.category] or {
+            count = 0,
+            first = record.dateStr,
+            last = record.dateStr,
+            events = {},
+        }
+        cnt.count = cnt.count + 1
+        cnt.last = record.dateStr
+        for _, ev in ipairs(record.events) do
+            if not cnt.events[ev] then
+                cnt.events[ev] = { count = 0 }
+            end
+            cnt.events[ev].count = cnt.events[ev].count + 1
+        end
+        st.counters[record.category] = cnt
+
+        if record.uiUrl and record.uiUrl ~= "" then
+            st.urlCounts[record.uiUrl] = (st.urlCounts[record.uiUrl] or 0) + 1
+        end
+        if record.id == 215 then
+            local c = record.fn or record.cmd
+            if c and c ~= "" then
+                c = (c:gsub("^%s+", ""):gsub("%s+$", ""))
+                local k = c .. "|" .. (record.uiUrl or "")
+                local e = st.cefCmdSeen[k]
+                if not e then
+                    e = { cmd = c, url = record.uiUrl or "", n = 0 }
+                    st.cefCmdSeen[k] = e
+                    if #st.cefCmdList < 100 then
+                        table.insert(st.cefCmdList, e)
+                    end
+                end
+                e.n = e.n + 1
+            end
+        end
+        local uniqueKey = record.dedupKey or (dir .. "|" .. tostring(id) .. "|" .. (record.sig or ""))
+        local te = st.typeSeen[uniqueKey]
+        if not te then
+            te = { idx = #st.typeList + 1, n = 1 }
+            st.typeSeen[uniqueKey] = te
+            if #st.typeList < 600 then
+                table.insert(st.typeList, {
+                    dir = dir,
+                    id = id,
+                    category = record.category,
+                    cmd = record.cmd or "",
+                    url = record.uiUrl or "",
+                    count = 1,
+                })
+            end
+        else
+            te.n = te.n + 1
+            if te.idx <= #st.typeList then
+                st.typeList[te.idx].count = te.n
+            end
+        end
+
+        if #st.records < st.maxRecords then
+            table.insert(st.records, record)
+        end
+
+        if emitCallback then
+            emitCallback(record)
+        end
+
+        processed = processed + 1
+    end
+
+    -- Компактизация головы очереди, чтобы не копить огромный хвост из nil
+    if pendingHead > 512 and pendingCount > 0 then
+        local rest = {}
+        for i = 1, pendingCount do
+            rest[i] = pendingQueue[pendingHead + i - 1]
+        end
+        pendingQueue = rest
+        pendingHead = 1
+        pendingTail = pendingCount + 1
+    end
+
+    return processed
+end
 
 -- Основной обработчик захваченного пакета
 -- dir: "RX"/"TX"; id: номер пакета; bs: bitstream; extra: строка-дополнение (для серверных сообщений)
@@ -270,53 +517,45 @@ local function onCapture(dir, id, bs, extra)
         return
     end
 
+    -- Хук минимизирован по стоимости. Сначала узнаём длину тела (property,
+    -- микросекунды), решаем, принадлежит ли пакет содержательным, и ТОЛЬКО
+    -- тогда читаем байты. Служебный поток (sync и пр.) не читается вообще:
+    -- для него лишь счётчики. Вес самого хука — десятки микросекунд на пакет.
     local rawStr
-    local bytes = {}
     local bodyLen = 0
+    local totalBytes = 0
+
+    -- Дорогая текстовая инспекция применима только к небольшим телам;
+    -- многокилометровые бинарные тела (быстрый путь) её не проходят.
+    local minRun = st.minTextRun or 6
+    local isContentId = (id == 215 or id == 61 or id == 62 or id == 200 or not bs)
 
     if bs then
-        rawStr, bodyLen, totalBytes = readPacketBody(bs)
-        if bodyLen > 0 then
-            -- преобразуем байты для чтения текста
-            local realBytes = {}
-            for i = 1, bodyLen do
-                realBytes[i] = rawStr:byte(i) or 0
-            end
-            bytes = realBytes
+        local n = raknetBitStreamGetNumberOfBytesUsed(bs)
+        bodyLen = (type(n) == "number" and n >= 0) and n or 0
+        totalBytes = bodyLen
+        -- Содержательные пакеты читаем целиком; для остальных (при маленьком
+        -- теле) читаем только для проверки на текстовость. Большие бинарные
+        -- тела молча пропускаем по длине — разбор в очередь не идёт.
+        if isContentId or (bodyLen > 0 and bodyLen <= 4096) then
+            rawStr, bodyLen, totalBytes = readPacketBody(bs)
         end
     else
         rawStr = extra or ""
         bodyLen = #rawStr
-        for i = 1, bodyLen do
-            bytes[i] = rawStr:byte(i) or 0
-        end
+        totalBytes = bodyLen
     end
 
-    local text = ""
-    if bodyLen > 0 then
-        text = decodeBody(rawStr)
-        text = sanitizeUtf8(text)
+    local isText = false
+    if bodyLen > 0 and bodyLen <= 4096 then
+        isText = isTextBody(rawStr, minRun)
     end
 
-    -- Определяем, текстовый ли это пакет (для потока и отбора)
-    local isText = isTextBody(rawStr, st.minTextRun)
-    if #text >= st.minTextRun then
-        isText = true
-    end
+    -- Быстрый путь: служебные бинарные пакеты (sync, id 18-22, 207 и т.п.)
+    -- идут потоком десятками в секунду и НЕ содержательны для анализатора.
+    -- Для них считаем только счётчики и НЕ занимаем очередь.
+    local isContent = isContentId or isText
 
-    -- Ограничиваем тело
-    local bodyForStore = text
-    if #bodyForStore > st.maxBodyLen then
-        bodyForStore = bodyForStore:sub(1, st.maxBodyLen)
-    end
-
-    -- Контекст (позиция/курсор) снимаем только для содержательных пакетов:
-    -- CEF-команды, диалоги, текст и сообщения. Служебные бинарные пакеты
-    -- (sync и т.п.) идут потоком и контекста не требуют.
-    local ctx = nil
-    if id == 215 or id == 61 or isText or not bs then
-        ctx = snapshotContext()
-    end
     st.seq = st.seq + 1
     st.totalPackets = st.totalPackets + 1
     if id == 215 then
@@ -328,161 +567,17 @@ local function onCapture(dir, id, bs, extra)
     if isText then
         st.totalText = st.totalText + 1
     end
-
-    local record = {
-        seq = st.seq,
-        dir = dir,
-        id = id,
-        bodyLen = bodyLen,
-        size = totalBytes or bodyLen,
-        time = os.time(),
-        dateStr = os.date("%Y-%m-%d %H:%M:%S"),
-        text = bodyForStore,
-        isText = isText,
-        ctx = ctx,
-        phaseAtCapture = st.phase,
-        phaseName = state.phaseName(),
-        -- Подпись для дедупликации в итоговой таблице
-        sig = classify.signature(bodyForStore),
-    }
-    record.dedupKey = dir .. "|" .. tostring(id) .. "|" .. record.sig
-
-    -- Классификация из базы знаний
-    local cls = classify.classify(record)
-    record.category = cls.category
-    record.categoryTitle = cls.categoryTitle
-    record.categoryDesc = cls.categoryDesc
-    record.title = cls.title
-    record.events = cls.events
-    record.tokens = cls.tokens
-    record.params = cls.params
-    record.analysis = cls.analysis
-    record.description = cls.description
-    record.pktName = cls.pktName
-    record.pktIdDesc = cls.pktIdDesc
-    record.phaseHint = cls.phaseHint
-    record.cmd = cls.cmd
-    record.uiUrl = cls.url
-    record.win = cls.win
-    record.dataKeys = cls.dataKeys
-    record.nick = cls.nick
-    record.fn = cls.fn
-    -- Точные байты тела (HEX) для ВСЕХ пакетов: нужны для разбора и анализа
-    -- бинарных пакетов скриптами. Для длинных тел сохраняем первые 512 байт.
-    if bodyLen > 0 then
-        local h = {}
-        local n = math.min(bodyLen, 512)
-        for i = 1, n do
-            h[i] = string.format("%02X", bytes[i] or 0)
-        end
-        record.bodyHex = table.concat(h)
-    end
-    -- Отдельно для TX-пакета интерфейса (id=215): полный hex без ограничения,
-    -- одно в одно, как клиент отправил его на сервер. Плюс копия для сводки.
-    if record.dir == "TX" and record.id == 215 and bodyLen > 0 then
-        local h = {}
-        for i = 1, bodyLen do
-            h[i] = string.format("%02X", bytes[i] or 0)
-        end
-        record.bodyHex = table.concat(h)
-        local txEntry = {
-            ts = record.time,
-            dateStr = record.dateStr,
-            dir = record.dir,
-            id = record.id,
-            len = bodyLen,
-            hex = record.bodyHex,
-            cmd = record.cmd or "",
-            url = record.uiUrl or "",
-        }
-        local txList = st.txHexList or {}
-        txList[#txList + 1] = txEntry
-        if #txList > 500 then
-            table.remove(txList, 1)
-        end
-        st.txHexList = txList
-    end
-    -- Ник игрока на сервере (из пакета авторизации) запоминаем в состоянии:
-    -- последний логин считается текущим.
-    if record.nick and record.nick ~= "" then
-        st.gameNick = record.nick
-    end
-
-    updatePhase(record)
-
-    -- Счётчики по категориям
-    local cnt = st.counters[record.category] or {
-        count = 0,
-        first = record.dateStr,
-        last = record.dateStr,
-        events = {},
-    }
-    cnt.count = cnt.count + 1
-    cnt.last = record.dateStr
-    for _, ev in ipairs(record.events) do
-        if not cnt.events[ev] then
-            cnt.events[ev] = { count = 0 }
-        end
-        cnt.events[ev].count = cnt.events[ev].count + 1
-    end
-    st.counters[record.category] = cnt
-
-    -- Глобальные агрегаты для сводки (полные, без влияния лимита записей)
     if dir == "RX" then
         st.totalRx = st.totalRx + 1
     elseif dir == "TX" then
         st.totalTx = st.totalTx + 1
     end
-    if record.uiUrl and record.uiUrl ~= "" then
-        st.urlCounts[record.uiUrl] = (st.urlCounts[record.uiUrl] or 0) + 1
-    end
-    if record.id == 215 then
-        local c = record.fn or record.cmd
-        if c and c ~= "" then
-            c = (c:gsub("^%s+", ""):gsub("%s+$", ""))
-            local k = c .. "|" .. (record.uiUrl or "")
-            local e = st.cefCmdSeen[k]
-            if not e then
-                e = { cmd = c, url = record.uiUrl or "", n = 0 }
-                st.cefCmdSeen[k] = e
-                if #st.cefCmdList < 100 then
-                    table.insert(st.cefCmdList, e)
-                end
-            end
-            e.n = e.n + 1
-        end
-    end
-    -- Уникальные типы пакетов (как в итоговой таблице)
-    local uniqueKey = record.dedupKey or (dir .. "|" .. tostring(id) .. "|" .. (record.sig or ""))
-    local te = st.typeSeen[uniqueKey]
-    if not te then
-        te = { idx = #st.typeList + 1, n = 1 }
-        st.typeSeen[uniqueKey] = te
-        if #st.typeList < 600 then
-            table.insert(st.typeList, {
-                dir = dir,
-                id = id,
-                category = record.category,
-                cmd = record.cmd or "",
-                url = record.uiUrl or "",
-                count = 1,
-            })
-        end
-    else
-        te.n = te.n + 1
-        if te.idx <= #st.typeList then
-            st.typeList[te.idx].count = te.n
-        end
-    end
 
-    -- Добавляем запись с учётом лимита
-    if #st.records < st.maxRecords then
-        table.insert(st.records, record)
-    end
-
-    -- Автоматическая запись в файл происходит в emit-заглушке (настраивается в main)
-    if emitCallback then
-        emitCallback(record)
+    -- Содержательные пакеты кладём в очередь на обработку в главном цикле.
+    -- Самое дорогое (разбор + классификация + запись) не выполняется здесь,
+    -- поэтому сетевой поток и фризы не связаны со скриптом.
+    if isContent then
+        enqueuePending(st.seq, dir, id, bodyLen, totalBytes, rawStr, os.time(), os.date("%Y-%m-%d %H:%M:%S"), isText)
     end
 end
 
@@ -510,6 +605,26 @@ local C = {
     -- Установка заглушки: вызывается для каждой записи пакета (для автозаписи в файл)
     setEmit = function(fn)
         emitCallback = fn
+    end,
+    -- Обработка очереди пакетов в главном цикле с бюджетом времени и лимитом
+    -- записей за один вызов (чтобы ни при каких условиях не было фриза).
+    drain = function(budgetSec, maxCount)
+        return processPending(budgetSec, maxCount)
+    end,
+    -- Принудительная досборка всей очереди (для /cpa save, clear, выгрузка)
+    drainAll = function()
+        -- Цикл до тех пор, пока очередь не выдохнется (processPending вернёт 0)
+        while true do
+            local n = processPending(10, 1000)
+            if n == 0 then
+                break
+            end
+        end
+        -- компактизация после полного слива
+        pendingQueue = {}
+        pendingHead = 1
+        pendingTail = 1
+        pendingCount = 0
     end,
     getPlayerPos = getPlayerPos,
     snapshotContext = snapshotContext,
