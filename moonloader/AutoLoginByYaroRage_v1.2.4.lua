@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.2.3")
+script_version("1.2.4")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -73,7 +73,6 @@ local utils = require("AutoLoginByYaroRage.utils")
 local reconnect_mod = require("AutoLoginByYaroRage.reconnect")
 local auth = require("AutoLoginByYaroRage.auth")
 local antiafk = require("AutoLoginByYaroRage.antiafk")
-local telegram = require("AutoLoginByYaroRage.telegram")
 local admin_det = require("AutoLoginByYaroRage.admin_detection")
 local restore_mod = require("AutoLoginByYaroRage.restore")
 local ui_mod = require("AutoLoginByYaroRage.ui")
@@ -286,12 +285,7 @@ function sampevents.onServerMessage(color, text)
         reconnect_mod.trigger_reconnect("ChatReconnect")
     end
 
-    if s.tg_enabled and admin_det.is_admin_message(color, text) then
-        local safe_text = text:gsub("<[^>]+>", ""):sub(1, 500)
-        lua_thread.create(function()
-            telegram.send_message("[Admin] " .. safe_text)
-        end)
-    end
+    admin_det.is_admin_message(color, text)
 end
 
 function sampevents.onSendDialogResponse(dialogId, button, listboxId, input)
@@ -893,7 +887,6 @@ function main()
     register_commands()
     reconnect_mod.register_commands()
     antiafk.register_commands()
-    telegram.register_commands()
 
     lua_thread.create(auth.chatlog_parser_thread)
     lua_thread.create(timer_render_thread)
@@ -939,9 +932,6 @@ function main()
         end
     end)
 
-    if s.tg_enabled then
-        lua_thread.create(telegram.poll_thread)
-    end
 
     -- Health/Armor monitoring thread
     lua_thread.create(function()
@@ -1028,8 +1018,6 @@ function register_commands()
         AL.chat_msg("Reconnecting: " .. (s.is_reconnecting and "{FF3333}YES" or "{33FF33}NO"))
         AL.chat_msg("Reconnect attempts: " .. tostring(s.reconnect_attempt_count))
         AL.chat_msg("Anti-AFK: " .. (s.mafk_active and "{33FF33}ON" or "{FF3333}OFF"))
-        AL.chat_msg("Telegram: " .. (s.tg_enabled and "{33FF33}ON" or "{FF3333}OFF"))
-        AL.chat_msg("Discord: " .. (#s.discord_webhook > 0 and "{33FF33}Set" or "{FF3333}Not set"))
         AL.chat_msg("Admin names: " .. (#s.admin_names > 0 and table.concat(s.admin_names, ", ") or "none"))
         if s.queue_detected then
             AL.chat_msg("Queue: pos=" .. tostring(s.queue_position) .. " eta=" .. tostring(s.queue_eta) .. "min total=" .. tostring(s.queue_total))
@@ -1097,39 +1085,6 @@ function register_commands()
         else
             AL.chat_msg("{FF3333}Unknown profile or command")
         end
-    end)
-
-    sampRegisterChatCommand("dwebhook", function(arg)
-        local s = AL.state
-        if not arg or #arg == 0 then
-            AL.chat_msg("Usage: /dwebhook <url> - Set Discord webhook")
-            AL.chat_msg("       /dwebhook test - Test webhook")
-            AL.chat_msg("       /dwebhook clear - Clear webhook")
-            return
-        end
-        
-        if arg == "test" then
-            if #s.discord_webhook > 0 then
-                local telegram = require("AutoLoginByYaroRage.telegram")
-                local ok = telegram.discord_send(s.discord_webhook, "Test from AutoLoginByYaroRage", {{title="Test", description="Discord webhook working!", color=3447003}})
-                AL.chat_msg(ok and "{33FF33}Discord test sent!" or "{FF3333}Failed to send test")
-            else
-                AL.chat_msg("{FF3333}No webhook set")
-            end
-        elseif arg == "clear" then
-            s.discord_webhook = ""
-            config.save()
-            AL.chat_msg("{33FF33}Discord webhook cleared")
-        else
-            s.discord_webhook = arg
-            config.save()
-            AL.chat_msg("{33FF33}Discord webhook set")
-        end
-    end)
-
-    sampRegisterChatCommand("dstatus", function()
-        local s = AL.state
-        AL.chat_msg("Discord: " .. (#s.discord_webhook > 0 and "{33FF33}Set" or "{FF3333}Not set"))
     end)
 
     sampRegisterChatCommand("adminshot", function(arg)
@@ -1249,14 +1204,6 @@ function register_commands()
         AL.chat_msg("/autostart - Toggle auto-restart")
         AL.chat_msg("/rec <sec> - Fast reconnect")
         AL.chat_msg("/fastrec - Toggle fast reconnect patch")
-        AL.chat_msg("/tg <token> <chat_id> - Setup Telegram")
-        AL.chat_msg("/tgadmin <name> - Add/remove admin")
-        AL.chat_msg("/tgstatus - Telegram status")
-        AL.chat_msg("/tgtest - Test Telegram")
-        AL.chat_msg("/dwebhook <url> - Set Discord webhook")
-        AL.chat_msg("/dwebhook test - Test Discord webhook")
-        AL.chat_msg("/dwebhook clear - Clear Discord webhook")
-        AL.chat_msg("/dstatus - Discord status")
         AL.chat_msg("/queue - Show queue info")
         AL.chat_msg("/adminshot [on|off] - Admin screenshot")
         AL.chat_msg("/autoheal [heal|armor|threshold <val>|armorthreshold <val>|cooldown <ms>] - Auto-heal/armor")

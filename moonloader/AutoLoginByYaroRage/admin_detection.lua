@@ -76,20 +76,6 @@ function M.handle_admin_kick(source_text, where)
         AL.log("Screenshot saved: " .. filename)
     end
     
-    -- Отправка в Telegram/Discord в отдельном потоке, чтобы HTTPS не блокировал игру
-    if s.tg_enabled or #s.discord_webhook > 0 then
-        local safe_text = source_text:gsub("<[^>]+>", ""):sub(1, 500)
-        lua_thread.create(function()
-            if s.tg_enabled then
-                local telegram = require("AutoLoginByYaroRage.telegram")
-                telegram.send_message("[Admin Detected] " .. safe_text)
-            end
-            if #s.discord_webhook > 0 then
-                local telegram = require("AutoLoginByYaroRage.telegram")
-                telegram.discord_send(s.discord_webhook, "Admin detected!", {{title="Admin Kick", description=source_text:sub(1, 1000), color=15158332}})
-            end
-        end)
-    end
     
     s.is_spawned = false
     local reconnect = require("AutoLoginByYaroRage.reconnect")

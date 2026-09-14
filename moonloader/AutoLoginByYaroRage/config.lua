@@ -10,8 +10,6 @@ local CONFIG_SCHEMA = {
     ScriptActive = { type = "boolean", default = true },
     AutoRestart = { type = "boolean", default = true },
     MafkEnabled = { type = "boolean", default = false },
-    TelegramBotToken = { type = "string", default = "", validate = function(v) return #v == 0 or v:match("^%d+:.+$") end },
-    TelegramChatId = { type = "string", default = "", validate = function(v) return #v == 0 or v:match("^%-?%d+$") end },
     AdminNames = { type = "string", default = "" },
     AdminColorPattern = { type = "string", default = "" },
     FastReconnectEnabled = { type = "boolean", default = true },
@@ -19,7 +17,6 @@ local CONFIG_SCHEMA = {
     CefDialogCloseTx = { type = "boolean", default = true },
     Profiles = { type = "string", default = "{}" }, -- JSON encoded profiles
     CurrentProfile = { type = "string", default = "default" },
-    DiscordWebhook = { type = "string", default = "", validate = function(v) return #v == 0 or v:match("^https://discord%.com/api/webhooks/") end },
     AutoSkipCutscenes = { type = "boolean", default = true },
     AutoSkipDialogs = { type = "boolean", default = true },
     SkipDialogDelay = { type = "number", default = 500 },

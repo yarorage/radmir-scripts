@@ -17,8 +17,6 @@ M.state = {
     profiles = {},
     current_profile = "default",
 
-    -- Discord Webhook
-    discord_webhook = "",
 
     -- State Machine: login/spawn states
     login_state = "IDLE",  -- IDLE, LOGGING_IN, WAITING_SPAWN, SPAWNED, RECONNECTING
@@ -99,13 +97,6 @@ M.state = {
     mafk_notify_until = 0,
     afk_mode = 0,
     auto_restart = true,
-
-    -- Telegram
-    tg_bot_token = "",
-    tg_chat_id = "",
-    tg_last_update_id = 0,
-    tg_enabled = false,
-    tg_last_send_time = 0,
 
     -- Админы
     admin_names = {},

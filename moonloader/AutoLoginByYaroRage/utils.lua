@@ -682,15 +682,6 @@ local function test_config_validation()
     
     -- Test string validation
     assert_equal(config.validate_and_cast("TestStr", "hello"), "hello", "String passthrough")
-    
-    -- Test telegram token validation
-    assert_equal(config.validate_and_cast("TelegramBotToken", "123:abc"), "123:abc", "Valid token format")
-    assert_equal(config.validate_and_cast("TelegramBotToken", "invalid"), "", "Invalid token format returns empty")
-    
-    -- Test telegram chat ID validation
-    assert_equal(config.validate_and_cast("TelegramChatId", "12345"), "12345", "Valid chat ID")
-    assert_equal(config.validate_and_cast("TelegramChatId", "-12345"), "-12345", "Valid negative chat ID")
-    assert_equal(config.validate_and_cast("TelegramChatId", "abc"), "", "Invalid chat ID")
 end
 
 -- Test state machine transitions

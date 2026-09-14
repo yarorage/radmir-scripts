@@ -5,7 +5,6 @@ local utils = require("AutoLoginByYaroRage.utils")
 local config = require("AutoLoginByYaroRage.config")
 local auth = require("AutoLoginByYaroRage.auth")
 local antiafk = require("AutoLoginByYaroRage.antiafk")
-local telegram = require("AutoLoginByYaroRage.telegram")
 local admin_det = require("AutoLoginByYaroRage.admin_detection")
 local M = {}
 
@@ -521,7 +520,7 @@ end
 
 -- ImGui Settings Menu
 local show_settings = false
-local settings_tabs = {"Автологин", "Anti-AFK", "Telegram", "Админы", "Реконнект", "Прочее"}
+local settings_tabs = {"Автологин", "Anti-AFK", "Админы", "Реконнект", "Прочее"}
 local current_tab = 1
 
 local function draw_settings_menu()
@@ -544,13 +543,11 @@ local function draw_settings_menu()
             draw_autologin_tab()
         elseif current_tab == 2 then -- Anti-AFK
             draw_antiafk_tab()
-        elseif current_tab == 3 then -- Telegram
-            draw_telegram_tab()
-        elseif current_tab == 4 then -- Админы
+        elseif current_tab == 3 then -- Админы
             draw_admins_tab()
-        elseif current_tab == 5 then -- Реконнект
+        elseif current_tab == 4 then -- Реконнект
             draw_reconnect_tab()
-        elseif current_tab == 6 then -- Прочее
+        elseif current_tab == 5 then -- Прочее
             draw_misc_tab()
         end
         
@@ -638,50 +635,6 @@ function draw_antiafk_tab()
     imgui.BulletText("11 - Только камера: вращение камеры без движения")
 end
 
-function draw_telegram_tab()
-    local s = AL.state
-    
-    imgui.Text("Telegram Bot")
-    imgui.Separator()
-    
-    local token = s.tg_bot_token or ""
-    local changed, new_token = imgui.InputText("Bot Token", token, 256, imgui.InputTextFlags.Password)
-    if changed then s.tg_bot_token = new_token end
-    
-    local chat_id = s.tg_chat_id or ""
-    changed, chat_id = imgui.InputText("Chat ID", chat_id, 64)
-    if changed then s.tg_chat_id = chat_id end
-    
-    if imgui.Button("Сохранить и подключить", imgui.ImVec2(sc(200), sc(25))) then
-        if #s.tg_bot_token > 0 and #s.tg_chat_id > 0 then
-            s.tg_enabled = true
-            telegram.send_message("Автологин подключён!")
-            AL.chat_msg("{33FF33}Telegram подключён!")
-        else
-            AL.chat_msg("{FF3333}Введите токен и Chat ID")
-        end
-    end
-    imgui.SameLine()
-    if imgui.Button("Тест", imgui.ImVec2(sc(80), sc(25))) then
-        telegram.send_message("Тестовое сообщение: " .. os.date("%H:%M:%S"))
-    end
-    
-    imgui.Spacing()
-    changed, new_val = imgui.Checkbox("Уведомления об админах", s.tg_enabled and true or false)
-    -- handled above
-    
-    if s.tg_enabled then
-        imgui.TextColored(imgui.ImVec4(0.2, 1, 0.2, 1), "Статус: Подключено")
-    else
-        imgui.TextColored(imgui.ImVec4(1, 0.2, 0.2, 1), "Статус: Отключено")
-    end
-    
-    imgui.Spacing()
-    imgui.Text("Известные админы:")
-    for i, name in ipairs(s.admin_names) do
-        imgui.BulletText(name)
-    end
-end
 
 function draw_admins_tab()
     local s = AL.state
@@ -759,9 +712,6 @@ function draw_misc_tab()
             s.script_active = true
             s.auto_restart = true
             s.mafk_active = false
-            s.tg_bot_token = ""
-            s.tg_chat_id = ""
-            s.tg_enabled = false
             s.admin_names = {}
             s.admin_color_pattern = ""
             s.fast_reconnect_enabled = true
