@@ -813,7 +813,7 @@ function main()
                 end
 
                 -- Кандидаты для аима (если прицеливаемся)
-                if (Les.Aim.v and isAnimal) or (Les.AimPlayers.v and isPlayer) then
+                if ((Les.Aim.v and isAnimal) or (Les.AimPlayers.v and isPlayer)) and okScreen and okHead then
                     table.insert(aimCandidates, {
                         handle = value, isAnimal = isAnimal, isPlayer = isPlayer,
                         posX = posX, posY = posY, posZ = posZ,
@@ -1012,55 +1012,57 @@ function main()
         -- Для рандомизации задержки
         if not Les._aimLastShot then Les._aimLastShot = 0 end
 
-        if aiming and (aimAnimals or aimPlayers) then
-            local width, heigth = getScreenResolution()
-            local fov = getCameraFov() * 0.0174530
-            local coeficent = width / fov
-            -- FOV круга из настроек
-            local distance = (aimFOV * 0.0174530) * coeficent
-            local width_crosshair, heigth_crosshair = convertGameScreenCoordsToWindowScreenCoords(339.1, 179.1)
-
-            -- Рендер FOV круга прицела
-            renderDrawBoxWithBorder(width_crosshair-(distance/2), heigth_crosshair-(distance/2), distance, distance, nil, 2, 0xFF5AE053)
-
-            local candidates = {}
-            local maxScreenDist = 0
-            local max3DDist = 0
-
-            -- Используем предсобранных кандидатов
-            for _, c in ipairs(aimCandidates) do
-                local isAn = c.isAnimal
-                local isPl = c.isPlayer
-                if (aimAnimals and isAn) or (aimPlayers and isPl) then
-                    local wposX, wposY = c.headScreenX, c.headScreenY
-                    local inBox = (wposX > width_crosshair - distance/2 and wposX < width_crosshair + distance/2 and wposY > heigth_crosshair - distance/2 and wposY < heigth_crosshair + distance/2)
-                    if inBox then
-                        -- Проверка видимости (Line of Sight)
-                        local canSee = true
-                        if visibleCheck then
-                            local px, py, pz = getCharCoordinates(playerPed)
-                            local tx, ty, tz = c.posX, c.posY, c.posZ
-                            canSee = isLineOfSightClear(px, py, pz, tx, ty, tz, true, false, false, true, false, false, false)
-                        end
-                        if canSee then
-                            local screenDist = math.sqrt((wposX - width_crosshair)^2 + (wposY - heigth_crosshair)^2)
-                            local dist3D = c.dist
-                            table.insert(candidates, {c.handle, screenDist, dist3D, c.headX, c.headY, c.headZ})
-                            if screenDist > maxScreenDist then maxScreenDist = screenDist end
-                            if dist3D > max3DDist then max3DDist = dist3D end
+        if Les.AimHandle == nil then
+            if aiming and (aimAnimals or aimPlayers) then
+                local width, heigth = getScreenResolution()
+                local fov = getCameraFov() * 0.0174530
+                local coeficent = width / fov
+                -- FOV круга из настроек
+                local distance = (aimFOV * 0.0174530) * coeficent
+                local width_crosshair, heigth_crosshair = convertGameScreenCoordsToWindowScreenCoords(339.1, 179.1)
+    
+                -- Рендер FOV круга прицела
+                renderDrawBoxWithBorder(width_crosshair-(distance/2), heigth_crosshair-(distance/2), distance, distance, nil, 2, 0xFF5AE053)
+    
+                local candidates = {}
+                local maxScreenDist = 0
+                local max3DDist = 0
+    
+                -- Используем предсобранных кандидатов
+                for _, c in ipairs(aimCandidates) do
+                    local isAn = c.isAnimal
+                    local isPl = c.isPlayer
+                    if (aimAnimals and isAn) or (aimPlayers and isPl) then
+                        local wposX, wposY = c.headScreenX, c.headScreenY
+                        local inBox = (wposX > width_crosshair - distance/2 and wposX < width_crosshair + distance/2 and wposY > heigth_crosshair - distance/2 and wposY < heigth_crosshair + distance/2)
+                        if inBox then
+                            -- Проверка видимости (Line of Sight)
+                            local canSee = true
+                            if visibleCheck then
+                                local px, py, pz = getCharCoordinates(playerPed)
+                                local tx, ty, tz = c.posX, c.posY, c.posZ
+                                canSee = isLineOfSightClear(px, py, pz, tx, ty, tz, true, false, false, true, false, false, false)
+                            end
+                            if canSee then
+                                local screenDist = math.sqrt((wposX - width_crosshair)^2 + (wposY - heigth_crosshair)^2)
+                                local dist3D = c.dist
+                                table.insert(candidates, {c.handle, screenDist, dist3D, c.headX, c.headY, c.headZ})
+                                if screenDist > maxScreenDist then maxScreenDist = screenDist end
+                                if dist3D > max3DDist then max3DDist = dist3D end
+                            end
                         end
                     end
                 end
-            end
-
-            local bestScore = math.huge
-            for _, cand in ipairs(candidates) do
-                local scrNorm = (maxScreenDist > 0) and (cand[2] / maxScreenDist) or 0
-                local distNorm = (max3DDist > 0) and (cand[3] / max3DDist) or 0
-                local score = scrNorm + distNorm
-                if score < bestScore then
-                    bestScore = score
-                    Les.AimHandle = cand[1]
+    
+                local bestScore = math.huge
+                for _, cand in ipairs(candidates) do
+                    local scrNorm = (maxScreenDist > 0) and (cand[2] / maxScreenDist) or 0
+                    local distNorm = (max3DDist > 0) and (cand[3] / max3DDist) or 0
+                    local score = scrNorm + distNorm
+                    if score < bestScore then
+                        bestScore = score
+                        Les.AimHandle = cand[1]
+                    end
                 end
             end
         elseif aiming and (Les.AimHandle ~= nil) then
