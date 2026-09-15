@@ -123,7 +123,7 @@ M.state = {
 
     -- Дистанция рейкаста
     RAYCAST_DISTANCE = 6.0,
-    RAYCAST_ANGLE_OFFSET = math.pi / 4,
+    RAYCAST_ANGLE_OFFSET = 45,
     AFK_STOP_DISTANCE = 3.0,
     AFK_MOVE_AMOUNT = 128,
     AFK_TURN_TOLERANCE = 6,

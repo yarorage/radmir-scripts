@@ -6,6 +6,10 @@ local M = {}
 -- Safe bitstream helper with guaranteed cleanup
 local function safe_bitstream(bytes, handler)
     local bs = raknetNewBitStream()
+    if not bs or bs == 0 then
+        AL.log("Ошибка bitstream: raknetNewBitStream вернул nil")
+        return false
+    end
     local ok, err = pcall(function()
         for i = 1, #bytes do
             raknetBitStreamWriteInt8(bs, bytes[i])
@@ -265,21 +269,16 @@ start_reconnect_watch = function()
     s.reconnect_watch_start_time = os.clock()
     AL.log("Наблюдатель: ожидание входа (20/35 сек)")
 
-    local ok, err = pcall(function()
-        local start_time = os.clock()
-        while true do
-            local deadline = (s.saw_loading_after_rec and 35) or 20
-            if os.clock() - start_time >= deadline then break end
-            wait(500)
-            -- Пауза таймера при активном диалоге восстановления позиции
-            if s.restore_active then
-                start_time = os.clock()
-            end
-            if not s.reconnect_watch_active then return end
+    local start_time = os.clock()
+    while true do
+        local deadline = (s.saw_loading_after_rec and 35) or 20
+        if os.clock() - start_time >= deadline then break end
+        wait(500)
+        -- Пауза таймера при активном диалоге восстановления позиции
+        if s.restore_active then
+            start_time = os.clock()
         end
-    end)
-    if not ok then
-        AL.log("Ошибка наблюдателя: " .. tostring(err))
+        if not s.reconnect_watch_active then return end
     end
 
     if s.saw_loading_after_rec or s.saw_queue_after_rec then

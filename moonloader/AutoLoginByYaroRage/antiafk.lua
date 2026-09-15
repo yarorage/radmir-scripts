@@ -82,7 +82,8 @@ end
 
 local function find_clear_direction(px, py, pz, heading)
     local s = AL.state
-    local offsets = {0, s.RAYCAST_ANGLE_OFFSET, -s.RAYCAST_ANGLE_OFFSET, math.pi/2, -math.pi/2, math.pi}
+    -- Смещения в градусах (heading в градусах)
+    local offsets = {0, s.RAYCAST_ANGLE_OFFSET, -s.RAYCAST_ANGLE_OFFSET, 90, -90, 180}
     for _, offset in ipairs(offsets) do
         if is_path_clear(px, py, pz, heading + offset, s.RAYCAST_DISTANCE) then
             return heading + offset

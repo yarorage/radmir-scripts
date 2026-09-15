@@ -565,7 +565,8 @@ function M.set_log_level(level)
         level = LOG_LEVELS[level:upper()] or 2
     end
     s.log_level = level
-    config.save()
+    local ok_cfg, cfg = pcall(require, "AutoLoginByYaroRage.config")
+    if ok_cfg and cfg then cfg.save() end
 end
 
 -- ==================== Unit Tests ====================
