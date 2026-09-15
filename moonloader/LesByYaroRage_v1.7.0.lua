@@ -1117,15 +1117,8 @@ function main()
                     local finalAz = az - fz
                     local finalFx = fx - ax
                     
-                    -- Сглаживание: интерполируем текущие углы к целевым
-                    local currentAz = safeReadFloat(0xB6F248) -- текущий pitch (вертикаль) камеры
-                    local currentFx = safeReadFloat(0xB6F258) -- текущий yaw (горизонталь) камеры
-                    if not currentAz then currentAz = finalAz end
-                    if not currentFx then currentFx = finalFx end
-                    
-                    local smoothFactor = 1.0 / math.max(smoothing, 1.0)
-                    finalAz = currentAz + (finalAz - currentAz) * smoothFactor
-                    finalFx = currentFx + (finalFx - currentFx) * smoothFactor
+                    -- Мгновенный довод камеры на цель (как в рабочем референсе):
+                    -- текущие углы не читаем, finalAz/finalFx применяются целиком каждый кадр
                     
                     -- Human-like рандомизация
                     if humanize then
