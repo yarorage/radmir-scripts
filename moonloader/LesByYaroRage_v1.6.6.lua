@@ -733,7 +733,6 @@ function main()
         local sw, sh = getScreenResolution()
         ensureEspScale()
         local playerX, playerY, playerZ = getCharCoordinates(playerPed)
-        local playerScreenX, playerScreenY = convert3DCoordsToScreen(playerX, playerY, playerZ)
 
         -- === ÎÄÈÍ ÏÐÎÕÎÄ ÏÎ ÂÑÅÌ ÏÅÐÑÎÍÀÆÀÌ ===
         local animals = {}      -- Æèâûå æèâîòíûå
@@ -743,6 +742,8 @@ function main()
         local needScan = Les.Wh.v or Les.WhPlayers.v or Les.LineAnimals.v or Les.LinePlayers.v
             or Les.LineCorpses.v or Les.HeadDot.v or Les.ShowDistance.v or Les.EspTush.v
             or Les.Clear.v or Les.Aim.v or Les.AimPlayers.v or Les.Triggerbot.v
+        local needHead = Les.LineAnimals.v or Les.LinePlayers.v or Les.LineCorpses.v
+            or Les.HeadDot.v or Les.EspTush.v or Les.Aim.v or Les.AimPlayers.v or Les.Triggerbot.v
 
         if needScan then
         for _, value in pairs(getAllChars()) do
@@ -752,8 +753,11 @@ function main()
                 local _X, _Y = convert3DCoordsToScreen(posX, posY, posZ)
                 local dist = math.sqrt((posX - playerX)^2 + (posY - playerY)^2 + (posZ - playerZ)^2)
                 local health = getCharHealth(value)
-                local hx, hy, hz = GetBodyPartCoordinates(8, value)
-                local hxx, hyy = convert3DCoordsToScreen(hx, hy, hz)
+                local hx, hy, hz
+                if needHead then
+                    hx, hy, hz = GetBodyPartCoordinates(8, value)
+                end
+                local hxx, hyy = hx and convert3DCoordsToScreen(hx, hy, hz) or nil
 
                 local isAnimal = (modelid == MODEL_DEER or modelid == MODEL_BEAR)
                 local isPlayer = false
@@ -949,7 +953,9 @@ function main()
                         state.lastMoveTime = now
                     else
                         if now - state.lastMoveTime >= 20 then
-                            deleteChar(a.handle)
+                            if doesCharExist(a.handle) then
+                                pcall(deleteChar, a.handle)
+                            end
                             animalLastState[a.handle] = nil
                         end
                     end
