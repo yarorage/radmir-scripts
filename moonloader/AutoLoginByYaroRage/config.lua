@@ -130,6 +130,8 @@ function M.load()
                 s.current_profile = validated
             elseif key == "CefDialogCloseTx" then
                 s.cef_dialog_close_tx = validated
+            elseif key == "MafkEnabled" then
+                s.mafk_active = validated
             else
                 s[key:lower()] = validated
             end
@@ -143,6 +145,8 @@ function M.load()
                 s.current_profile = schema.default
             elseif key == "CefDialogCloseTx" then
                 s.cef_dialog_close_tx = schema.default
+            elseif key == "MafkEnabled" then
+                s.mafk_active = false
             else
                 s[key:lower()] = schema.default
             end
@@ -201,6 +205,8 @@ function M.save()
             val = s.current_profile
         elseif key == "CefDialogCloseTx" then
             val = s.cef_dialog_close_tx
+        elseif key == "MafkEnabled" then
+            val = s.mafk_active
         else
             val = s[key:lower()]
         end
