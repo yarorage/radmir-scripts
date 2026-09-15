@@ -595,7 +595,9 @@ function main()
     applyConfig(cfg)
 
     -- Создаём кликер AutoY с настройками из конфига
-    Les.AutoY_Clicker = Clicker:new(vkeys.VK_Y, cfg.AutoY_Sleep or 600, cfg.AutoY_DownTime or 300)
+    waitWaitClickY.v = cfg.AutoY_Sleep or 600
+    waitDownClickY.v = cfg.AutoY_DownTime or 300
+    Les.AutoY_Clicker = Clicker:new(vkeys.VK_Y, waitWaitClickY.v, waitDownClickY.v)
 
     sampRegisterChatCommand("les", imgui_Menu_windowState)
     sampRegisterChatCommand("lesr", function()
@@ -716,6 +718,9 @@ function main()
 
     -- Применяем очистку листвы при старте, если включена
     if Les.ClearFol.v then
+        Les.FolApplied = true
+        Les.FolTimer = os.clock()
+        Les.FolBldTimer = 0
         pcall(applyFoliageClear)
     end
 
@@ -904,16 +909,13 @@ function main()
             -- Игроки
             for _, p in ipairs(players) do
                 if p.okScreen and (Les.DistPlayers.v <= 0 or p.dist <= Les.DistPlayers.v) then
-                    if Les.WhPlayers.v then
-                        renderFontDrawText(font_whGreen, p.nick or "Игрок", p.screenX, p.screenY, 0xFF00CCFF)
-                    end
                     if Les.LinePlayers.v and not shouldRenderAimExtras and p.okHead then
                         renderDrawLine(sw/2, sh/2, p.headX, p.headY, 1.0, 0xFF00CCFF)
                     end
                     if Les.HeadDot.v and p.okHead then
                         renderDrawBoxWithBorder(p.headX, p.headY, 3, 3, 0xFF00FF00, 1, 0xFF00FF00)
                     end
-                    if Les.ShowDistance.v and Les.WhPlayers.v then
+                    if Les.ShowDistance.v and Les.WhPlayers.v and not Les.PlayerShowDistance.v then
                         renderFontDrawText(font_whGreen, string.format("%.0f м", p.dist), p.screenX, p.screenY - uiScaled(10), 0xFFFFFFFF)
                     end
                 end
