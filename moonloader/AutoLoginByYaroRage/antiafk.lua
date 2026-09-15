@@ -141,9 +141,6 @@ local function hold_run(duration, backwards, heading_deg)
     local off = backwards and OFF_BACKWARD or OFF_FORWARD
     local tolerance = s.AFK_TURN_TOLERANCE or 6
     local turn_speed = s.AFK_TURN_SPEED or 3
-    -- Ќепрерывна€ медленна€ ходьба с редкими короткими паузами
-    local walk_left = math.random(150, 240)
-    local rest_left = 0
     local blocked = false
     local last_px, last_py = getCharCoordinates(PLAYER_PED)
     local move_counter = 0
@@ -168,32 +165,24 @@ local function hold_run(duration, backwards, heading_deg)
             end
             pcall(setCameraBehindPlayer)
         end
-        -- —принт не используем, только медленна€ ходьба
-        if rest_left > 0 then
-            writeMemory(CONTROL_BASE + off, 1, 0, true)
-            rest_left = rest_left - 1
-            if rest_left == 0 then walk_left = math.random(150, 240) end
-        else
-            writeMemory(CONTROL_BASE + off, 1, s.AFK_MOVE_AMOUNT or 128, true)
-            walk_left = walk_left - 1
-            move_counter = move_counter + 1
-            if walk_left == 0 then rest_left = math.random(20, 35) end
-            -- ЌадЄжный детектор упора: лишь два окна подр€д без продвижени€
-            -- (~1 секунда полной остановки) считаютс€ преп€тствием
-            if move_counter >= 25 then
-                move_counter = 0
-                local cx, cy = getCharCoordinates(PLAYER_PED)
-                local still = not cx or math.abs(cx - last_px) + math.abs(cy - last_py) < 0.08
-                last_px, last_py = cx, cy
-                if still then
-                    still_windows = still_windows + 1
-                else
-                    still_windows = 0
-                end
-                if still_windows >= 2 then
-                    blocked = true
-                    break
-                end
+        -- —принт не используем, только медленна€ ходьба без остановок
+        writeMemory(CONTROL_BASE + off, 1, s.AFK_MOVE_AMOUNT or 128, true)
+        move_counter = move_counter + 1
+        -- ЌадЄжный детектор упора: лишь два окна подр€д без продвижени€
+        -- (~1 секунда полной остановки) считаютс€ преп€тствием
+        if move_counter >= 25 then
+            move_counter = 0
+            local cx, cy = getCharCoordinates(PLAYER_PED)
+            local still = not cx or math.abs(cx - last_px) + math.abs(cy - last_py) < 0.08
+            last_px, last_py = cx, cy
+            if still then
+                still_windows = still_windows + 1
+            else
+                still_windows = 0
+            end
+            if still_windows >= 2 then
+                blocked = true
+                break
             end
         end
         writeMemory(CONTROL_BASE + OFF_SPRINT, 1, 0, true)
@@ -208,6 +197,20 @@ local function hold_run(duration, backwards, heading_deg)
     end)
     return not blocked
 end
+
+-- ƒлинна€ естественна€ пауза: стоим на месте от 1 до 20 секунд
+local function human_pause()
+    local s = AL.state
+    local ms = math.random(1000, 20000)
+    local waited = 0
+    while waited < ms do
+        if not s.mafk_active then return end
+        if not doesCharExist(PLAYER_PED) then return end
+        wait(500)
+        waited = waited + 500
+    end
+end
+
 function M.anti_afk_thread()
     local s = AL.state
 
@@ -265,6 +268,11 @@ function M.anti_afk_thread()
                     wait(80)
                     writeMemory(CONTROL_BASE + 0x19, 1, 0, true)
                 end
+            end
+
+            -- ƒлинна€ пауза: стоит на месте 1-20 сек, затем снова забег
+            if math.random(1, 100) <= 40 then
+                human_pause()
             end
         end)
 
