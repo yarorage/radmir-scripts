@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.8.8")
+script_version("0.8.9")
 --==================================[ Õ¿—“–Œ… » ◊»“¿ ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -43,10 +43,10 @@ local function sampIsPlayerConnected(id)
     return _sampSafe_origIsConn(id)
 end
 local function sampGetCharHandleBySampPlayerId(id)
-    if not isSampAvailable() then return 0 end
-    local ok, h = pcall(_sampSafe_origSampChar, id)
-    if not ok then return 0 end
-    return h
+    if not isSampAvailable() then return false, 0 end
+    local ok, a, b = pcall(_sampSafe_origSampChar, id)
+    if not ok then return false, 0 end
+    return a, b
 end
 local function sampGetCarHandleBySampVehicleId(id)
     if not isSampAvailable() then return 0 end
@@ -1869,9 +1869,11 @@ function GetNearestPed(fov)
     for i = 0, sampGetMaxPlayerId(true) do
         if sampIsPlayerConnected(i) then
             local find, handle = sampGetCharHandleBySampPlayerId(i)
-            if find then
-                if isCharOnScreen(handle) then
-                    if not isCharDead(handle) then
+            if find and handle then
+                local okOn, onScreen = pcall(isCharOnScreen, handle)
+                if okOn and onScreen then
+                    local okDead, dead = pcall(isCharDead, handle)
+                    if okDead and not dead then
                         local _, currentID = sampGetPlayerIdByCharHandle(PLAYER_PED)
                         local boneEn = GetBodyPartCoordinates(aiming, handle)
                         if boneEn then
