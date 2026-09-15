@@ -111,8 +111,18 @@ end
 -- Плавный поворот персонажа к целевому углу через setCharHeading
 -- Плавный поворот как мышкой: интерполяция с ease-in-out.
 -- Персонаж разгоняется в начале, плавно замедляется у цели, без рывков.
+-- Перед каждым поворотом стоит на месте 1-5 секунд, как живой человек.
 local function turn_towards(target)
     local s = AL.state
+    -- Небольшая пауза перед поворотом (1-5 секунд)
+    local pause_ms = math.random(1000, 5000)
+    local waited = 0
+    while waited < pause_ms do
+        if not s.mafk_active then return end
+        if not doesCharExist(PLAYER_PED) then return end
+        wait(250)
+        waited = waited + 250
+    end
     local tolerance = s.AFK_TURN_TOLERANCE or 6
     local heading = getCharHeading(PLAYER_PED)
     if not heading then return end
@@ -123,7 +133,7 @@ local function turn_towards(target)
     end
     -- Число кадров пропорционально углу, чтобы скорость была похожа на мышь
     local total = math.abs(dd)
-    local steps = math.max(15, math.min(160, math.floor(total * 0.6)))
+    local steps = math.max(30, math.min(200, math.floor(total * 1.2)))
     local start_heading = heading
     for i = 1, steps do
         if not s.mafk_active then return end
@@ -147,7 +157,7 @@ local function hold_run(duration, backwards, heading_deg)
     local s = AL.state
     local off = backwards and OFF_BACKWARD or OFF_FORWARD
     local tolerance = s.AFK_TURN_TOLERANCE or 6
-    local turn_speed = s.AFK_TURN_SPEED or 1.2
+    local turn_speed = s.AFK_TURN_SPEED or 1.0
     local blocked = false
     local last_px, last_py = getCharCoordinates(PLAYER_PED)
     local move_counter = 0
