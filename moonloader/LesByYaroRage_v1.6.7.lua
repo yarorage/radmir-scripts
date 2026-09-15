@@ -728,6 +728,7 @@ function main()
         wait(0)
 
         if isSampAvailable() then
+        local _frameOk, _frameErr = pcall(function()
 
         -- Кэшируем часто используемые данные
         local sw, sh = getScreenResolution()
@@ -1178,6 +1179,18 @@ function main()
             imgui.ShowCursor = false
         else
             imgui.ShowCursor = true
+        end
+        end)
+        if not _frameOk then
+            if _frameErr ~= Les.frameErrLast then
+                Les.frameErrLast = _frameErr
+                print("[Les] Ошибка кадра: " .. tostring(_frameErr))
+                local _dbgF = io.open("moonloader\\les_dbg.txt", "a")
+                if _dbgF then
+                    _dbgF:write(os.date("%Y-%m-%d %H:%M:%S") .. " #LesFrameError: " .. tostring(_frameErr) .. "\n")
+                    _dbgF:close()
+                end
+            end
         end
         end
     end
