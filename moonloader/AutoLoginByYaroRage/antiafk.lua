@@ -109,27 +109,34 @@ local function generate_afk_route(template)
 end
 
 -- Плавный поворот персонажа к целевому углу через setCharHeading
+-- Плавный поворот как мышкой: интерполяция с ease-in-out.
+-- Персонаж разгоняется в начале, плавно замедляется у цели, без рывков.
 local function turn_towards(target)
     local s = AL.state
     local tolerance = s.AFK_TURN_TOLERANCE or 6
-    local max_steps = 90
-    local speed = 1.0
-    for _ = 1, max_steps do
+    local heading = getCharHeading(PLAYER_PED)
+    if not heading then return end
+    local dd = angle_diff(heading, target)
+    if math.abs(dd) <= tolerance then
+        set_forced_heading(target)
+        return
+    end
+    -- Число кадров пропорционально углу, чтобы скорость была похожа на мышь
+    local total = math.abs(dd)
+    local steps = math.max(15, math.min(160, math.floor(total * 0.6)))
+    local start_heading = heading
+    for i = 1, steps do
         if not s.mafk_active then return end
         if not doesCharExist(PLAYER_PED) then return end
-        local heading = getCharHeading(PLAYER_PED)
-        if not heading then return end
-        local dist = math.abs(angle_diff(heading, target))
-        if dist <= tolerance then return end
-        -- Разгон поворота, как у живого человека
-        speed = math.min(s.AFK_TURN_SPEED or 4, speed + 0.4)
-        local step = math.min(dist, speed)
-        local dir = angle_diff(heading, target) > 0 and 1 or -1
-        local next_heading = normalize_angle(heading + dir * step)
+        -- smoothstep: медленный старт, плавное ускорение и замедление в конце
+        local p = i / steps
+        local eased = p * p * (3 - 2 * p)
+        local next_heading = normalize_angle(start_heading + dd * eased)
         pcall(setCharHeading, PLAYER_PED, next_heading)
         set_forced_heading(next_heading)
         wait(0)
     end
+    set_forced_heading(target)
 end
 
 -- Движение вперёд: записываем 255 в контрол-блок НА КАЖДОМ КАДРЕ (wait 0),
@@ -140,7 +147,7 @@ local function hold_run(duration, backwards, heading_deg)
     local s = AL.state
     local off = backwards and OFF_BACKWARD or OFF_FORWARD
     local tolerance = s.AFK_TURN_TOLERANCE or 6
-    local turn_speed = s.AFK_TURN_SPEED or 3
+    local turn_speed = s.AFK_TURN_SPEED or 1.2
     local blocked = false
     local last_px, last_py = getCharCoordinates(PLAYER_PED)
     local move_counter = 0
