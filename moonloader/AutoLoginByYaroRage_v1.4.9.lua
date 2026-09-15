@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.4.8")
+script_version("1.4.9")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -618,8 +618,8 @@ function onReceivePacket(id, bs)
 end
 
 function onWindowMessage(msg, wparam, lparam)
-    if (msg == 0x0100 or msg == 0x0104) and wparam == 0x7A then
-        reconnect_mod._internal.mark_manual_reconnect("F11", 3)
+    if (msg == 0x0100 or msg == 0x0104) and wparam == 0x7A and bit.band(lparam, 0x20000000) ~= 0 then
+        reconnect_mod._internal.mark_manual_reconnect("Alt+F11", 3)
     end
 
     -- Кнопка «Изменить» в таймере восстановления позиции

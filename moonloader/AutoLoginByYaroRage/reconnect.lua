@@ -155,10 +155,14 @@ function M.handle_auth_limit_cef()
         AL.log("handle_auth_limit_cef: THNT_OnInterfaceDisappear ok=" .. tostring(ok2))
         wait(400)
         if not s.is_spawned and not s.is_reconnecting and not s.login_submitted then
-            AL.log("handle_auth_limit_cef: CEF-пакет не закрыл окно -> запасной F11 (/rec)")
+            AL.log("handle_auth_limit_cef: CEF-пакет не закрыл окно -> запасной Alt+F11 (/rec)")
+            user32.keybd_event(0x12, 0, 0, 0)
+            wait(50)
             user32.keybd_event(0x7A, 0, 0, 0)
             wait(50)
             user32.keybd_event(0x7A, 0, 2, 0)
+            wait(50)
+            user32.keybd_event(0x12, 0, 2, 0)
         end
         s.cef_limit_seen = false
         AL.log("handle_auth_limit_cef: завершено")
