@@ -141,12 +141,13 @@ local function hold_run(duration, backwards, heading_deg)
     local off = backwards and OFF_BACKWARD or OFF_FORWARD
     local tolerance = s.AFK_TURN_TOLERANCE or 6
     local turn_speed = s.AFK_TURN_SPEED or 3
-    -- Медленная ходьба рывками: идём, потом пауза (как живой человек)
-    local move_left = math.random(30, 45)
+    -- Непрерывная медленная ходьба с редкими короткими паузами
+    local walk_left = math.random(150, 240)
     local rest_left = 0
     local blocked = false
     local last_px, last_py = getCharCoordinates(PLAYER_PED)
     local move_counter = 0
+    local still_windows = 0
     local elapsed = 0
     while elapsed < duration do
         if not s.mafk_active then break end
@@ -167,25 +168,32 @@ local function hold_run(duration, backwards, heading_deg)
             end
             pcall(setCameraBehindPlayer)
         end
-        -- Спринт не используем вообще, только медленная ходьба
+        -- Спринт не используем, только медленная ходьба
         if rest_left > 0 then
             writeMemory(CONTROL_BASE + off, 1, 0, true)
             rest_left = rest_left - 1
-            if rest_left == 0 then move_left = math.random(30, 45) end
+            if rest_left == 0 then walk_left = math.random(150, 240) end
         else
             writeMemory(CONTROL_BASE + off, 1, s.AFK_MOVE_AMOUNT or 128, true)
-            move_left = move_left - 1
+            walk_left = walk_left - 1
             move_counter = move_counter + 1
-            if move_left == 0 then rest_left = math.random(25, 40) end
-            -- Проверка упора по фактическому продвижению за ~12 кадров бега
-            if move_counter >= 12 then
+            if walk_left == 0 then rest_left = math.random(20, 35) end
+            -- Надёжный детектор упора: лишь два окна подряд без продвижения
+            -- (~1 секунда полной остановки) считаются препятствием
+            if move_counter >= 25 then
                 move_counter = 0
                 local cx, cy = getCharCoordinates(PLAYER_PED)
-                if cx and math.abs(cx - last_px) + math.abs(cy - last_py) < 0.12 then
+                local still = not cx or math.abs(cx - last_px) + math.abs(cy - last_py) < 0.08
+                last_px, last_py = cx, cy
+                if still then
+                    still_windows = still_windows + 1
+                else
+                    still_windows = 0
+                end
+                if still_windows >= 2 then
                     blocked = true
                     break
                 end
-                last_px, last_py = cx, cy
             end
         end
         writeMemory(CONTROL_BASE + OFF_SPRINT, 1, 0, true)
@@ -200,7 +208,6 @@ local function hold_run(duration, backwards, heading_deg)
     end)
     return not blocked
 end
-
 function M.anti_afk_thread()
     local s = AL.state
 

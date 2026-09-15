@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.4.0")
+script_version("1.4.1")
 
 require 'moonloader'
 local ffi = require('ffi')
