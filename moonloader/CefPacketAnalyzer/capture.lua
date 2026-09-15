@@ -120,6 +120,32 @@ local function decodeBody(rawStr)
     return table.concat(parts)
 end
 
+-- Обрезка строки до n байт без разрыва UTF-8-символа на границе:
+-- обрезанная строка не должна оканчиваться серединой многобайтного символа,
+-- иначе в JSON/HTML отчёты попадут битые байты.
+local function subUtf8(s, n)
+    if #s <= n then
+        return s
+    end
+    local cut = s:sub(1, n)
+    local b = s:byte(n)
+    if b and b >= 0x80 then
+        -- последний байт обрезки - часть многобайтного символа: откатываемся до начала
+        local i = n
+        while i > 1 do
+            local c = s:byte(i)
+            if c and c >= 0xC0 then
+                return s:sub(1, i - 1)
+            elseif c and c < 0x80 then
+                break
+            end
+            i = i - 1
+        end
+        return cut
+    end
+    return cut
+end
+
 -- Перевод произвольной строки (UTF-8 на входе движка) в строку без ломаных байт
 local function sanitizeUtf8(s)
     if not s then return "" end
@@ -277,6 +303,20 @@ local pendingTail = 1
 local pendingCount = 0
 local PENDING_CAP = 2000
 
+-- Кэш текущей даты/времени. os.date вызывается на каждый содержательный
+-- пакет в сетевом хуке - это системный вызов, который при потоковом спаме
+-- пакетов нагружает игровой поток. Строка времени обновляется раз в секунду.
+local cachedTimeVal = 0
+local cachedDateStr = ""
+local function cachedDateTime()
+    local t = os.time()
+    if t ~= cachedTimeVal then
+        cachedTimeVal = t
+        cachedDateStr = os.date("%Y-%m-%d %H:%M:%S")
+    end
+    return t, cachedDateStr
+end
+
 -- Содержательные пакеты (id 215/61/62/200, серверные сообщения/тексты/диалоги
 -- или пакеты с текстовым телом) кладутся в очередь с минимумом полей.
 -- Здесь же вычисляется isText - дешёвый линейный проход по телу (без разбора).
@@ -340,10 +380,10 @@ local function processPending(budgetSec, maxCount)
 
         local isText = pend.isText or (#text >= (st.minTextRun or 6))
 
-        -- Ограничиваем тело
+        -- Ограничиваем тело (по границе UTF-8, чтобы не писать битые байты)
         local bodyForStore = text
         if #bodyForStore > st.maxBodyLen then
-            bodyForStore = bodyForStore:sub(1, st.maxBodyLen)
+            bodyForStore = subUtf8(bodyForStore, st.maxBodyLen)
         end
 
         local ctx = snapshotContext()
@@ -398,8 +438,14 @@ local function processPending(budgetSec, maxCount)
             record.bodyHex = table.concat(h)
         end
         if record.dir == "TX" and record.id == 215 and rawLen > 0 then
+            -- HEX тела TX 215 без ограничения раздувал бы агрегаты
+            -- (st.txHexList до 500 записей по 8КБ), а dkjson-кодирование
+            -- такого payload каждые ~10 минут в игровом потоке вызывало бы
+            -- заметный фриз. Первых 2048 байт достаточно: такие пакеты
+            -- почти всегда короткие команды интерфейса.
+            local hexLen = math.min(rawLen, 2048)
             local h = {}
-            for i = 1, rawLen do
+            for i = 1, hexLen do
                 h[i] = string.format("%02X", rawStr:byte(i) or 0)
             end
             record.bodyHex = table.concat(h)
@@ -464,9 +510,12 @@ local function processPending(budgetSec, maxCount)
         local uniqueKey = record.dedupKey or (dir .. "|" .. tostring(id) .. "|" .. (record.sig or ""))
         local te = st.typeSeen[uniqueKey]
         if not te then
-            te = { idx = #st.typeList + 1, n = 1 }
-            st.typeSeen[uniqueKey] = te
+            -- Список типов ограничен сверху (600). Когда он заполнен, новые
+            -- ключи в typeSeen не заводим, чтобы таблица-счётчик не росла
+            -- бесконечно за долгую сессию.
             if #st.typeList < 600 then
+                te = { idx = #st.typeList + 1, n = 1 }
+                st.typeSeen[uniqueKey] = te
                 table.insert(st.typeList, {
                     dir = dir,
                     id = id,
@@ -577,7 +626,8 @@ local function onCapture(dir, id, bs, extra)
     -- Самое дорогое (разбор + классификация + запись) не выполняется здесь,
     -- поэтому сетевой поток и фризы не связаны со скриптом.
     if isContent then
-        enqueuePending(st.seq, dir, id, bodyLen, totalBytes, rawStr, os.time(), os.date("%Y-%m-%d %H:%M:%S"), isText)
+        local tNow, dNow = cachedDateTime()
+        enqueuePending(st.seq, dir, id, bodyLen, totalBytes, rawStr, tNow, dNow, isText)
     end
 end
 

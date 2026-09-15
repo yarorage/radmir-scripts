@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.3",
     "launcherVersion":  "1.1.3",
-    "updatedAt":  "2026-09-15 14:02",
+    "updatedAt":  "2026-09-15 14:27",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -131,8 +131,8 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/CefPacketAnalyzer_v1.2.0.lua",
-                      "sha256":  "8501f2e265f7cdc0a402b22de85d3a427aa8433edb143c27ff6c884de75de441",
+                      "path":  "moonloader/CefPacketAnalyzer_v1.2.1.lua",
+                      "sha256":  "5997551a615a5be04d0d8fc297979e3570a2c85e2cd6e8bde81d9137798945af",
                       "size":  8512,
                       "dest":  "gameRoot"
                   },
@@ -234,8 +234,8 @@
                   },
                   {
                       "path":  "moonloader/CefPacketAnalyzer/capture.lua",
-                      "sha256":  "77313712a53469961bd267b0f700ed1d8cbd694fb7d69f8d853a6369d151fe75",
-                      "size":  22020,
+                      "sha256":  "6a94771baaf57451d9e7af954096ebd04868c46d3dd90226c08e52d76d5b090c",
+                      "size":  23910,
                       "dest":  "gameRoot"
                   },
                   {
@@ -264,13 +264,13 @@
                   },
                   {
                       "path":  "moonloader/CefPacketAnalyzer/state.lua",
-                      "sha256":  "9d9889dcc2383abf6f8001607c5b39f2ed543b097d92fc0876a8c8e4adfa847c",
-                      "size":  7061,
+                      "sha256":  "c52917e0ff34f0ba26048b561a98ee40d7ef534b43636a7df7403e78007e14ef",
+                      "size":  7215,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/CefPacketAnalyzer/upload.lua",
-                      "sha256":  "5bc84c71aed0cf6b43390806040bb08a9a22830bb332519971631a1ee5fb059b",
+                      "sha256":  "0c2cb047f849765274e44635a42f41916f65596cbadb20ea07bf47004a3a82fb",
                       "size":  9991,
                       "dest":  "gameRoot"
                   },

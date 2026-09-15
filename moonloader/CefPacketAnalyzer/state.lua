@@ -98,7 +98,9 @@ function M.chat(msg)
     -- и тогда кириллица превращалась в "????????". Ник из CEF (UTF-8) уже
     -- перекодируется в CP1251 в upload.statusText() перед подстановкой.
     if isSampAvailable and isSampAvailable() then
-        sampAddChatMessage("{66CCFF}[CefPkt]{FFFFFF} " .. msg, -1)
+        -- pcall: сбой вывода сообщения (например, из-за невалидных байтов в
+        -- подставляемом нике из CEF) не должен ронять поток скрипта.
+        pcall(sampAddChatMessage, "{66CCFF}[CefPkt]{FFFFFF} " .. msg, -1)
     end
 end
 
