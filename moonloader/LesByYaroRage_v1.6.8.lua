@@ -758,7 +758,10 @@ function main()
                 if needHead then
                     hx, hy, hz = GetBodyPartCoordinates(8, value)
                 end
-                local hxx, hyy = hx and convert3DCoordsToScreen(hx, hy, hz) or nil
+                local hxx, hyy
+                if hx then
+                    hxx, hyy = convert3DCoordsToScreen(hx, hy, hz)
+                end
 
                 local isAnimal = (modelid == MODEL_DEER or modelid == MODEL_BEAR)
                 local isPlayer = false
