@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.8.6")
+script_version("0.8.7")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -47,6 +47,16 @@ end
 local function sampGetCarHandleBySampVehicleId(id)
     if not isSampAvailable() then return 0 end
     return _sampSafe_origSampCar(id)
+end
+
+-- sampGetVehicleIdByCarHandle бросает исключение (опкод 0B2C), если кандидат
+-- ещё не зарегистрирован в пуле машин SAMP. Глобальная обёртка ловит ошибку
+-- и возвращает безопасный результат (не создаёт upvalue у mainLoop).
+function sampGetVehicleIdByCarHandleSafe(cvh)
+    if not isSampAvailable() then return false, 0 end
+    local ok, a, b = pcall(sampGetVehicleIdByCarHandle, cvh)
+    if not ok or not a then return false, 0 end
+    return a, b
 end
 
 local ywelcome         = require "ywelcome"
@@ -1000,7 +1010,7 @@ function saveCurrentCar()
     if veh == 0 then return end
     local model = getCarModel(veh)
     local saName = getNameOfVehicleModel(model) or ('ID:' .. model)
-    local okS, samid = sampGetVehicleIdByCarHandle(veh)
+    local okS, samid = sampGetVehicleIdByCarHandleSafe(veh)
     samid = okS and samid or 0
     local x, y, z = getCarCoordinates(veh)
     local name = okS and (saName .. ' #' .. samid) or saName
@@ -1154,7 +1164,7 @@ local function mainLoop()
 		if isCharInAnyCar(PLAYER_PED) then
 			local veh = getCarCharIsUsing(PLAYER_PED)
 			if veh ~= 0 then
-				local okS, samid = sampGetVehicleIdByCarHandle(veh)
+				local okS, samid = sampGetVehicleIdByCarHandleSafe(veh)
 				samid = okS and samid or 0
 				local vx, vy, vz = getCarCoordinates(veh)
 				if samid ~= 0 then
