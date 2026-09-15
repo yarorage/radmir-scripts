@@ -237,65 +237,64 @@ function M.anti_afk_thread()
         if not isSampAvailable() then goto continue end
         if not doesCharExist(PLAYER_PED) then goto continue end
 
-        local ok, err = pcall(function()
-            local route = generate_afk_route(s.afk_mode)
-            for _, step in ipairs(route) do
-                if not s.mafk_active then break end
-                if not doesCharExist(PLAYER_PED) then break end
+        -- pcall только дл€ расчЄтов без wait (нельз€ вызывать wait внутри pcall)
+        local ok_route, route = pcall(generate_afk_route, s.afk_mode)
+        if not ok_route or not route then
+            AL.chat_msg("{FF6600}[Anti-AFK]{FFFFFF} ќшибка маршрута: " .. tostring(route))
+            wait(3000)
+            goto continue
+        end
 
-                local px, py, pz = getCharCoordinates(PLAYER_PED)
-                if not px then break end
-                local heading = getCharHeading(PLAYER_PED)
+        for _, step in ipairs(route) do
+            if not s.mafk_active then break end
+            if not doesCharExist(PLAYER_PED) then break end
 
-                -- выбираем свободное направление и бежим туда
-                local target_heading = direction_to_heading(step.dx, step.dy)
-                local move_heading = target_heading
-                local target_clear = is_path_clear(px, py, pz, target_heading, s.RAYCAST_DISTANCE)
-                if target_clear then
-                    turn_towards(target_heading)
+            local px, py, pz = getCharCoordinates(PLAYER_PED)
+            if not px then break end
+
+            -- ¬ыбор целевого направлени€ (расчЄт без wait)
+            local target_heading = direction_to_heading(step.dx, step.dy)
+            local move_heading = target_heading
+            local clear_ok, target_clear = pcall(is_path_clear, px, py, pz, target_heading, s.RAYCAST_DISTANCE)
+            if clear_ok and target_clear then
+                turn_towards(target_heading)
+            else
+                local ok_dir, clear_heading = pcall(find_clear_direction, px, py, pz, target_heading)
+                if ok_dir and clear_heading then
+                    move_heading = clear_heading
+                    turn_towards(clear_heading)
                 else
-                    local clear_heading = find_clear_direction(px, py, pz, target_heading)
-                    if clear_heading then
-                        move_heading = clear_heading
-                        turn_towards(clear_heading)
-                    else
-                        local jitter_heading = normalize_angle(target_heading + 60 + math.random(0, 120))
-                        move_heading = jitter_heading
-                        turn_towards(jitter_heading)
-                        wait(100)
-                    end
-                end
-
-                local completed = hold_run(step.dur, false, move_heading)
-
-                if not completed then
-                    -- ”пЄрлись в преп€тствие, отходим в сторону по перпендикул€ру
-                    local h = getCharHeading(PLAYER_PED)
-                    if h then
-                        local side = math.random(1, 2) == 1 and 90 or -90
-                        local escape_heading = normalize_angle(h + side)
-                        turn_towards(escape_heading)
-                        hold_run(450, false, escape_heading)
-                        wait(150)
-                    end
-                end
-
-                if math.random(1, 10) <= 2 then
-                    writeMemory(CONTROL_BASE + 0x19, 1, 255, true)
-                    wait(80)
-                    writeMemory(CONTROL_BASE + 0x19, 1, 0, true)
+                    local jitter_heading = normalize_angle(target_heading + 60 + math.random(0, 120))
+                    move_heading = jitter_heading
+                    turn_towards(jitter_heading)
+                    wait(100)
                 end
             end
 
-            -- ƒлинна€ пауза: стоит на месте 1-20 сек, затем снова забег
-            if math.random(1, 100) <= 40 then
-                human_pause()
-            end
-        end)
+            local completed = hold_run(step.dur, false, move_heading)
 
-        if not ok and err then
-            AL.chat_msg("{FF6600}[Anti-AFK]{FFFFFF} ќшибка потока: " .. tostring(err))
-            wait(5000)
+            if not completed then
+                -- ”пЄрлись в преп€тствие, отходим в сторону по перпендикул€ру
+                local h = getCharHeading(PLAYER_PED)
+                if h then
+                    local side = math.random(1, 2) == 1 and 90 or -90
+                    local escape_heading = normalize_angle(h + side)
+                    turn_towards(escape_heading)
+                    hold_run(450, false, escape_heading)
+                    wait(150)
+                end
+            end
+
+            if math.random(1, 10) <= 2 then
+                writeMemory(CONTROL_BASE + 0x19, 1, 255, true)
+                wait(80)
+                writeMemory(CONTROL_BASE + 0x19, 1, 0, true)
+            end
+        end
+
+        -- ƒлинна€ пауза: стоит на месте 1-20 сек, затем снова забег
+        if math.random(1, 100) <= 40 then
+            human_pause()
         end
 
         ::continue::
