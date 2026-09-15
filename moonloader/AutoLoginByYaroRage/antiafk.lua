@@ -139,27 +139,24 @@ end
 local function hold_run(duration, backwards, heading_deg)
     local s = AL.state
     local off = backwards and OFF_BACKWARD or OFF_FORWARD
-    -- Плавный доворот к цели и чередование спринта с шагом (выносливость)
     local tolerance = s.AFK_TURN_TOLERANCE or 6
     local turn_speed = s.AFK_TURN_SPEED or 3
-    -- Начинаем с короткого шага, затем спринт рывками
-    local walk_left = 20
-    local sprint_left = 0
-    -- Сохраняем позицию для контроля упора (проверка каждые ~15 кадров)
+    -- Медленная ходьба рывками: идём, потом пауза (как живой человек)
+    local move_left = math.random(30, 45)
+    local rest_left = 0
+    local blocked = false
     local last_px, last_py = getCharCoordinates(PLAYER_PED)
-    local check_counter = 0
+    local move_counter = 0
     local elapsed = 0
     while elapsed < duration do
         if not s.mafk_active then break end
         if not doesCharExist(PLAYER_PED) then break end
-        -- Как в char_goto: пишем heading + камеру за спиной каждый кадр,
-        -- иначе в GTA:SA бег идёт по направлению камеры, а не педа
+        -- Плавный доворот к цели во время движения
         if heading_deg then
             local cur = getCharHeading(PLAYER_PED)
             if cur then
                 local dd = angle_diff(cur, heading_deg)
                 if math.abs(dd) > tolerance then
-                    -- Плавно доворачиваем, чтобы не было резких скачков угла
                     local sp = math.min(math.abs(dd), turn_speed)
                     local next_h = normalize_angle(cur + (dd > 0 and 1 or -1) * sp)
                     pcall(setCharHeading, PLAYER_PED, next_h)
@@ -170,28 +167,30 @@ local function hold_run(duration, backwards, heading_deg)
             end
             pcall(setCameraBehindPlayer)
         end
-        writeMemory(CONTROL_BASE + off, 1, 255, true)
-        if walk_left > 0 then
-            walk_left = walk_left - 1
-            writeMemory(CONTROL_BASE + OFF_SPRINT, 1, 0, true)
-            if walk_left == 0 then sprint_left = math.random(70, 130) end
+        -- Спринт не используем вообще, только медленная ходьба
+        if rest_left > 0 then
+            writeMemory(CONTROL_BASE + off, 1, 0, true)
+            rest_left = rest_left - 1
+            if rest_left == 0 then move_left = math.random(30, 45) end
         else
-            sprint_left = sprint_left - 1
-            writeMemory(CONTROL_BASE + OFF_SPRINT, 1, 255, true)
-            if sprint_left == 0 then walk_left = math.random(50, 100) end
+            writeMemory(CONTROL_BASE + off, 1, s.AFK_MOVE_AMOUNT or 128, true)
+            move_left = move_left - 1
+            move_counter = move_counter + 1
+            if move_left == 0 then rest_left = math.random(25, 40) end
+            -- Проверка упора по фактическому продвижению за ~12 кадров бега
+            if move_counter >= 12 then
+                move_counter = 0
+                local cx, cy = getCharCoordinates(PLAYER_PED)
+                if cx and math.abs(cx - last_px) + math.abs(cy - last_py) < 0.12 then
+                    blocked = true
+                    break
+                end
+                last_px, last_py = cx, cy
+            end
         end
+        writeMemory(CONTROL_BASE + OFF_SPRINT, 1, 0, true)
         wait(0)
         elapsed = elapsed + 1
-        check_counter = check_counter + 1
-        -- Если персонаж застрял (не сдвинулся за ~15 кадров) - прерываем ход
-        if check_counter >= 15 then
-            check_counter = 0
-            local cx, cy = getCharCoordinates(PLAYER_PED)
-            if cx and math.abs(cx - last_px) + math.abs(cy - last_py) < 0.03 then
-                break
-            end
-            last_px, last_py = cx, cy
-        end
     end
     -- Сброс записей после остановки
     pcall(function()
@@ -199,22 +198,7 @@ local function hold_run(duration, backwards, heading_deg)
         writeMemory(CONTROL_BASE + OFF_BACKWARD, 1, 0, true)
         writeMemory(CONTROL_BASE + OFF_SPRINT, 1, 0, true)
     end)
-end
-
--- Проверка застревания: если координаты не изменились за ~1.5 сек
-local function check_stuck(px, py, pz)
-    local s = AL.state
-    local elapsed = 0
-    while elapsed < 1500 do
-        if not s.mafk_active then return false end
-        wait(200)
-        elapsed = elapsed + 200
-        local cx, cy, cz = getCharCoordinates(PLAYER_PED)
-        if cx and math.abs(cx - px) + math.abs(cy - py) > 0.15 then
-            return false
-        end
-    end
-    return true
+    return not blocked
 end
 
 function M.anti_afk_thread()
@@ -255,14 +239,17 @@ function M.anti_afk_thread()
                     end
                 end
 
-                hold_run(step.dur, false, move_heading)
+                local completed = hold_run(step.dur, false, move_heading)
 
-                if check_stuck(px, py, pz) then
+                if not completed then
+                    -- Упёрлись в препятствие, отходим в сторону по перпендикуляру
                     local h = getCharHeading(PLAYER_PED)
                     if h then
-                        local jitter = 60 + math.random(0, 60)
-                        turn_towards(normalize_angle(h + jitter))
-                        wait(100)
+                        local side = math.random(1, 2) == 1 and 90 or -90
+                        local escape_heading = normalize_angle(h + side)
+                        turn_towards(escape_heading)
+                        hold_run(450, false, escape_heading)
+                        wait(150)
                     end
                 end
 
