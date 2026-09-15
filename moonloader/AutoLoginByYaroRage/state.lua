@@ -138,9 +138,7 @@ M.state.AUTH_SOUND_PATH = nil
 
 local log_file_handle = nil
 
-function M.log(msg)
-    local line = string.format("[%s] [AutoLogin] %s", os.date("%H:%M:%S"), tostring(msg))
-    print(line)
+local function write_log_file_line(line)
     local s = M.state
     if s and s.config_folder and #s.config_folder > 0 then
         pcall(function()
@@ -152,7 +150,7 @@ function M.log(msg)
                 log_file_handle:flush()
             end
         end, function()
-            -- Если запись не удалась (файл удалён/перезаписан) - переоткрыть в следующий раз
+            -- закрыть хэндл при ошибке записи (диск переполнен/перемонтирован)
             if log_file_handle then
                 pcall(function() log_file_handle:close() end)
                 log_file_handle = nil
@@ -161,6 +159,16 @@ function M.log(msg)
     end
 end
 
+function M.log(msg)
+    local line = string.format("[%s] [AutoLogin] %s", os.date("%H:%M:%S"), tostring(msg))
+    print(line)
+    write_log_file_line(line)
+end
+
+function M.flog(msg)
+    local line = string.format("[%s] [AutoLogin] %s", os.date("%H:%M:%S"), tostring(msg))
+    write_log_file_line(line)
+end
 function M.dlog(msg)
     M.state.debug_step = M.state.debug_step + 1
     print(string.format("[AutoLogin][%d][%.3f] %s", M.state.debug_step, os.clock(), tostring(msg)))

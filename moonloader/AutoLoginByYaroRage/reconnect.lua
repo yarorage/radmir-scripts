@@ -64,7 +64,7 @@ function M.send_cef_tx_215(cmd, ints)
     end
     local ok_s, res_s = pcall(raknetSendBitStream, bs)
     raknetDeleteBitStream(bs)
-    AL.log("TX-CEF " .. cmd .. " байт=" .. tostring(#full) .. " ok=" .. tostring(ok_s) .. " res=" .. tostring(res_s))
+    AL.flog("TX-CEF " .. cmd .. " байт=" .. tostring(#full) .. " ok=" .. tostring(ok_s) .. " res=" .. tostring(res_s))
     return ok_s
 end
 

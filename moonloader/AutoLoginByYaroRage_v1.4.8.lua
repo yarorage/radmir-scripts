@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.4.7")
+script_version("1.4.8")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -421,23 +421,23 @@ function onReceivePacket(id, bs)
     end
 
     if id == 215 and auth_kind then
-        AL.log(pkt_log .. " CEF-AUTH[" .. auth_kind .. "] HEX: " .. auth_hex)
+        AL.flog(pkt_log .. " CEF-AUTH[" .. auth_kind .. "] HEX: " .. auth_hex)
     elseif id == 215 then
         if pkt_time - last_log_time >= log_throttle_sec then
             last_log_time = pkt_time
-            AL.log(pkt_log .. " CEF: " .. text:sub(1, 300))
+            AL.flog(pkt_log .. " CEF: " .. text:sub(1, 300))
         end
     elseif id == 61 then
         if pkt_time - last_dialog_log_time >= log_throttle_sec then
             last_dialog_log_time = pkt_time
-            AL.log(pkt_log .. " DIALOG: " .. text:sub(1, 300))
+            AL.flog(pkt_log .. " DIALOG: " .. text:sub(1, 300))
         end
     elseif text:find('Authorization') then
-        AL.log(pkt_log .. " AUTH: " .. text:sub(1, 300))
+        AL.flog(pkt_log .. " AUTH: " .. text:sub(1, 300))
     elseif id == 6 or id == 32 or id == 33 or id == 34 or id == 35 then
         if pkt_time - last_small_log_time >= log_throttle_sec then
             last_small_log_time = pkt_time
-            AL.log(pkt_log)
+            AL.flog(pkt_log)
         end
     end
 
@@ -735,7 +735,7 @@ local function handle_cef_tx_packet(bs)
         return
     end
     if s.cef_tx_log_enabled then
-        AL.log("CEF-TX: " .. text:sub(1, 80))
+        AL.flog("CEF-TX: " .. text:sub(1, 80))
     end
 end
 
@@ -816,7 +816,7 @@ function keepalive_thread()
             -- Логируем тик раз в ~30 секунд (каждый 5-й), чтобы не спамить лог
             if tick_count % 5 == 1 or now - last_tick_log > 35 then
                 last_tick_log = now
-                AL.log("[Keepalive] тик #" .. tick_count .. ": игровой цикл работает при свёрнутом окне")
+                AL.flog("[Keepalive] тик #" .. tick_count .. ": игровой цикл работает при свёрнутом окне")
             end
             if not s.is_reconnecting and now - last_ping_send > 7 then
                 last_ping_send = now
