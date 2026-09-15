@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.8.7")
+script_version("0.8.8")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -18,7 +18,9 @@ local _sampSafe_origSampChar = sampGetCharHandleBySampPlayerId or function() ret
 local _sampSafe_origSampCar  = sampGetCarHandleBySampVehicleId or function() return 0 end
 local function sampGetPlayerIdByCharHandle(ped)
     if not isSampAvailable() then return false, -1 end
-    return _sampSafe_origGetPid(ped)
+    local ok, a, b = pcall(_sampSafe_origGetPid, ped)
+    if not ok then return false, -1 end
+    return a, b
 end
 local function sampGetPlayerNickname(id)
     if not isSampAvailable() then return nil end
@@ -42,7 +44,9 @@ local function sampIsPlayerConnected(id)
 end
 local function sampGetCharHandleBySampPlayerId(id)
     if not isSampAvailable() then return 0 end
-    return _sampSafe_origSampChar(id)
+    local ok, h = pcall(_sampSafe_origSampChar, id)
+    if not ok then return 0 end
+    return h
 end
 local function sampGetCarHandleBySampVehicleId(id)
     if not isSampAvailable() then return 0 end
@@ -498,6 +502,10 @@ maxSpeedLimit = 220
 maxSpeedMul = 1.21
 maxSpeedStep = 30
 minSpeedActivation = 30
+-- Счётчики троттлинга тяжёлых блоков mainLoop (глобальные: не считаются в лимит 60 upvalues)
+antistunTick = 0
+skillTick = 0
+lastAutoCaptureSecond = nil
 local silentmode = imgui.ImInt(3)
 local pslide = imgui.ImBool(false)
 local flipcar = imgui.ImBool(false)
@@ -783,8 +791,7 @@ local function mainInit()
 
 	clearAnim()
 	lua_thread.create(ClickWP)
-	lua_thread.create(SmoothAimBot)
-	lua_thread.create(SmoothAimBott)
+	-- Аимботы вызываются из mainLoop каждый кадр
 
 	save()
 	mergeNewAdmins()
@@ -1213,6 +1220,7 @@ local function mainLoop()
             end
         end
 
+		SmoothAimBot()
 		SmoothAimBott()
 
 		local _, myId = sampGetPlayerIdByCharHandle(PLAYER_PED)
@@ -1312,12 +1320,18 @@ local function mainLoop()
 		end
 
 		if fullskillgun.v then
-			for i = 70, 79 do
-				registerIntStat(i, 1000)
+			skillTick = (skillTick or 0) + 1
+			if skillTick % 30 == 0 then
+				for i = 70, 79 do
+					registerIntStat(i, 1000)
+				end
 			end
 		else
-			for i = 70, 79 do
-				registerIntStat(i, 0)
+			skillTick = (skillTick or 0) + 1
+			if skillTick % 30 == 0 then
+				for i = 70, 79 do
+					registerIntStat(i, 0)
+				end
 			end
 		end
 
@@ -1438,10 +1452,13 @@ local function mainLoop()
 		end
 
 		if antistun.v and not isCharDead(PLAYER_PED) then
-			local anim = {'DAM_armL_frmBK', 'DAM_armL_frmFT', 'DAM_armL_frmLT', 'DAM_armR_frmBK', 'DAM_armR_frmFT', 'DAM_armR_frmRT', 'DAM_LegL_frmBK', 'DAM_LegL_frmFT', 'DAM_LegL_frmLT', 'DAM_LegR_frmBK', 'DAM_LegR_frmFT', 'DAM_LegR_frmRT', 'DAM_stomach_frmBK', 'DAM_stomach_frmFT', 'DAM_stomach_frmLT', 'DAM_stomach_frmRT'}
-			for k, v in pairs(anim) do
-				if isCharPlayingAnim(PLAYER_PED, v) then
-					setCharAnimSpeed(PLAYER_PED, v, 999)
+			antistunTick = (antistunTick or 0) + 1
+			if antistunTick % 3 == 0 then
+				local anim = {'DAM_armL_frmBK', 'DAM_armL_frmFT', 'DAM_armL_frmLT', 'DAM_armR_frmBK', 'DAM_armR_frmFT', 'DAM_armR_frmRT', 'DAM_LegL_frmBK', 'DAM_LegL_frmFT', 'DAM_LegL_frmLT', 'DAM_LegR_frmBK', 'DAM_LegR_frmFT', 'DAM_LegR_frmRT', 'DAM_stomach_frmBK', 'DAM_stomach_frmFT', 'DAM_stomach_frmLT', 'DAM_stomach_frmRT'}
+				for k, v in pairs(anim) do
+					if isCharPlayingAnim(PLAYER_PED, v) then
+						setCharAnimSpeed(PLAYER_PED, v, 999)
+					end
 				end
 			end
 		end
@@ -1552,8 +1569,11 @@ local function mainLoop()
 			local curTime = os.date("%H:%M:%S")
 			local curMs = tonumber(string.format("%03d", math.floor(socket.gettime() * 1000) % 1000))
 			if curTime == autocapture_time.v and curMs >= autocapture_ms.v then
-				for i = 1, 5 do
-					sampSendChat('/capture_biz')
+				if lastAutoCaptureSecond ~= curTime then
+					lastAutoCaptureSecond = curTime
+					for i = 1, 5 do
+						sampSendChat('/capture_biz')
+					end
 				end
 			end
 		end
@@ -1589,11 +1609,8 @@ local function mainLoop()
 			imgui.ShowCursor = false
 			imgui.DisableInput = true
 		else
--- ImGui остаётся активным (для отрисовки HUD), но без курсора.
-	-- Переключение ShowCursor/DisableInput выполняется в главном цикле.
-	imgui.Process = true
-	imgui.ShowCursor = false
-	imgui.DisableInput = true
+			-- Меню и фейк-чат закрыты, HUD админов не рисуется: освобождаем ввод.
+			imgui.Process = false
 			imgui.ShowCursor = false
 			imgui.DisableInput = false
 		end
@@ -1729,7 +1746,6 @@ end
 function ev.onPlayerSync(playerId, data)
 	if data.weapon == 40 and data.keysData == 128 then
 		print("Crasher "..playerId)
-		emul_rpc('onPlayerStreamOut', { playerId })
 		return false
 	end
 end
@@ -2113,7 +2129,7 @@ function imgui.OnDrawFrame()
 		for i = 1, tabCount do
 			local tabActive = menuTab.v == i
 			if tabActive then
-				imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(1.15, 0.28, 0.22, 1))
+				imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(1.0, 0.28, 0.22, 1))
 				imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
 			end
 			if imgui.Button(tabs[i], imgui.ImVec2(148 * fsc, 30 * fsc)) then menuTab.v = i end
@@ -2622,11 +2638,11 @@ function applyTheme(theme_id)
         colors[clr.FrameBg] = ImVec4(0.2, 0.25, 0.29, 1)
         colors[clr.TitleBg] = ImVec4(0.09, 0.12, 0.14, 0.65)
         colors[clr.TitleBgActive] = ImVec4(0.08, 0.1, 0.12, 1)
-        colors[clr.CheckMark] = ImVec4(1.15, 0.28, 0.22, 1)
-        colors[clr.SliderGrab] = ImVec4(1.15, 0.18, 0.22, 1)
+        colors[clr.CheckMark] = ImVec4(1.0, 0.28, 0.22, 1)
+        colors[clr.SliderGrab] = ImVec4(1.0, 0.18, 0.22, 1)
         colors[clr.Button] = ImVec4(0.2, 0.25, 0.29, 1)
-        colors[clr.ButtonHovered] = ImVec4(1.15, 0.18, 0.22, 1)
-        colors[clr.ButtonActive] = ImVec4(1.15, 0.28, 0.22, 1)
+        colors[clr.ButtonHovered] = ImVec4(1.0, 0.18, 0.22, 1)
+        colors[clr.ButtonActive] = ImVec4(1.0, 0.28, 0.22, 1)
         colors[clr.Header] = ImVec4(0.2, 0.25, 0.29, 0.55)
         colors[clr.HeaderHovered] = ImVec4(0.26, 0.59, 0.98, 0.8)
         colors[clr.HeaderActive] = ImVec4(0.26, 0.59, 0.98, 1)
@@ -2732,16 +2748,16 @@ function apply_custom_style()
 	colors[clr.TitleBgActive] = ImVec4(0.08, 0.1, 0.12, 1)
 	colors[clr.MenuBarBg] = ImVec4(0.15, 0.18, 0.22, 1)
 	colors[clr.ScrollbarBg] = ImVec4(0.02, 0.02, 0.02, 0.39)
-	colors[clr.ScrollbarGrab] = ImVec4(1.15, 0.28, 0.22, 1)
+	colors[clr.ScrollbarGrab] = ImVec4(1.0, 0.28, 0.22, 1)
 	colors[clr.ScrollbarGrabHovered] = ImVec4(0.18, 0.22, 0.25, 1)
 	colors[clr.ScrollbarGrabActive] = ImVec4(0.09, 0.21, 0.31, 1)
 	colors[clr.ComboBg] = ImVec4(0.2, 0.25, 0.29, 1)
-	colors[clr.CheckMark] = ImVec4(1.15, 0.28, 0.22, 1)
-	colors[clr.SliderGrab] = ImVec4(1.15, 0.18, 0.22, 1)
-	colors[clr.SliderGrabActive] = ImVec4(1.15, 0.28, 0.22, 1)
+	colors[clr.CheckMark] = ImVec4(1.0, 0.28, 0.22, 1)
+	colors[clr.SliderGrab] = ImVec4(1.0, 0.18, 0.22, 1)
+	colors[clr.SliderGrabActive] = ImVec4(1.0, 0.28, 0.22, 1)
 	colors[clr.Button] = ImVec4(0.2, 0.25, 0.29, 1)
-	colors[clr.ButtonHovered] = ImVec4(1.15, 0.18, 0.22, 1)
-	colors[clr.ButtonActive] = ImVec4(1.15, 0.28, 0.22, 1)
+	colors[clr.ButtonHovered] = ImVec4(1.0, 0.18, 0.22, 1)
+	colors[clr.ButtonActive] = ImVec4(1.0, 0.28, 0.22, 1)
 	colors[clr.Header] = ImVec4(0.2, 0.25, 0.29, 0.55)
 	colors[clr.HeaderHovered] = ImVec4(0.26, 0.59, 0.98, 0.8)
 	colors[clr.HeaderActive] = ImVec4(0.26, 0.59, 0.98, 1)
@@ -2788,9 +2804,9 @@ function rlower(s)
     for i = 1, strlen do
         local ch = s:byte(i)
         if ch >= 192 and ch <= 223 then
-            output = output .. russian_characters[ch + 32]
+            output = output .. string.char(ch + 32)
         elseif ch == 168 then
-            output = output .. russian_characters[184]
+            output = output .. string.char(184)
         else
             output = output .. string.char(ch)
         end
@@ -2869,7 +2885,9 @@ function rotateCarAroundUpAxis(car, vec)
 	local rotAxis = Vector3D(mat.up:get())
 	vec:normalize()
 	rotAxis:normalize()
-	local theta = math.acos(rotAxis:dotProduct(vec))
+	local rotDot = rotAxis:dotProduct(vec)
+	if rotDot > 1 then rotDot = 1 elseif rotDot < -1 then rotDot = -1 end
+	local theta = math.acos(rotDot)
 	if theta ~= 0 then
 		rotAxis:crossProduct(vec)
 		rotAxis:normalize()
@@ -3043,15 +3061,17 @@ function ev.onSendPlayerSync(data)
 	end
 
 	if sync then
-        local data_sync = samp_create_sync_data('player')
-        pedcord = { getCharCoordinates(PLAYER_PED) }
-        sync = false
+        pcall(function()
+            local data_sync = samp_create_sync_data('player')
+            pedcord = { getCharCoordinates(PLAYER_PED) }
+            sync = false
 
-        data_sync.position = {0, 0, 0}
-        data_sync.send()
+            data_sync.position = {0, 0, 0}
+            data_sync.send()
 
-        data_sync.position = {pedcord[1], pedcord[2], pedcord[3]}
-        data_sync.send()
+            data_sync.position = {pedcord[1], pedcord[2], pedcord[3]}
+            data_sync.send()
+        end)
     end
 
 	if bit.band(data.keysData, 40) == 40 and allowBunnyhop.v then
@@ -3130,10 +3150,11 @@ function setEntityCoordinates(entityPtr, x, y, z)
 end
 
 function setCheatCursor(toggle)
+	if not isSampAvailable() then cursorEnabled = toggle return end
 	if toggle then
-		sampSetCursorMode(CMODE_LOCKCAM)
+		pcall(sampSetCursorMode, CMODE_LOCKCAM)
 	else
-		sampToggleCursor(false)
+		pcall(sampToggleCursor, false)
 	end
 	cursorEnabled = toggle
 end
@@ -3224,7 +3245,7 @@ function ev.onSendBulletSync(data)
                     data.targetType = 1
                     data.targetId = id
                     data.target = {x = x, y = y, z = z}
-                    sampSendGiveDamage(id, 46.2, 24, 3)
+                    pcall(sampSendGiveDamage, id, 46.2, 24, 3)
                 end
             end
         end
@@ -3238,7 +3259,7 @@ function ev.onSendBulletSync(data)
                     data.targetType = 1
                     data.targetId = id
                     data.target = {x = x, y = y, z = z}
-                    sampSendGiveDamage(id, 46.2, 24, 3)
+                    pcall(sampSendGiveDamage, id, 46.2, 24, 3)
                 end
             end
         end
