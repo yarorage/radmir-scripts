@@ -402,6 +402,8 @@ end
 local AutoYLastSetFill = 0
 local AutoYPresses = 0
 local animalLastState = {}  -- Состояние животных для Clear (позиция + время последнего движения)
+local corpseSeen = {}   -- Труп: время смерти (для очистки призраков/старых трупов)
+local CORPSE_TTL = 20    -- Через сколько секунд труп убирается из ESP и удаляется
 local menuActiveTab = 1 -- активная вкладка меню (кнопки вместо вкладок)
 
 -- Отладка объектов (сканер по ID моделей)
@@ -512,6 +514,8 @@ Les = {
     AimPlayers = imgui.ImBool(false),  -- Аим на игроков
     Aim_silent = imgui.ImBool(false),
     AimHandle = nil,
+    noRecoilPatched = false,  -- Флаг: патч отдачи применён
+    noRecoilOrig = nil,       -- Оригинальный байт патча отдачи
     -- Настройки аима
     Aim_Smoothing = imgui.ImFloat(5.0),    -- Сглаживание (1-20, больше = плавнее)
     Aim_FOV = imgui.ImFloat(3.0),          -- FOV аима (градусы)
@@ -793,10 +797,18 @@ function main()
                 else
                     -- Мёртвые
                     if isAnimal then
-                        table.insert(deadAnimals, {
-                            handle = value, modelid = modelid, posX = posX, posY = posY, posZ = posZ,
-                            headX = hxx, headY = hyy, okHead = okHead
-                        })
+                        local _now2 = os.time()
+                        local _diedAt = corpseSeen[value]
+                        if not _diedAt then
+                            corpseSeen[value] = _now2
+                            _diedAt = _now2
+                        end
+                        if (_now2 - _diedAt) < CORPSE_TTL then
+                            table.insert(deadAnimals, {
+                                handle = value, modelid = modelid, posX = posX, posY = posY, posZ = posZ,
+                                headX = hxx, headY = hyy, okHead = okHead
+                            })
+                        end
                     end
                 end
 
@@ -967,6 +979,20 @@ function main()
             end
         end
 
+        -- Очистка призраков-трупов (раз в 5 сек): пробуем убрать старые трупы и чистим записи
+        local _corpseGCNow = os.time()
+        if (_corpseGCNow - (Les._corpseGCAt or 0)) >= 5 then
+            Les._corpseGCAt = _corpseGCNow
+            for _h, _t in pairs(corpseSeen) do
+                if not doesCharExist(_h) then
+                    corpseSeen[_h] = nil
+                elseif (_corpseGCNow - _t) >= CORPSE_TTL then
+                    pcall(deleteChar, _h)
+                    corpseSeen[_h] = _corpseGCNow
+                end
+            end
+        end
+
 -- Аим (прицеливание): определение режима прицеливания
         local camMode = safeReadMemory(0xB6F1A8, 1, false)
         local aiming = camMode and (camMode == 53 or camMode == 55 or camMode == 7 or camMode == 8)
@@ -1092,8 +1118,8 @@ function main()
                     local finalFx = fx - ax
                     
                     -- Сглаживание: интерполируем текущие углы к целевым
-                    local currentAz = safeReadFloat(0xB6F178) -- Z rotation камеры
-                    local currentFx = safeReadFloat(0xB6F17C) -- X rotation камеры
+                    local currentAz = safeReadFloat(0xB6F248) -- текущий pitch (вертикаль) камеры
+                    local currentFx = safeReadFloat(0xB6F258) -- текущий yaw (горизонталь) камеры
                     if not currentAz then currentAz = finalAz end
                     if not currentFx then currentFx = finalFx end
                     
@@ -1126,7 +1152,10 @@ function main()
                         end
                     end
                     
-                    setCameraPositionUnfixed(finalAz, finalFx)
+                    local aimOk, aimErr = pcall(setCameraPositionUnfixed, finalAz, finalFx)
+                    if not aimOk then
+                        dbg("AIM setCameraPositionUnfixed error: " .. tostring(aimErr))
+                    end
                 end
                 if not doesCharExist(Les.AimHandle) then
                     Les.AimHandle = nil
@@ -1143,10 +1172,14 @@ function main()
         end
 
         -- Triggerbot: автострельба при наведении на цель
-        if Les.Triggerbot.v and aiming then
+        -- Работает только при включённом аиме и по целям подходящего типа (животные/игроки)
+        if Les.Triggerbot.v and aiming and (aimAnimals or aimPlayers) then
             local target = Les.AimHandle
             if target and doesCharExist(target) and isCharOnScreen(target) then
-                local hx, hy, hz = GetBodyPartCoordinates(8, target)
+                local _tM = getCharModel(target)
+                local _tIsAnimal = (_tM == MODEL_DEER or _tM == MODEL_BEAR)
+                if (aimAnimals and _tIsAnimal) or (aimPlayers and not _tIsAnimal) then
+                    local hx, hy, hz = GetBodyPartCoordinates(8, target)
                 local hxx, hyy = convert3DCoordsToScreen(hx, hy, hz)
                 local width, height = getScreenResolution()
                 local crosshairX, crosshairY = width / 2, height / 2
@@ -1162,18 +1195,36 @@ function main()
                         Les._triggerbotTimer = os.clock()
                     end
                 end
+                end
             end
         end
 
-        -- NoRecoil / NoSpread
-        if Les.NoRecoil.v or Les.NoSpread.v then
-            -- NoRecoil: обнуляем смещение камеры при стрельбе
-            if Les.NoRecoil.v then
-                -- Можно реализовать через запись в память или обработку нажатий
+        -- NoRecoil: NOP-патч отдачи камеры
+        if Les.NoRecoil.v then
+            if not Les.noRecoilPatched then
+                local origByte = safeReadMemory(0x740460, 1, false)
+                if origByte ~= nil then
+                    Les.noRecoilOrig = origByte
+                    if pcall(writeMemory, 0x740460, 1, 0x90, true) then
+                        Les.noRecoilPatched = true
+                    end
+                end
             end
-            -- NoSpread: фиксируем разброс пуль
-            if Les.NoSpread.v then
-                -- Можно реализовать через хук на выстрел
+        elseif Les.noRecoilPatched then
+            -- Восстанавливаем оригинальный байт отдачи
+            if Les.noRecoilOrig then
+                pcall(writeMemory, 0x740460, 1, Les.noRecoilOrig, true)
+            end
+            Les.noRecoilPatched = false
+        end
+        -- NoSpread: максимальная точность оружия
+        if Les.NoSpread.v then
+            for i = 0, 5 do
+                local accAddr = 0xC8C450 + i * 0x70
+                local accVal = representFloatAsInt(5.0)
+                if safeReadMemory(accAddr, 4, false) ~= accVal then
+                    pcall(writeMemory, accAddr, 4, accVal, false)
+                end
             end
         end
 
@@ -2168,5 +2219,5 @@ function targetAtCoords(x, y, z)
     local ax = math.atan2(vect.fY, -vect.fX) - 3.14159265 / 2
     local az = math.atan2(math.sqrt(vect.fX * vect.fX + vect.fY * vect.fY), vect.fZ)
 
-    setCameraPositionUnfixed(az - fz, fx - ax)
+    pcall(setCameraPositionUnfixed, az - fz, fx - ax)
 end
