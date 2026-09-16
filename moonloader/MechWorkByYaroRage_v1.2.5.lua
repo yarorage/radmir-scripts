@@ -10,6 +10,9 @@
 -- по ПКМ и колесиком/курсором): если ближайшая машина в радиусе имеет
 -- водителя с исключённым id, запрос уходит следующей по близости машине,
 -- чей водитель не исключён. Список хранится в ini ключами excludeId1..N
+-- v1.2.5: GUI разбит на 5 вкладок (Миниигра/Ремонт/Курсор/Авто-подбор/Статус),
+-- кнопки «Очистить всё» для триггеров и исключённых id, компактные кнопки «х»
+-- вместо «удалить», горизонтальная панель вкладок сверху с подсветкой активной.
 -- v1.2.4: буфер фраз автоответа расширен до 168 байт, что в UTF-8
 -- даёт до 83 кириллических символов во фразе (было 128 байт / ~63
 -- символа). В ini фразы по-прежнему сохраняются в CP1251.
@@ -101,7 +104,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.2.4")
+script_version("1.2.5")
 
 require "moonloader"
 
@@ -422,6 +425,7 @@ local function removeExcludedId(i)
     saveSettings()
 end
 
+local activeTab = 1
 local showMenu = imgui.ImBool(false)
 
 -- ---------- Состояние миниигры ----------
@@ -1322,9 +1326,9 @@ function imgui.OnDrawFrame()
     fsc = baseScale * dpiFactor
     imgui.GetIO().FontGlobalScale = fsc
 
-    -- защита от нулевого/некорректного разрешения: окно всегда видно и влезает в экран
-    local winW = math.max(420, math.min(560 * fsc, resX - 20))
-    local winH = math.max(360, math.min(680 * fsc, resY - 40))
+    -- окно всегда видно и влезает в экран
+    local winW = math.max(440, math.min(580 * fsc, resX - 20))
+    local winH = math.max(440, math.min(740 * fsc, resY - 40))
 
     if showMenu.v then
         local changed = false
@@ -1332,221 +1336,287 @@ function imgui.OnDrawFrame()
         imgui.SetNextWindowSize(imgui.ImVec2(winW, winH), imgui.Cond.Always)
         imgui.Begin(u8"MechWorkByYaroRage", showMenu, imgui.WindowFlags.NoCollapse)
 
-        -- содержимое окна в прокручиваемой области: форма не обрезается
-        -- ни на каком разрешении/масштабе DPI, окно всегда влезает в экран
-        imgui.BeginChild(u8"##content", imgui.ImVec2(0, 0), false, imgui.WindowFlags.NoSavedSettings)
-
-        imgui.TextWrapped(u8"Автозавершение миниигры починки транспорта")
-        imgui.Separator()
-
-        if imgui.Checkbox(u8"Авто-закрытие", optEnabled) then changed = true end
-
-        imgui.Separator()
-        imgui.Text(u8"Авто-старт ремонта:")
-        if imgui.Checkbox(u8"   кликать «Начать работу»", optAutoStart) then changed = true end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"При появлении окна Interactions у капота машины скрипт сам нажмёт кнопку, и миниигра начнётся")
-        end
-        imgui.PushItemWidth(120 * fsc)
-        if imgui.SliderInt(u8"   задержка до клика, мс", optStartDelayMs, 0, 3000) then changed = true end
-        imgui.PopItemWidth()
-
-        imgui.Separator()
-        imgui.Text(u8"Случайная задержка перед закрытием:")
-        imgui.PushItemWidth(120 * fsc)
-        if imgui.SliderInt(u8"   от, мс", optDelayMinMs, 0, 10000) then changed = true end
-        if imgui.SliderInt(u8"   до, мс", optDelayMaxMs, 0, 10000) then changed = true end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"При КАЖДОЙ новой миниигре время до успешного финиша выбирается случайно в этом диапазоне: «от» — минимум, «до» — максимум")
-        end
-        imgui.PopItemWidth()
-
-        imgui.Separator()
-        imgui.Text(u8"Авто-ремонт:")
-        if imgui.Checkbox(u8"   ремонт по сообщениям в чат", optAutoRepair) then changed = true end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"Если игрок написал в чат «почини/чини/ремонт», скрипт сам отправит /repair <id> этому игроку")
-        end
-        imgui.PushItemWidth(120 * fsc)
-        if imgui.SliderInt(u8"   пауза между запросами, мс", optRepairCooldown, 500, 20000) then changed = true end
-        imgui.PopItemWidth()
-
-        imgui.Separator()
-        imgui.Text(u8"Выбор цели курсором:")
-        if imgui.Checkbox(u8"   выбрать цель удержанием кнопки", optCursorPick) then changed = true end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"Удерживайте выбранную кнопку (не отпуская) — появится курсор. Удержите ещё раз — курсор скроется. Короткий клик по машине отправит водителю /repair по его id")
-        end
-        imgui.PushItemWidth(220 * fsc)
-        if imgui.Combo(u8"   кнопка##cursorBtn", optCursorButton, cursorButtonNames, nil, #cursorButtonList) then changed = true end
-        imgui.PopItemWidth()
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"Кнопка, удержанием которой показывается курсор: средняя/боковые кнопки мыши или клавиши")
-        end
-        imgui.PushItemWidth(220 * fsc)
-        if imgui.SliderFloat(u8"   задержка показа, сек##cursorDelay", optCursorDelaySec, 0.1, 2.0, "%.1f") then changed = true end
-        imgui.PopItemWidth()
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"Сколько держать кнопку до появления курсора (0.1-2.0 сек). Клик короче этого времени = выбор машины")
+        -- ===== ПАНЕЛЬ ВКЛАДОК =====
+        local tabNames = { u8"Миниигра", u8"Ремонт", u8"Курсор", u8"Авто-подбор", u8"Статус" }
+        local tabCount = #tabNames
+        local tabW = (winW - 4 * (tabCount - 1)) / tabCount
+        for i = 1, tabCount do
+            if i > 1 then imgui.SameLine(0, 4) end
+            -- активная вкладка — другой цвет кнопки
+            if activeTab == i then
+                imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.26, 0.50, 0.80, 1))
+            else
+                imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.18, 0.18, 0.24, 1))
+            end
+            if imgui.Button(tabNames[i], imgui.ImVec2(tabW, 28 * fsc)) then
+                activeTab = i
+            end
+            imgui.PopStyleColor(1)
         end
 
         imgui.Separator()
-        imgui.Text(u8"Автоответ при ремонте (фразы персонажа):")
-        if imgui.Checkbox(u8"   отвечать в чат при старте ремонта", optAutoReply) then changed = true end
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"Когда водитель принял ваш /repair, сервер пишет «Подойдите к капоту... У Вас есть 1 минута на ремонт» — скрипт отправит в чат случайную фразу из списка ниже. Та же фраза два раза подряд не повторяется (одинаковое сообщение в чат дважды писать нельзя)")
-        end
-        -- список фраз автоответа (до 10, v1.1.5): каждая фраза - своё поле
-        -- ввода, удаляется кнопкой «удалить», добавить можно пока их меньше 10
-        imgui.PushItemWidth(280 * fsc)
-        for i = 1, replyCount.v do
-            imgui.PushID(100 + i)
-            if imgui.InputText(u8("   фраза " .. i .. "##replyLine"), optReplyLines[i]) then changed = true end
-            imgui.SameLine(0, 12)
-            if replyCount.v > 1 then
-                if imgui.Button(u8"удалить", imgui.ImVec2(90 * fsc, 0)) then
-                    -- удаляем строку и сдвигаем все последующие на одну вверх
-                    for j = i, replyCount.v - 1 do
-                        optReplyLines[j].v = optReplyLines[j + 1].v
+        imgui.PushStyleVar(imgui.StyleVar.FrameRounding, 3)
+
+        -- ===== СОДЕРЖИМОЕ ВКЛАДОК =====
+        -- контент занимает всё оставшееся окно, кроме нижней полосы кнопок:
+        -- отрицательный размер = оставшаяся высота окна минус 46*fsc (кнопки)
+        imgui.BeginChild(u8"##tabs", imgui.ImVec2(0, -46 * fsc), false, imgui.WindowFlags.NoSavedSettings)
+
+        if activeTab == 1 then
+            -- ====== ВКЛАДКА «МИНИИГРА» ======
+            imgui.TextWrapped(u8"Автозавершение миниигры починки транспорта")
+            imgui.Separator()
+
+            if imgui.Checkbox(u8"Авто-закрытие", optEnabled) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Миниигра «Ремонт» будет автоматически завершена через случайную задержку")
+            end
+
+            imgui.Separator()
+            imgui.Text(u8"Авто-старт ремонта:")
+            if imgui.Checkbox(u8"   кликать «Начать работу»", optAutoStart) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"При появлении окна Interactions у капота машины скрипт сам нажмёт кнопку, и миниигра начнётся")
+            end
+            imgui.PushItemWidth(120 * fsc)
+            if imgui.SliderInt(u8"   задержка до клика, мс", optStartDelayMs, 0, 3000) then changed = true end
+            imgui.PopItemWidth()
+
+            imgui.Separator()
+            imgui.Text(u8"Случайная задержка перед закрытием:")
+            imgui.PushItemWidth(120 * fsc)
+            if imgui.SliderInt(u8"   от, мс", optDelayMinMs, 0, 10000) then changed = true end
+            if imgui.SliderInt(u8"   до, мс", optDelayMaxMs, 0, 10000) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"При КАЖДОЙ новой миниигре время до успешного финиша выбирается случайно в этом диапазоне")
+            end
+            imgui.PopItemWidth()
+
+            imgui.Separator()
+            imgui.TextWrapped(u8"Примечание: Space + ПКМ = /cancel (прервать текущую миниигру)")
+
+        elseif activeTab == 2 then
+            -- ====== ВКЛАДКА «РЕМОНТ» ======
+            imgui.TextWrapped(u8"Автоматический ремонт по запросам в чат и триггерам")
+            imgui.Separator()
+
+            imgui.Text(u8"Авторемонт по чату:")
+            if imgui.Checkbox(u8"   включить (почини / чини / ремонт)", optAutoRepair) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Если игрок написал в чат «почини/чини/ремонт», скрипт сам отправит /repair <id> этому игроку")
+            end
+            imgui.PushItemWidth(120 * fsc)
+            if imgui.SliderInt(u8"   пауза между запросами, мс", optRepairCooldown, 500, 20000) then changed = true end
+            imgui.PopItemWidth()
+
+            imgui.Separator()
+            -- триггеры
+            imgui.Text(u8"Триггеры авто-ремонта:")
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Если кто-то напишет в чат фразу из списка (целиком или её часть), скрипт отправит этому игроку /repair по его id")
+            end
+            imgui.PushItemWidth(260 * fsc)
+            imgui.InputText(u8"   новая фраза##trig", triggerInput)
+            imgui.PopItemWidth()
+            imgui.SameLine(0, 6)
+            if imgui.Button(u8"Добавить", imgui.ImVec2(90 * fsc, 0)) then
+                addTriggerHint.v = not addTrigger(triggerInput.v)
+                if not addTriggerHint.v then triggerInput.v = "" end
+            end
+            if addTriggerHint.v then
+                imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"   пустая или уже есть такая фраза")
+            end
+            -- список триггеров с кнопкой «Очистить всё»
+            if #repairTriggers > 0 then
+                imgui.SameLine(0, 20)
+                if imgui.SmallButton(u8"очистить всё") then
+                    for _ = 1, #repairTriggers do table.remove(repairTriggers, 1) end
+                    saveSettings()
+                end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(u8"Удалить все триггеры из списка")
+                end
+            end
+            imgui.BeginChild(u8"##trigList", imgui.ImVec2(0, 130 * fsc), true)
+            for i = 1, #repairTriggers do
+                imgui.PushID(i)
+                imgui.Text("  " .. u8(repairTriggers[i]))
+                imgui.SameLine(0, 20)
+                if imgui.SmallButton(u8"х") then
+                    removeTrigger(i)
+                end
+                imgui.PopID()
+            end
+            imgui.EndChild()
+
+            imgui.Separator()
+            -- исключённые id
+            imgui.Text(u8"Исключить id водителей (им не шлём /repair):")
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Игроки из списка не получают /repair ни в авто-режиме, ни по ПКМ, ни колесиком. Запрос уйдёт следующему по близости")
+            end
+            imgui.PushItemWidth(120 * fsc)
+            imgui.InputText(u8"   новый id##excId", excludeIdInput)
+            imgui.PopItemWidth()
+            imgui.SameLine(0, 6)
+            if imgui.Button(u8"Добавить", imgui.ImVec2(90 * fsc, 0)) then
+                local hint = addExcludedId(excludeIdInput.v)
+                excludeIdHint = hint or ""
+                if not hint then excludeIdInput.v = "" end
+            end
+            if excludeIdHint ~= "" then
+                imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"   " .. u8(excludeIdHint))
+            end
+            -- список исключённых с кнопкой «Очистить всё»
+            if #excludedIds > 0 then
+                imgui.SameLine(0, 20)
+                if imgui.SmallButton(u8"очистить всё##exc") then
+                    for _ = 1, #excludedIds do table.remove(excludedIds, 1) end
+                    saveSettings()
+                end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(u8"Удалить все исключённые id")
+                end
+            end
+            imgui.BeginChild(u8"##excIdList", imgui.ImVec2(0, 100 * fsc), true)
+            for i = 1, #excludedIds do
+                imgui.PushID(200 + i)
+                imgui.Text("  id " .. excludedIds[i])
+                imgui.SameLine(0, 20)
+                if imgui.SmallButton(u8"х") then
+                    removeExcludedId(i)
+                end
+                imgui.PopID()
+            end
+            imgui.EndChild()
+
+        elseif activeTab == 3 then
+            -- ====== ВКЛАДКА «КУРСОР» ======
+            imgui.TextWrapped(u8"Ручной выбор цели курсором + автоответ")
+            imgui.Separator()
+
+            imgui.Text(u8"Выбор цели курсором:")
+            if imgui.Checkbox(u8"   включить", optCursorPick) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Удерживайте выбранную кнопку — появится курсор. Короткий клик по машине = /repair её водителю. Space+ПКМ = /cancel")
+            end
+            imgui.PushItemWidth(220 * fsc)
+            if imgui.Combo(u8"   кнопка##cursorBtn", optCursorButton, cursorButtonNames, nil, #cursorButtonList) then changed = true end
+            if imgui.SliderFloat(u8"   задержка показа, сек##cursorDelay", optCursorDelaySec, 0.1, 2.0, "%.1f") then changed = true end
+            imgui.PopItemWidth()
+
+            imgui.Separator()
+            imgui.Text(u8"Автоответ при ремонте:")
+            if imgui.Checkbox(u8"   отправлять фразу при старте ремонта", optAutoReply) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Когда водитель принял ваш /repair, скрипт отправит в чат случайную фразу из списка. Фраза не повторяется дважды подряд")
+            end
+            imgui.PushItemWidth(280 * fsc)
+            for i = 1, replyCount.v do
+                imgui.PushID(100 + i)
+                if imgui.InputText(u8("   фраза " .. i .. "##replyLine"), optReplyLines[i]) then changed = true end
+                imgui.SameLine(0, 6)
+                if replyCount.v > 1 then
+                    if imgui.SmallButton(u8"х") then
+                        for j = i, replyCount.v - 1 do
+                            optReplyLines[j].v = optReplyLines[j + 1].v
+                        end
+                        optReplyLines[replyCount.v].v = ""
+                        replyCount.v = replyCount.v - 1
+                        changed = true
                     end
+                end
+                imgui.PopID()
+            end
+            imgui.PopItemWidth()
+            if replyCount.v < 10 then
+                if imgui.Button(u8"Добавить фразу", imgui.ImVec2(170 * fsc, 0)) then
+                    replyCount.v = replyCount.v + 1
                     optReplyLines[replyCount.v].v = ""
-                    replyCount.v = replyCount.v - 1
                     changed = true
                 end
                 if imgui.IsItemHovered() then
-                    imgui.SetTooltip(u8"Удалить эту фразу (при отправке пустые строки пропускаются)")
+                    imgui.SetTooltip(u8"Добавить ещё одно поле для фразы (всего до 10)")
                 end
             end
-            imgui.PopID()
-        end
-        imgui.PopItemWidth()
-        if replyCount.v < 10 then
-            if imgui.Button(u8"Добавить фразу", imgui.ImVec2(170 * fsc, 0)) then
-                replyCount.v = replyCount.v + 1
-                optReplyLines[replyCount.v].v = ""
-                changed = true
-            end
+
+        elseif activeTab == 4 then
+            -- ====== ВКЛАДКА «АВТО-ПОДБОР» ======
+            imgui.TextWrapped(u8"Автоматический /repair для подъехавших машин в радиусе")
+            imgui.Separator()
+
+            if imgui.Checkbox(u8"включить (автоматически)", optNearRepair) then changed = true end
             if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Добавить ещё одно поле для фразы (всего до 10)")
+                imgui.SetTooltip(u8"Скрипт сам отправляет /repair каждой новой машине, подъехавшей в радиус")
             end
-        end
-
-        -- Редактирование списка триггеров (сообщения, по которым шлём /repair)
-        imgui.Text(u8"Триггеры авто-ремонта:")
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"Если кто-то напишет в чат фразу из списка (целиком или её часть), скрипт отправит этому игроку /repair по его id")
-        end
-        imgui.PushItemWidth(280 * fsc)
-        imgui.InputText(u8"   новая фраза##trig", triggerInput)
-        imgui.PopItemWidth()
-        imgui.SameLine(0, 10)
-        if imgui.Button(u8"Добавить", imgui.ImVec2(100 * fsc, 0)) then
-            addTriggerHint.v = not addTrigger(triggerInput.v)
-            if not addTriggerHint.v then
-                triggerInput.v = ""
-            end
-        end
-        -- подсказка о неудачном добавлении
-        if addTriggerHint.v then
-            imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"   пустая или уже есть такая фраза")
-        end
-        -- список текущих триггеров с прокруткой (кнопка удаления)
-        imgui.BeginChild(u8"##trigList", imgui.ImVec2(0, 150 * fsc))
-        for i = 1, #repairTriggers do
-            imgui.PushID(i)
-            imgui.Text("  - " .. u8(repairTriggers[i]))
-            imgui.SameLine(0, 20)
-            if imgui.SmallButton(u8"удалить") then
-                removeTrigger(i)
-            end
-            imgui.PopID()
-        end
-        imgui.EndChild()
-
-        imgui.Separator()
-        imgui.Text(u8"Исключить id водителей (им не шлём /repair):")
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"Игроки из списка не получают /repair ни в автоматическом режиме, ни по ПКМ, ни колесиком (курсором). Если ближайший водитель исключён — запрос уйдёт следующему по близости, чей id не исключён")
-        end
-        imgui.PushItemWidth(120 * fsc)
-        imgui.InputText(u8"   новый id##excId", excludeIdInput)
-        imgui.PopItemWidth()
-        imgui.SameLine(0, 10)
-        if imgui.Button(u8"Добавить", imgui.ImVec2(100 * fsc, 0)) then
-            local hint = addExcludedId(excludeIdInput.v)
-            excludeIdHint = hint or ""
-            if not hint then excludeIdInput.v = "" end
-        end
-        -- подсказка о неудачном добавлении
-        if excludeIdHint ~= "" then
-            imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"   " .. u8(excludeIdHint))
-        end
-        -- список текущих исключённых id с прокруткой (кнопка удаления)
-        imgui.BeginChild(u8"##excIdList", imgui.ImVec2(0, 120 * fsc))
-        for i = 1, #excludedIds do
-            imgui.PushID(200 + i)
-            imgui.Text("  - id " .. excludedIds[i])
-            imgui.SameLine(0, 20)
-            if imgui.SmallButton(u8"удалить") then
-                removeExcludedId(i)
-            end
-            imgui.PopID()
-        end
-        imgui.EndChild()
-
-        imgui.Separator()
-        -- статус
-        local status = u8"Миниигра не активна"
-        if state.active then
-            status = u8"Миниигра активна: " .. (state.title ~= "" and u8(state.title) or u8"без названия")
-        end
-        imgui.TextWrapped(status)
-        imgui.Text(u8"Авто-закрытие: " .. (optEnabled.v and u8"включено" or u8"выключено") .. ": случайная задержка " .. optDelayMinMs.v .. "-" .. optDelayMaxMs.v .. " мс")
-        imgui.Text(u8"Авто-старт: " .. (optAutoStart.v and u8"включён" or u8"выключен"))
-        imgui.Text(u8"Авто-ремонт: " .. (optAutoRepair.v and u8"включён" or u8"выключен"))
-        -- v1.1.9: предупреждение, если персонаж сам в «Эвакуаторе»
-        if inTowtruck then
-            imgui.TextWrapped(u8"Вы в «Эвакуаторе»: ваш id автоматически в списке исключений — /repair вам не отправляется")
-        end
-
-        imgui.Separator()
-        if imgui.Button(u8"Сохранить", imgui.ImVec2(200 * fsc, 34 * fsc)) then
-            saveSettings()
-            changed = false
-        end
-
-        imgui.Separator()
-        imgui.Text(u8"Авто-подбор подъехавших машин:")
-        imgui.Separator()
-            if imgui.Checkbox(u8"   включить (автоматически)", optNearRepair) then changed = true end
+            if imgui.Checkbox(u8"вручную: по правой кнопке (ПКМ)", optManualRmb) then changed = true end
             if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Скрипт сам отправляет /repair каждой новой машине, подъехавшей в радиус. Не работает, пока включён ручной режим ниже")
+                imgui.SetTooltip(u8"Авто-кидание отключается: /repair отправится ближайшему свободному водителю только по клику ПКМ")
             end
-            if imgui.Checkbox(u8"   вручную: по правой кнопке (ПКМ)", optManualRmb) then changed = true end
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Авто-кидание при этом отключается: /repair отправится ближайшему водителю в радиусе только по клику правой кнопкой мыши. Отправленный водитель замораживается на «паузу, сек» — следующий клик возьмёт следующего по близости, после паузы того же можно выбрать снова")
-            end
+
             imgui.PushItemWidth(150 * fsc)
             if imgui.SliderInt(u8"   радиус, м", optNearRadiusM, 2, 20) then changed = true end
             if imgui.SliderInt(u8"   пауза, сек", optNearDelaySec, 5, 300) then changed = true end
             imgui.PopItemWidth()
-            imgui.TextWrapped(u8"Подъехавшая в радиус машина-игрок один раз получит /repair. Приоритет — мотоциклам: если рядом есть мото, /repair уйдёт сначала ему. В авто-режиме скрипт сам последовательно ремонтирует машины (пауза между отправками — N сек), в ручном — только по клику ПКМ, ближайшему свободному водителю. Водители с исключённым id (список в блоке выше) пропускаются — запрос уходит следующему по близости.")
+
             imgui.Separator()
-            if imgui.Button(u8"Сохранить", imgui.ImVec2(200 * fsc, 34 * fsc)) then
-                changed = true
+            imgui.TextWrapped(u8"Подъехавшая в радиус машина-игрок один раз получит /repair. Приоритет — мотоциклам. Водители с исключённым id пропускаются.")
+
+        elseif activeTab == 5 then
+            -- ====== ВКЛАДКА «СТАТУС» ======
+            imgui.TextWrapped(u8"Текущее состояние скрипта")
+            imgui.Separator()
+
+            local status = u8"Миниигра не активна"
+            if state.active then
+                status = u8"Миниигра активна: " .. (state.title ~= "" and u8(state.title) or u8"без названия")
             end
-            imgui.SameLine()
-            if imgui.Button(u8"Закрыть", imgui.ImVec2(200 * fsc, 34 * fsc)) then
-                showMenu.v = false
+            imgui.TextWrapped(status)
+
+            imgui.Separator()
+            imgui.Text(u8"Авто-закрытие: " .. (optEnabled.v and u8"вкл" or u8"выкл"))
+            imgui.SameLine(0, 20)
+            imgui.Text(u8"Авто-старт: " .. (optAutoStart.v and u8"вкл" or u8"выкл"))
+            imgui.SameLine(0, 20)
+            imgui.Text(u8"Авторемонт: " .. (optAutoRepair.v and u8"вкл" or u8"выкл"))
+
+            imgui.Text(u8"Задержка: " .. optDelayMinMs.v .. u8"–" .. optDelayMaxMs.v .. u8" мс")
+            imgui.SameLine(0, 20)
+            imgui.Text(u8"Пауза ремонта: " .. optRepairCooldown.v .. u8" мс")
+
+            imgui.Text(u8"Цель курсором: " .. (optCursorPick.v and u8"вкл" or u8"выкл"))
+            imgui.SameLine(0, 20)
+            imgui.Text(u8"Авто-подбор: " .. (optNearRepair.v and u8"вкл" or u8"выкл"))
+
+            if inTowtruck then
+                imgui.Separator()
+                imgui.TextColored(imgui.ImVec4(1, 0.8, 0.2, 1), u8"Вы в «Эвакуаторе»: ваш id в списке исключений — /repair вам не отправляется")
             end
 
-        imgui.EndChild()
+            imgui.Separator()
+            imgui.TextWrapped(u8"Фразы: " .. replyCount.v .. u8" шт.  |  Триггеры: " .. #repairTriggers .. u8" шт.  |  Исключений: " .. #excludedIds .. u8" шт.")
+        end
 
-        imgui.End()
+        imgui.EndChild() -- ##tabs
+
+        -- ===== НИЖНЯЯ ПОЛОСА: СОХРАНИТЬ / ЗАКРЫТЬ =====
+        imgui.PopStyleVar(1) -- FrameRounding
+        imgui.Separator()
+        local btnW = (winW - 20) / 2
+        if imgui.Button(u8"Сохранить", imgui.ImVec2(btnW, 34 * fsc)) then
+            saveSettings()
+            changed = false
+        end
+        imgui.SameLine()
+        if imgui.Button(u8"Закрыть", imgui.ImVec2(btnW, 34 * fsc)) then
+            showMenu.v = false
+        end
 
         if changed then
             saveSettings()
             changed = false
         end
+
+        imgui.End()
     end
 end
