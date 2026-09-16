@@ -126,6 +126,7 @@ local CONFIG_FILE = thisScript().directory .. "\\les_config.json"
 
 -- Дефолтная конфигурация
 local defaultConfig = {
+    Master = true,     -- Вкл/выкл всего чита (кнопка в шапке)
     Wh = false,
     WhPlayers = false,
     HeadDot = false,
@@ -211,6 +212,9 @@ end
 
 -- Применение загруженного конфига к таблице Les
 local function applyConfig(cfg)
+    local _mst = cfg.Master
+    if _mst == nil then _mst = true end
+    Les.Master.v = _mst
     Les.Wh.v = cfg.Wh or false
     Les.WhPlayers.v = cfg.WhPlayers or false
     Les.HeadDot.v = cfg.HeadDot or false
@@ -283,6 +287,7 @@ end
 -- Сбор текущего состояния в таблицу для сохранения
 local function gatherConfig()
     return {
+        Master = Les.Master.v,
         Wh = Les.Wh.v,
         WhPlayers = Les.WhPlayers.v,
         HeadDot = Les.HeadDot.v,
@@ -479,6 +484,8 @@ local MODEL_DEER = 15555
 local MODEL_BEAR = 15556
 
 Les = {
+    -- Общий переключатель чита
+    Master = imgui.ImBool(true),       -- Вкл/выкл всего чита (кнопка в шапке)
     -- WH / ESP
     Wh = imgui.ImBool(false),          -- WH животных
     WhPlayers = imgui.ImBool(false),   -- WH игроков ( ESP)
@@ -669,7 +676,7 @@ function main()
             local d7 = (user32.GetAsyncKeyState(VK_F7) < 0)
             local d8 = (user32.GetAsyncKeyState(VK_F8) < 0)
             local d9 = (user32.GetAsyncKeyState(VK_F9) < 0)
-            if Les.DbgObjs.v and game_has_focus() and isSampAvailable() and not sampIsChatInputActive() and not sampIsDialogActive() then
+            if Les.Master.v and Les.DbgObjs.v and game_has_focus() and isSampAvailable() and not sampIsChatInputActive() and not sampIsDialogActive() then
                 if d6 and not prev6 then
                     _probeId = _probeId - 1
                     probeBuilding(_probeId)
@@ -695,7 +702,7 @@ function main()
                 end
             end
             -- Автоскан: каждые 0.4 сек отправляет RPC 43 для пачки ID
-            if _sweepRun and Les.DbgObjs.v and isSampAvailable() and (os.clock() - _sweepLast) >= 0.4 then
+            if _sweepRun and Les.Master.v and Les.DbgObjs.v and isSampAvailable() and (os.clock() - _sweepLast) >= 0.4 then
                 _sweepLast = os.clock()
                 _sweepTotal = _sweepTotal + 1
                 if _sweepTotal > _sweepBudget then
@@ -739,6 +746,9 @@ function main()
         ensureEspScale()
         local playerX, playerY, playerZ = getCharCoordinates(playerPed)
 
+        if not Les.Master.v then
+            -- Чит выключен кнопкой в шапке: скан, ВХ, аим и прочее не выполняются
+        else
         -- === ОДИН ПРОХОД ПО ВСЕМ ПЕРСОНАЖАМ ===
         local animals = {}      -- Живые животные
         local players = {}      -- Живые игроки
@@ -1224,6 +1234,8 @@ function main()
             end
         end
 
+        end
+
         -- Курсор
         if not Menu.windowState.v then
             imgui.ShowCursor = false
@@ -1246,6 +1258,42 @@ function main()
     end
 end
 
+-- Вкл/выкл всего чита кнопкой в шапке (с очисткой побочных эффектов)
+local function setCheatMaster(enabled)
+    Les.Master.v = enabled
+    Les.AimHandle = nil
+    Les.LastTargetHandle = nil
+    if not enabled then
+        -- Снимаем NoRecoil-патч, если он был применён
+        if Les.noRecoilPatched then
+            if Les.noRecoilOrig then
+                pcall(writeMemory, 0x740460, 1, Les.noRecoilOrig, true)
+            end
+            Les.noRecoilPatched = false
+        end
+        -- Восстанавливаем скрытую листву/деревья
+        if Les.FolApplied or next(_folHidden) ~= nil then
+            pcall(restoreFoliage)
+            Les.FolApplied = false
+        end
+        -- Останавливаем кликер AutoY
+        if Les.AutoY_Clicker then Les.AutoY_Clicker:Stop() end
+        if isSampAvailable() then
+            sampAddChatMessage("[Les] Чит выключен", -16711681)
+        end
+    else
+        -- При повторном включении листва будет скрыта заново в ближайших кадрах
+        if Les.ClearFol.v then
+            Les.FolApplied = false
+            Les.FolTimer = os.clock()
+            Les.FolBldTimer = 0
+        end
+        if isSampAvailable() then
+            sampAddChatMessage("[Les] Чит включён", -1)
+        end
+    end
+end
+
 -- GUI с вкладками
 function imgui.OnDrawFrame()
     local sw, sh = getScreenResolution()
@@ -1264,11 +1312,30 @@ function imgui.OnDrawFrame()
             imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.60, 0.60, 0.60, 1.0))
             imgui.Text(u8"Les - ESP, Аим, Авто Y")
             imgui.PopStyleColor(1)
-            -- Кнопка сохранения конфига в шапке: уменьшена, прижата вправо, отцентрована по вертикали
+            -- Кнопки в шапке: слева переключатель всего чита, справа сохранение конфига
             local _tH = imgui.GetTextLineHeightWithSpacing()
             local _origY = imgui.GetCursorPosY()
             local _bW = 120 * fsc
             local _bH = 20 * fsc
+            imgui.SetCursorPosX(imgui.GetWindowWidth() - _bW * 2 - 18 * fsc)
+            imgui.SetCursorPosY(_origY - _tH - _bH * 0.5)
+            if Les.Master.v then
+                -- Чит включён: кнопка красная, нажатие выключает всё
+                imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.80, 0.18, 0.18, 1.0))
+                imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.0, 0.25, 0.25, 1.0))
+                if imgui.Button(u8"ВЫКЛЮЧИТЬ ВСЁ", ImVec2(_bW, _bH)) then
+                    setCheatMaster(false)
+                end
+            else
+                -- Чит выключен: кнопка зелёная, нажатие включает всё
+                imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.15, 0.65, 0.20, 1.0))
+                imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.20, 0.85, 0.25, 1.0))
+                if imgui.Button(u8"ВКЛЮЧИТЬ ВСЁ", ImVec2(_bW, _bH)) then
+                    setCheatMaster(true)
+                end
+            end
+            imgui.PopStyleColor(2)
+            imgui.SameLine()
             imgui.SetCursorPosX(imgui.GetWindowWidth() - _bW - 10 * fsc)
             imgui.SetCursorPosY(_origY - _tH - _bH * 0.5)
             if imgui.Button(u8"Сохранить конфиг", ImVec2(_bW, _bH)) then
@@ -2172,7 +2239,7 @@ end
 function onReceivePacket(id, bs)
     if type(_cefLogReceive) == 'function' then pcall(_cefLogReceive, id, bs) end
     if id ~= 215 then return end
-    if not (Les.AutoY.v and Les.AutoY_Clicker) then return end
+    if not (Les.Master.v and Les.AutoY.v and Les.AutoY_Clicker) then return end
     local pk = ''
     local _n = raknetBitStreamGetNumberOfBytesUsed(bs)
     if not (type(_n) == 'number') or _n < 0 then return end
@@ -2181,7 +2248,7 @@ function onReceivePacket(id, bs)
         if not _ok then break end
         pk = pk .. string.char((_byte % 256))
     end
-    if Les.AutoY.v and Les.AutoY_Clicker then
+    if Les.Master.v and Les.AutoY.v and Les.AutoY_Clicker then
         if pk:find("setFill(0, 100)", 1, true) then
             Les.AutoY_Clicker:Stop()
             dbg("AUTOY stop-100")
