@@ -123,6 +123,7 @@ local function turn_towards(target)
         if not doesCharExist(PLAYER_PED) then return end
         wait(250)
         waited = waited + 250
+        s.mafk_thread_alive = os.clock()
     end
     local tolerance = s.AFK_TURN_TOLERANCE or 6
     local heading = getCharHeading(PLAYER_PED)
@@ -139,6 +140,7 @@ local function turn_towards(target)
     for i = 1, steps do
         if not s.mafk_active then return end
         if not doesCharExist(PLAYER_PED) then return end
+        s.mafk_thread_alive = os.clock()
         -- smoothstep: медленный старт, плавное ускорение и замедление в конце
         local p = i / steps
         local eased = p * p * (3 - 2 * p)
@@ -161,12 +163,14 @@ local function hold_run(duration, backwards, heading_deg)
     local turn_speed = s.AFK_TURN_SPEED or 1.0
     local blocked = false
     local last_px, last_py = getCharCoordinates(PLAYER_PED)
+    if not last_px then return false end
     local move_counter = 0
     local still_windows = 0
     local elapsed = 0
     while elapsed < duration do
         if not s.mafk_active then break end
         if not doesCharExist(PLAYER_PED) then break end
+        s.mafk_thread_alive = os.clock()
         -- Плавный доворот к цели во время движения
         if heading_deg then
             local cur = getCharHeading(PLAYER_PED)
@@ -191,7 +195,7 @@ local function hold_run(duration, backwards, heading_deg)
         if move_counter >= 25 then
             move_counter = 0
             local cx, cy = getCharCoordinates(PLAYER_PED)
-            local still = not cx or math.abs(cx - last_px) + math.abs(cy - last_py) < 0.08
+            local still = not cx or not last_px or math.abs(cx - last_px) + math.abs(cy - last_py) < 0.08
             last_px, last_py = cx, cy
             if still then
                 still_windows = still_windows + 1
@@ -226,14 +230,17 @@ local function human_pause()
         if not doesCharExist(PLAYER_PED) then return end
         wait(500)
         waited = waited + 500
+        s.mafk_thread_alive = os.clock()
     end
 end
 
 function M.anti_afk_thread()
     local s = AL.state
+    s.mafk_thread_alive = os.clock()
 
     while true do
         wait(100)
+        s.mafk_thread_alive = os.clock()
         if not s.mafk_active then goto continue end
         if not isSampAvailable() then goto continue end
         if not doesCharExist(PLAYER_PED) then goto continue end
@@ -299,6 +306,20 @@ function M.anti_afk_thread()
         end
 
         ::continue::
+    end
+end
+
+-- Watchdog: если mafk включён, а фоновый поток не подавал признаков жизни более 5 секунд
+-- (умер на реконнекте из-за сбоя SAMPFUNCS при исчезновении педа), пересоздаём его.
+function M.mafk_watchdog_thread()
+    local s = AL.state
+    while true do
+        wait(1000)
+        if s.mafk_active and (os.clock() - s.mafk_thread_alive) > 5 then
+            s.mafk_thread_alive = os.clock()
+            lua_thread.create(M.anti_afk_thread)
+            AL.chat_msg("{FF6600}[Anti-AFK]{FFFFFF} Фоновый поток перезапущен после сбоя")
+        end
     end
 end
 

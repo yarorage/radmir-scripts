@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.5.0")
+script_version("1.5.1")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -888,6 +888,7 @@ function main()
     lua_thread.create(auth._internal.login_worker_thread)
     lua_thread.create(antiafk.anti_afk_thread)
     lua_thread.create(antiafk.mafk_hotkey_thread)
+    lua_thread.create(antiafk.mafk_watchdog_thread)
     -- Перехват сворачивания окна: окно уезжает за экран вместо минимизации,
     -- чтобы игра не паузилась и D3D-контекст не рвался (SW_RESTORE после минимизации крашит skygfx/d3d9).
     if utils.install_minimize_guard() then

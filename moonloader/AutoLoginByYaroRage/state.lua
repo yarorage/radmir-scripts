@@ -92,6 +92,7 @@ M.state = {
     -- Anti-AFK
     mafk_active = false,
     mafk_hold_start = 0,
+    mafk_thread_alive = 0,
     mafk_notify_until = 0,
     afk_mode = 0,
     auto_restart = true,
