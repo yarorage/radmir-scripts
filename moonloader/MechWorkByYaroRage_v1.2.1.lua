@@ -10,6 +10,9 @@
 -- по ПКМ и колесиком/курсором): если ближайшая машина в радиусе имеет
 -- водителя с исключённым id, запрос уходит следующей по близости машине,
 -- чей водитель не исключён. Список хранится в ini ключами excludeId1..N
+-- v1.2.1: комбинация Space + ПКМ теперь срабатывает и при показанном
+-- курсоре выбора цели (optCursorPick): /cancel уходит, а короткий клик ПКМ
+-- при зажатом Space НЕ выбирает машину под курсором (только /cancel).
 -- v1.2.0: комбинация Space + ПКМ (зажать пробел и кликнуть правой кнопкой
 -- мыши) отправляет в чат команду /cancel — ручная отмена текущей миниигры
 -- и ремонта. Срабатывает на фронте комбинации (каждый новый клик ПКМ при
@@ -87,7 +90,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.2.0")
+script_version("1.2.1")
 
 require "moonloader"
 
@@ -1175,7 +1178,9 @@ function main()
                 local held = now - mbDownAt
                 mbDown = false
                 mbProcessed = false
-                if optCursorPick.v and state.cursorVisible and held < optCursorDelaySec.v * 1000 and not showMenu.v then
+                -- v1.2.1: не выбираем цель, если только что ушёл /cancel (Space+ПКМ)
+                if optCursorPick.v and state.cursorVisible and held < optCursorDelaySec.v * 1000
+                   and not showMenu.v and not cancelPrev then
                     sendRepairByCursor()
                 end
             end
@@ -1205,13 +1210,14 @@ function main()
         -- зажать пробел и кликнуть правой кнопкой: в чат уходит /cancel
         -- (ручная отмена миниигры/ремонта). Фронт комбинации срабатывает
         -- один раз, повторные клики ПКМ при удержанном Space шлют снова.
-        -- Пропускается при открытом меню, показанном курсоре выбора цели
-        -- и вводе в чат/самп-диалог.
+        -- Пропускается при открытом меню и вводе в чат/самп-диалог.
+        -- При показанном курсоре выбора цели команда тоже отправляется,
+        -- а клик ПКМ при зажатом Space не выбирает машину под курсором.
         do
             local spDown = isVkDown(0x20)
             local rbDown = isVkDown(0x02)
+            -- v1.2.1: работает и при показанном курсоре выбора цели
             local cancelOk = spDown and rbDown and not showMenu.v
-                        and not state.cursorVisible and not (optCursorPick.v and currentCursorVk() == 0x02)
             if cancelOk and not cancelPrev then
                 local okChat = pcall(sampIsChatInputActive)
                 local okDlg = pcall(sampIsDialogActive)
