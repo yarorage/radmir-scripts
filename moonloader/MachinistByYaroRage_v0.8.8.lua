@@ -167,7 +167,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("0.8.7")
+script_version("0.8.8")
 script_author("YaroRage")
 
 require "moonloader"
@@ -1118,8 +1118,32 @@ local function driveThread()
                 -- за дес€ток метров до триггера Ч станци€ не защитывалась.
                 local stopCmd = timerText:find("ќстановитесь на станции", 1, true)
                     and st.info_timer_sec and st.info_timer_sec > 0
-                local atTrigger = (distance <= 3
-                    or (stationKnown and st.station_dist <= 1))
+                -- v0.8.8: точка остановки смещена на ~20 м «ј маркер станции.
+                --  огда нос состава вошЄл в триггер (station_dist <= 5),
+                -- начинаем отсчЄт ѕ–ќ…ƒ≈ЌЌќ√ќ пути по координатам и встаЄм
+                -- только после 20 м за маркером (раньше состав останавливалс€
+                -- пр€мо на маркере). ѕоследние метры Ч на совсем малой
+                -- скорости, с плавным дотормаживанием.
+                local passLen = 0
+                if stationKnown and st.station_dist <= 5 then
+                    local curX, curY = x, y
+                    if drive._passMk then
+                        local dx = curX - (drive._passPx or curX)
+                        local dy = curY - (drive._passPy or curY)
+                        drive._passLen = (drive._passLen or 0) + math.sqrt(dx * dx + dy * dy)
+                        drive._passPx, drive._passPy = curX, curY
+                        passLen = drive._passLen
+                    else
+                        drive._passMk = true
+                        drive._passLen = 0
+                        drive._passPx, drive._passPy = curX, curY
+                    end
+                else
+                    drive._passMk = nil
+                    drive._passLen = 0
+                end
+                local atTrigger = (stationKnown and st.station_dist <= 8
+                    and passLen >= 20) or (not stationKnown and distance <= 3)
                 -- v0.8.7: штраф за превышение вилки обрабатываем и на станции.
                 -- –аньше станционна€ ветка Ђсъедалаї таймер Ђ—низьте скорость
                 -- до штрафаї: на подъезде состав держалс€ выше вилки (code=2),
@@ -1212,6 +1236,15 @@ local function driveThread()
                         drive.lastAction = u8"сто€нка в триггере станции (ост. " ..
                             tostring(math.max(0, math.ceil(dwellLeft))) .. u8" с)"
                     end
+                elseif (stopCmd or atTrigger) and speed >= 4 then
+                    -- v0.8.8: точка остановки достигнута (проехали 20 м за
+                    -- маркер либо пришла команда сервера), а скорость ещЄ не
+                    -- нулева€ Ч ѕЋј¬Ќќ дотормаживаем слабым тормозом: без
+                    -- резкого рывка и без палевного звука торможени€.
+                    local softBrake = speed >= 60 and 150 or 40
+                    pcall(writeMemory, 0xB73458 + 0x1C, 1, softBrake, false)
+                    pcall(setGameKeyState, 14, softBrake)
+                    drive.lastAction = u8"м€гкое дотормаживание на станции"
                 elseif fineBrakeSt then
                     -- ѕлавный сброс к вилке (штраф Ђ—низьте скоростьї): aNeeded
                     -- 0.45..2.6 -> тормоз 150..255, как на перегоне.
@@ -1224,7 +1257,7 @@ local function driveThread()
                     pcall(writeMemory, 0xB73458 + 0x1C, 1, bLevel, false)
                     pcall(setGameKeyState, 14, bLevel)
                     drive.lastAction = u8"плавный сброс к вилке на станции (штраф)"
-                elseif speed > vHard + 1 or (stopCmd and speed >= 15) then
+                elseif speed > vHard + 1 or (stopCmd and speed >= 60) then
                     -- Ќе успеваем встать даже при максимальном замедлении, либо
                     -- сервер уже командует Ђќстановитесь на станцииї, а скорость
                     -- ещЄ далека от нул€ Ч экстренный тормоз (максимальный/200).
@@ -1249,6 +1282,10 @@ local function driveThread()
                     local frac = math.max(0, math.min(1,
                         (speed - vLim) / math.max(1, vHard - vLim)))
                     local brakeLevel = math.floor(90 + 110 * frac)
+                    -- v0.8.8: на малой скорости (35 км/ч и ниже) тормоз м€гкий Ч
+                    -- состав плавно дотормаживаетс€ без резкого рывка и без
+                    -- палевного звука тормоза.
+                    if speed < 35 then brakeLevel = math.min(brakeLevel, 60) end
                     pcall(writeMemory, 0xB73458 + 0x1C, 1, brakeLevel, false)
                     pcall(setGameKeyState, 14, brakeLevel)
                     drive.lastAction = u8"плавное торможение до станции"
