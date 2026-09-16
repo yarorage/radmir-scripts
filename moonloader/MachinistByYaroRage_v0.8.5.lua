@@ -167,7 +167,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("0.8.4")
+script_version("0.8.5")
 script_author("YaroRage")
 
 require "moonloader"
@@ -1066,12 +1066,17 @@ local function driveThread()
             -- Физика: замедление состава a (м/с^2), запас пути brakeMargin (м).
             local brakeA = (st.brake_decel and st.brake_decel > 0) and st.brake_decel or 2.0
             local brakeMargin = (st.brake_margin and st.brake_margin >= 0) and st.brake_margin or 6
-            -- Максимальная скорость, при которой успеем остановиться к станции:
-            --   vStop(км/ч) = sqrt(2*a*(distance-brakeMargin))*3.6.
-            -- Пока живой предел vStop ВЫШЕ целевой — едем на целевой; как только
-            -- кривая подходит — скорость сама плавно снижается, и состав точно
-            -- останавливается у станции (без проезда и без долгого «мёртвого»
-            -- торможения на последних метрах).
+            -- v0.8.5: ПЛАВНОЕ торможение «как у живого игрока».
+            -- Раньше кривая строилась на максимальном замедлении (brake_flag
+            -- 2.0 м/с^2): состав до последнего нёсся на целевой, потом резко
+            -- «валился» тормозом 180..255 — жёстко и палевно. Теперь две кривые:
+            --   vLim  — КОМФОРТНАЯ (aComf ~55% от реального замедления):
+            --           скорость, при которой состав плавно погасит к станции.
+            --           Ограничение «подкрадывается» с ~600 м и скорость тянется
+            --           к нулю у самой станции — как едет человек.
+            --   vHard — ЖЁСТКАЯ (max замедление brakeA): настоящий предел,
+            --           при превышении которого встать уже не успеем. Экстренный
+            --           тормоз применяется только здесь и при дедлайне сервера.
             local stationKnown = st.station_dist and st.station_dist >= 0
             -- v0.8.4: цель тормозной кривой — СТАНЦИЯ, а не чекпоинт-маркер.
             -- Сервер ставит race checkpoint (маркер) ПЕРЕД станцией (например
@@ -1080,9 +1085,13 @@ local function driveThread()
             -- Пока серверная дистанция станции больше дистанции до маркера,
             -- кривую строим от станции.
             local brakeDist = stationKnown and math.max(distance, st.station_dist) or distance
-            local vStopMs = math.sqrt(math.max(0, 2 * brakeA
+            local aComf = brakeA * 0.55
+            local vLimMs = math.sqrt(math.max(0, 2 * aComf
                 * math.max(0, (stationAhead and brakeDist or 99999) - brakeMargin)))
-            local vStop = vStopMs * 3.6
+            local vLim = vLimMs * 3.6
+            local vHardMs = math.sqrt(math.max(0, 2 * brakeA
+                * math.max(0, (stationAhead and brakeDist or 99999) - brakeMargin)))
+            local vHard = vHardMs * 3.6
             local speedMsNow = math.max(0, speed / 3.6)
             local brakePathNow = (speedMsNow * speedMsNow) / (2 * brakeA) + brakeMargin
             -- Серверные таймеры: пока висит «Ожидайте отправления» или «Садитесь
@@ -1145,35 +1154,38 @@ local function driveThread()
                         drive.lastAction = u8"стоянка на станции (ост. " ..
                             tostring(math.max(0, math.ceil(dwellLeft))) .. u8" с)"
                     end
-                elseif speed > vStop + 1 then
-                    -- Физика: с текущей скоростью к станции не успеем (не погасим
-                    -- за оставшийся путь) — тормозим по кривой. Усилие растёт от
-                    -- 180 к 255 с глубиной нарушения, плюс резерв setTrainSpeed.
-                    -- Если сервер выдал «Остановитесь на станции» с малым остатком
-                    -- (дедлайн) — сразу максимальный тормоз, чтобы успеть.
-                    local frac = math.max(0, math.min(1, (brakePathNow - distance) / brakePathNow))
+                elseif speed > vHard + 1 then
+                    -- Не успеваем встать даже при максимальном замедлении, либо
+                    -- серверный дедлайн «Остановитесь на станции» с малым
+                    -- остатком — экстренный тормоз (максимальный/200).
                     local hardStop = timerText:find("Остановитесь на станции", 1, true)
                         and st.info_timer_sec and st.info_timer_sec <= 15
-                    local brakeLevel
-                    if hardStop or speed > vStop + 20 then
-                        brakeLevel = 255
-                    else
-                        brakeLevel = math.floor(180 + 75 * frac)
-                    end
+                    local brakeLevel = hardStop and 255 or 200
                     pcall(writeMemory, 0xB73458 + 0x1C, 1, brakeLevel, false)
                     pcall(setGameKeyState, 14, brakeLevel)
                     if ok and type(car) == "number" and car > 0 then
-                        local vDesired = math.min(speedMsNow, vStopMs)
-                            * (distance / math.max(1, brakePathNow))
+                        local vDesired = math.min(speedMsNow, vHardMs)
+                            * (brakeDist / math.max(1, brakePathNow))
                         if speedMsNow > vDesired + 0.5 then
                             pcall(setTrainSpeed, car, math.max(0, vDesired - 0.2))
                         end
                     end
-                    drive.lastAction = u8"торможение по физике до станции"
+                    drive.lastAction = u8"экстренное торможение до станции"
+                elseif speed > vLim + 1 then
+                    -- Плавное замедление по комфортной кривой: тормоз мягко
+                    -- растёт от 60 к 150 с глубиной превышения над vLim — как
+                    -- игрок, заранее сбрасывающий скорость на станции. 255 не
+                    -- используем, setTrainSpeed-резерв тоже (слишком резкий).
+                    local frac = math.max(0, math.min(1,
+                        (speed - vLim) / math.max(1, vHard - vLim)))
+                    local brakeLevel = math.floor(60 + 90 * frac)
+                    pcall(writeMemory, 0xB73458 + 0x1C, 1, brakeLevel, false)
+                    pcall(setGameKeyState, 14, brakeLevel)
+                    drive.lastAction = u8"плавное торможение до станции"
                 else
-                    -- Едем максимально быстро, но не быстрее тормозной кривой:
-                    -- цель = мин(целевая, vStop). При достижении — выжим/нейтраль.
-                    local allowed = math.min(target, vStop)
+                    -- Едем максимально быстро, но не быстрее комфортной кривой:
+                    -- цель = мин(целевая, vLim). При достижении — выжим/нейтраль.
+                    local allowed = math.min(target, vLim)
                     if speed < allowed then
                         pressGasNative()
                         drive.lastAction = u8"разгон"
@@ -1256,6 +1268,26 @@ local function driveThread()
                     drive.lastAction = u8"разгон"
                 else
                     drive.lastAction = u8"набор/нейтраль"
+                end
+            end
+
+            -- v0.8.5: диагностика подъезда к станции (раз в 5 сек) — чтобы по
+            -- логу видеть, куда едет состав: дистанция от станции, до маркера,
+            -- значения кривых и признак прибытия. Числа, кириллица не мешает.
+            do
+                local nowDiag = wallClockMs()
+                if not drive._lastDriveDiag then drive._lastDriveDiag = 0 end
+                if nowDiag - drive._lastDriveDiag >= 5000 then
+                    drive._lastDriveDiag = nowDiag
+                    print(string.format(
+                        '[MachinistByYaroRage] DRIVE: spd=%d tgt=%d distCp=%d stDist=%s brDist=%s vLim=%s vHard=%s ahead=%s arr=%s needGo=%s',
+                        math.floor(speed * 10) / 10, math.floor(target * 10) / 10,
+                        math.floor(distance), tostring(st.station_dist),
+                        tostring(stationAhead and math.floor(brakeDist) or '-'),
+                        tostring(stationAhead and math.floor(vLim) or '-'),
+                        tostring(stationAhead and math.floor(vHard) or '-'),
+                        tostring(stationAhead), tostring(drive.station_arrived),
+                        tostring(st.need_go)))
                 end
             end
 
