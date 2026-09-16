@@ -84,6 +84,7 @@ local function set_nick(only_registry)
     local s = AL.state
     local nick = s.my_nick or ""
     if nick == "" then return end
+    AL.log("set_nick: примен€ю ник \"" .. tostring(nick) .. "\" только_реестр=" .. tostring(only_registry or false))
     local ok_mem, err_mem = pcall(function()
         if not only_registry then
             pcall(function() sampSetCurrentNick(nick) end)
@@ -200,6 +201,9 @@ function M.do_fast_reconnect(seconds)
         pcall(sampSetGamestate, GAMESTATE_WAIT_CONNECT)
         wait(800)
         emulate_reconnect_ui_cleanup()
+        -- –еконнект завершЄн: снимаем флаг "в процессе",
+        -- чтобы последующий обрыв/зависание мог запустить новый реконнект
+        AL.state.is_reconnecting = false
         AL.log("do_fast_reconnect: готово")
     end)
 end
@@ -437,6 +441,7 @@ M._internal = {
     post_loading_login_watch = function() post_loading_login_watch() end,
     start_reconnect_watch = function() start_reconnect_watch() end,
     handle_auth_limit_cef = M.handle_auth_limit_cef,
+    set_nick = function(o) set_nick(o) end,
     start_reconnect_internal = function(r, sec) start_reconnect_internal(r, sec) end,
 }
 

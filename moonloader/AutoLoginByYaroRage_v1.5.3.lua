@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.5.2")
+script_version("1.5.3")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -613,6 +613,7 @@ end
 
 function onWindowMessage(msg, wparam, lparam)
     if (msg == 0x0100 or msg == 0x0104) and wparam == 0x7A and bit.band(lparam, 0x20000000) ~= 0 then
+        reconnect_mod._internal.set_nick()
         reconnect_mod._internal.mark_manual_reconnect("Alt+F11", 3)
     end
 
