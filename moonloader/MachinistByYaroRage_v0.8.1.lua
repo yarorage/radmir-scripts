@@ -1,4 +1,4 @@
--- MachinistByYaroRage v0.7.9
+-- MachinistByYaroRage v0.8.0
 -- Автопилот машиниста метро (Radmir CRMP).
 -- Персонаж уже сидит в поезде и НЕ выходит: смены идут кругами
 -- (Союзная <-> Больничная), автопилот только ведёт состав.
@@ -167,7 +167,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("0.6.7")
+script_version("0.8.1")
 script_author("YaroRage")
 
 require "moonloader"
@@ -327,6 +327,9 @@ local drive = {
     lastAction = "нет",
     phase = "IDLE",
     stopped = false,
+    station_arrived = false,      -- v0.8.1: поезд прибыл на станцию
+    station_arrive_time = nil,    -- v0.8.1: момент прибытия (os.time)
+    station_left = false,          -- v0.8.1: поезд тронулся со станции
     in_cab = false,
     in_train = false,
     keys = 0,
@@ -386,6 +389,10 @@ local phaseTitle = {
 -- "attempt to call upvalue 'stopBot' (a nil value)" при админ-сообщении.
 local startBot
 local stopBot
+-- v0.8.0: снимок состояния функций в момент выключения чита. Пока чит
+-- выключен — хранит, что было включено, чтобы кнопка «Включить чита»
+-- вернула всё в том же виде. nil = чит никогда не выключался кнопкой.
+local cheatOffState = nil
 
 -- Диагностика приёма CEF-пакетов: сколько 215-пакетов в секунду, их размер
 -- и сколько времени уходит на чтение. Выводится в лог раз в 5 секунд, чтобы
@@ -779,18 +786,35 @@ function onReceivePacket(id, bs)
     if f.info_timer then
         st.info_timer = f.info_timer
     end
-    -- v0.7.6: режим «Превышать скорость». Сервер ловит превышение вилки и
-    -- запускает InformationTimer «Увеличьте скорость до штрафа», N. Отсюда
-    -- момент окончания таймера: обновляем, только если пришёл ПЕРВЫЙ/меньший
+    -- v0.8.1: таймеры штрафа делим на ДВА разных (оба содержат «штраф»):
+    --   «Снизьте скорость до штрафа», N  — превышение вилки, нужно ТОРМОЗИТЬ;
+    --   «Увеличьте скорость до штрафа», N — поезд стоит/едет медленно, нужно
+    --     РАЗГОНЯТЬСЯ (серверный сигнал «поехали!», чаще всего на станции:
+    --     после посадки сервер ждёт, что состав уедет).
+    -- Раньше оба таймера шли при overspeed_fine, поэтому на «Увеличьте скорость
+    -- до штрафа» автопилот «мёртво» стоял (нейтраль/тормоз), сервер повторял
+    -- таймер 15->1 и снимал состав с маршрута. Теперь «Увеличьте скорость»
+    -- выставляем как st.need_go (нужно РАЗГОНЯТЬСЯ), а штраф превышения —
+    -- только по «Снизьте скорость до штрафа». Оба обрабатываем даже без режима
+    -- «Превышать скорость» (станции работают и без него).
+    -- Таймер «Снизьте скорость» обновляем, только если пришёл ПЕРВЫЙ/меньший
     -- остаток либо предыдущий таймер уже истёк (защита от повтора одного числа).
-    if st.overspeed and f.info_timer then
-        if f.info_timer:find("штраф", 1, true) then
-            local sec = f.info_timer_sec or 15
-            local remaining = st.overspeed_timer > 0 and (st.overspeed_timer - os.time()) or 0
-            if st.overspeed_timer == 0 or st.overspeed_timer <= os.time() or sec < remaining then
-                st.overspeed_fine = true
-                st.overspeed_timer = os.time() + sec
+    st.need_go = false
+    if f.info_timer then
+        if f.info_timer:find("Снизьте скорость", 1, true) then
+            if st.overspeed then
+                local sec = f.info_timer_sec or 15
+                local remaining = st.overspeed_timer > 0 and (st.overspeed_timer - os.time()) or 0
+                if st.overspeed_timer == 0 or st.overspeed_timer <= os.time() or sec < remaining then
+                    st.overspeed_fine = true
+                    st.overspeed_timer = os.time() + sec
+                end
             end
+        elseif f.info_timer:find("Увеличьте скорость", 1, true) then
+            -- сервер требует разгона: снимаем штраф превышения и включаем need_go
+            st.need_go = true
+            st.overspeed_fine = false
+            st.overspeed_timer = 0
         else
             st.overspeed_fine = false
             st.overspeed_timer = 0
@@ -965,6 +989,18 @@ local function driveThread()
                 local ok2, spd = pcall(getCarSpeed, car)
                 if ok2 and type(spd) == "number" then speed = spd * 3.67 end
             end
+            -- v0.8.1: снимаем серверное требование «Увеличьте скорость до штрафа»,
+            -- как только поезд реально поехал (скорость вошла в вилку).
+            if st.need_go and speed >= math.max(5, (st.speed_lo or 0) * 0.8) then
+                st.need_go = false
+            end
+            -- v0.8.1: снимаем флаги стоянки при начале движения, чтобы не
+            -- «застрять» в зацикленном прибытии на станцию.
+            if speed >= 10 then
+                drive.station_arrived = false
+                drive.station_arrive_time = nil
+                drive.station_left = false
+            end
 
             -- Дистанция до цели: если сервер выставил чекпоинт — до него,
             -- иначе остаток пути до станции из setStation (st.station_dist).
@@ -1027,7 +1063,45 @@ local function driveThread()
                 local brakePath = (speedMs * speedMs) / (2 * 1.8) + 8
                 local stopDistance = distance - brakePath
                 drive.stop_preview = stopDistance
-                if stopDistance <= 1 or distance <= brakePath then
+
+                -- v0.8.1: прибытие и отправление со станции.
+                -- Раньше «точная остановка» требовала distance<3 и speed<5, но поезд
+                -- физически не доезжал до маркера (~9-12 м), «мёртво» стоял с тормозом,
+                -- а сервер слал «Увеличьте скорость до штрафа» (требование ускорения),
+                -- которое трактовалось как штраф превышения и не трогало газ.
+                -- Теперь: «прибыл» = speed<5 и distance<=station_stop_radius, стоим
+                -- station_dwell сек (лёгкий тормоз), затем либо сервер потребовал
+                -- движение (need_go), либо время стоянки вышло — отправляемся.
+                if speed < 5 and distance <= (st.station_stop_radius or 15) then
+                    if not drive.station_arrived then
+                        drive.station_arrived = true
+                        drive.station_arrive_time = os.time()
+                    end
+                    local dwell = st.station_dwell or 5
+                    local dwellLeft = dwell - (os.time() - drive.station_arrive_time)
+                    if st.need_go or (not driveCpFinish and not (dwellLeft > 0)) then
+                        -- Отправление: тормоз 0, фаза DRIVE, газ до цели
+                        drive.station_arrived = false
+                        drive.station_arrive_time = nil
+                        drive.phase = "DRIVE"
+                        pcall(writeMemory, 0xB73458 + 0x1C, 1, 0, false)
+                        pcall(setGameKeyState, 14, 0)
+                        local goTarget = (st.speed_hi and st.speed_hi > 0)
+                            and (st.speed_hi - 1)
+                            or ((st.speed_lo and st.speed_lo > 0) and st.speed_lo or 40)
+                        if speed < goTarget then pressGasNative() end
+                        drive.lastAction = st.need_go
+                            and u8"отправление (сервер требует скорость)"
+                            or u8"отправление после стоянки"
+                    else
+                        -- Стоянка: лёгкий тормоз удерживает состав на месте
+                        drive.phase = "STOP"
+                        pcall(writeMemory, 0xB73458 + 0x1C, 1, 30, false)
+                        pcall(setGameKeyState, 14, 30)
+                        drive.lastAction = u8"стоянка на станции (ост. " ..
+                            tostring(math.max(0, dwellLeft)) .. u8" с)"
+                    end
+                elseif stopDistance <= 1 or distance <= brakePath then
                     -- v0.7.9: тормозим раньше и сильнее: база 180 (было 150),
                     -- плюс резерв setTrainSpeed, если штатного тормоза не хватает.
                     if distance < 3 and speed < 5 then
@@ -1046,8 +1120,6 @@ local function driveThread()
                         local brakeLevel = math.floor(180 + 75 * frac)
                         pcall(writeMemory, 0xB73458 + 0x1C, 1, brakeLevel, false)
                         pcall(setGameKeyState, 14, brakeLevel)
-                        -- Резерв: если скорость всё ещё выше профиля торможения —
-                        -- принудительно гасим набор (setTrainSpeed страхует тормоз).
                         if ok and type(car) == "number" and car > 0 then
                             local vDesired = speedMs * (distance / brakePath)
                             if speedMs > vDesired + 0.5 then
@@ -1082,32 +1154,44 @@ local function driveThread()
                 local activeFine = st.overspeed and st.overspeed_fine
                     and st.overspeed_timer > os.time()
                 local speedMs = math.max(0, speed / 3.6)
+                -- v0.8.1: таймер «Увеличьте скорость до штрафа» — это НЕ штраф
+                -- превышения, а требование РАЗГОНЯТЬСЯ (поезд стоит/медленно едет).
+                -- Сбрасываем ошибочный штраф, чтобы не давил тормоз/нейтраль.
+                local needGo = st.need_go
+                if needGo then
+                    st.overspeed_fine = false
+                    st.overspeed_timer = 0
+                    activeFine = false
+                end
                 local fineNow = false
                 if activeFine and fineMs then
-                    local tLeft = st.overspeed_timer - os.time()
-                    local tBrake = math.max(0, (speedMs - fineMs) / 1.8)
-                    -- Тормозим, когда до конца таймера осталось tBrake + guard
-                    -- секунд: профизически скорость входим в вилку за ~1 сек до
-                    -- окончания. После входа в вилку НЕ разгоняемся (нейтраль),
-                    -- пока таймер не закончился — иначе на проверке штрафа нас
-                    -- поймают.
-                    if tLeft <= tBrake + (st.overspeed_guard or 1) then
-                        fineNow = true
+                    -- v0.8.1: штраф активен — тормозим СРАЗУ, а не в последнюю
+                    -- секунду. Старая логика считала цель 185+ км/ч и «тормоз
+                    -- заранее», но из-за огромного запаса вилка не успевала
+                    -- достигаться. Теперь: есть штраф — вилка, тормозим до неё.
+                    fineNow = (speedMs > fineMs + 0.3)
+                end
+                -- v0.8.1: авто-цель превышения. Пока нет штрафа — вилка +
+                -- фиксированный запас overspeed_extra км/ч (небольшой, но
+                -- эффективный; раньше формула 2.8*...*3.6 давала 185+ км/ч и
+                -- поезд не успевал сброситься за таймер). Штраф активен — цель = вилка.
+                if st.overspeed and fineMs then
+                    if activeFine then
+                        useTarget = fineMs * 3.6
+                    else
+                        local overspeedTarget = fineMs * 3.6 + (st.overspeed_extra or 8)
+                        useTarget = math.max(target + 1, overspeedTarget)
                     end
                 end
-                -- v0.7.9: авто-цель превышения. Пока штрафного таймера нет —
-                -- берём 15 сек по умолчанию: физический предел (разгон 2.8 м/с^2
-                -- за (tAvail-guard) сек от вилки) = ~185 км/ч, что выше максимума
-                -- состава, поэтому поезд просто едет на полную. Цель в км/ч:
-                --   (hi-1) + 2.8 * max(1, tAvail - guard) * 3.6,
-                -- но не ниже обычной цели вилки (чтобы и в нейтрали штраф не лить).
-                if st.overspeed and fineMs then
-                    local tAvail = activeFine and (st.overspeed_timer - os.time()) or 15
-                    local overspeedTarget = fineMs * 3.6
-                        + 2.8 * math.max(1, tAvail - (st.overspeed_guard or 1)) * 3.6
-                    useTarget = math.max(target + 1, overspeedTarget)
-                end
-                if fineNow then
+                if needGo then
+                    -- сервер требует движения: газ до обычной цели
+                    if speed < target then
+                        pressGasNative()
+                        drive.lastAction = u8"разгон (сервер требует скорость)"
+                    else
+                        drive.lastAction = u8"набор/нейтраль"
+                    end
+                elseif fineNow then
                     if speedMs > fineMs + 0.3 then
                         pcall(writeMemory, 0xB73458 + 0x1C, 1, 255, false)
                         pcall(setGameKeyState, 14, 255)
@@ -1161,19 +1245,70 @@ local function toggleMenu()
 end
 
 startBot = function()
-    optEnabled.v = true
+    -- v0.8.0: «Включить чита» возвращает ВСЕ функции, которые были включены
+    -- в момент выключения (снимок делается в stopBot). Если снимка нет
+    -- (например, /mqstart без предварительного выключения) — включаем
+    -- автопилот как раньше, остальные опции остаются как были.
+    if cheatOffState then
+        optEnabled.v = cheatOffState.enabled
+        optForceCab.v = cheatOffState.force_cab
+        optAutoDrive.v = cheatOffState.auto_drive
+        optNotify.v = cheatOffState.notify
+        optOverspeed.v = cheatOffState.overspeed
+        optTgPoll.v = cheatOffState.tg_poll
+        cheatOffState = nil
+    else
+        optEnabled.v = true
+    end
     saveAll()
-    if not drive.tickThread and not st.dbg_no_thread then
+    if optEnabled.v and not drive.tickThread and not st.dbg_no_thread then
         drive.tickThread = lua_thread.create(driveThread)
     end
-    local ok, err = pcall(sampAddChatMessage, u8:decode(u8"Machinist: автопилот включён (фаза: " ..
-        (phaseTitle[drive.phase] or drive.phase) .. u8")"), 0xAAFFAA)
+    local restored = 0
+    if optForceCab.v then restored = restored + 1 end
+    if optAutoDrive.v then restored = restored + 1 end
+    if optNotify.v then restored = restored + 1 end
+    if optOverspeed.v then restored = restored + 1 end
+    if optTgPoll.v then restored = restored + 1 end
+    local ok, err = pcall(sampAddChatMessage, u8:decode(u8"Machinist: чит включён (автопилот: " ..
+        (optEnabled.v and u8"он" or u8"выкл") .. u8", восстановлено функций: " ..
+        tostring(restored) .. u8")"), 0xAAFFAA)
 end
 
 stopBot = function()
+    -- v0.8.0: «Выключить чита» гасит ВСЕ функции разом: автопилот,
+    -- принудительную кабину, автоведение, телеграм-уведомления, превышение
+    -- и опрос Telegram. Перед выключением запоминаем, что было активно,
+    -- чтобы кнопка «Включить чита» вернула всё в том же виде.
+    local activeNow = optEnabled.v or optForceCab.v or optAutoDrive.v or
+        optNotify.v or optOverspeed.v or optTgPoll.v
+    if not activeNow then return end
+    cheatOffState = {
+        enabled = optEnabled.v,
+        force_cab = optForceCab.v,
+        auto_drive = optAutoDrive.v,
+        notify = optNotify.v,
+        overspeed = optOverspeed.v,
+        tg_poll = optTgPoll.v,
+    }
     optEnabled.v = false
+    optForceCab.v = false
+    optAutoDrive.v = false
+    optNotify.v = false
+    optOverspeed.v = false
+    optTgPoll.v = false
     saveAll()
-    local ok, err = pcall(sampAddChatMessage, u8:decode(u8"Machinist: автопилот выключен"), 0xFFAAAA)
+    -- Освобождаем газ/тормоз и сбрасываем состояние автопилота, чтобы поезд
+    -- не продолжал движение после выключения (поток сам завершится: while
+    -- optEnabled.v стал false).
+    drive.keys = 0
+    drive.phase = "IDLE"
+    drive.lastAction = u8"чит выключен"
+    drive.station_arrived = false
+    drive.station_arrive_time = nil
+    drive.station_left = false
+    pcall(releaseKeysNative)
+    local ok, err = pcall(sampAddChatMessage, u8:decode(u8"Machinist: чит выключен (все функции остановлены)"), 0xFFAAAA)
 end
 
 local function testTelegram()
@@ -1290,6 +1425,9 @@ end
 local function resetDrive()
     drive.phase = "IDLE"
     drive.lastAction = u8"сброс"
+    drive.station_arrived = false
+    drive.station_arrive_time = nil
+    drive.station_left = false
     state_mod.reset()
 end
 
@@ -1308,7 +1446,7 @@ function main()
     inpToken.v = st.tg_bot_token
     inpChat.v = st.tg_chat_id
 
-    print(string.format("[MachinistByYaroRage] v0.7.9 флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
+    print(string.format("[MachinistByYaroRage] v0.8.0 флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
         st.dbg_no_thread and 1 or 0, st.dbg_no_events and 1 or 0,
         st.dbg_no_gui and 1 or 0, st.dbg_no_chat and 1 or 0, st.tg_poll_enable and 1 or 0,
         st.dbg_log and 1 or 0, st.force_cab and 1 or 0))
@@ -1515,8 +1653,10 @@ local renderUi = function()
         imgui.Separator()
 
         -- ---------- Панель действий: вкл/выкл всё / сохранить / закрыть ----------
-        -- v0.7.8: ШАПКА — одна кнопка включает/выключает весь чит (автопилот
-        -- и все подсистемы). Цвет показывает состояние: зелёный — чит работает,
+        -- v0.8.0: ШАПКА — кнопка выключает ВСЕ функции разом (автопилот,
+        -- принудительная кабина, автоведение, телеграм-уведомления, превышение,
+        -- опрос Telegram) и запоминает, что было активно. Повторное включение
+        -- возвращает всё в том же виде. Цвет: зелёный — чит работает,
         -- красный — выключен.
         if optEnabled.v then
             imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.22, 0.62, 0.30, 1))
@@ -1531,7 +1671,7 @@ local renderUi = function()
         end
         imgui.PopStyleColor(2)
         if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"Включает/выключает весь чит сразу (то же, что /mqstart и /mqstop)")
+            imgui.SetTooltip(u8"Выключает вообще все функции скрипта (автопилот, кабина, ведение, телеграм, превышение, опрос Telegram); повторное включение возвращает их в прежнем виде")
         end
         imgui.Separator()
         if imgui.Button(u8"Сохранить", imgui.ImVec2(200 * fsc, 30 * fsc)) then

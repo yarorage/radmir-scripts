@@ -39,6 +39,9 @@ M.state = {
                               -- но успеть сбросить скорость до штрафа
     overspeed_extra = 8,      -- на сколько км/ч выше верхней границы вилки ехать
     overspeed_guard = 1,      -- за сколько секунд до конца таймера штрафа вернуться в вилку
+    station_stop_radius = 15, -- v0.8.1: радиус «прибытия на станцию» (метры)
+    station_dwell = 5,        -- v0.8.1: секунды стоянки перед отправлением
+    need_go = false,          -- v0.8.1: сервер требует движения («Увеличьте скорость»)
 
     phase = "IDLE",
     arrived_at = 0,           -- момент, когда поезд остановился
@@ -345,6 +348,7 @@ function M.reset()
     s.info_timer_sec = nil
     s.overspeed_fine = false
     s.overspeed_timer = 0
+    s.need_go = false
     s.semaphores = {0, 0, 0, 0}
     s.speed_range = "0-0"
     s.speed_lo = 0
