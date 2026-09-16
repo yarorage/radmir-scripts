@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.9.3")
+script_version("0.9.4")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -79,9 +79,18 @@ local function sampGetPlayerPos(id)
     if not isSampAvailable() then return false, 0, 0, 0 end
     id = tonumber(id) or 0
     if id < 0 or not sampIsPlayerConnected(id) then return false, 0, 0, 0 end
-    if id == sampGetLocalPlayerId() then
+    local _ok_my, _my_id = pcall(sampGetPlayerIdByCharHandle, PLAYER_PED)
+    if _ok_my and _my_id == id then
         local x, y, z = getCharCoordinates(PLAYER_PED)
         return true, x, y, z
+    end
+    -- Прямой способ: встроенная таблица samp с методом getPlayerPosition (есть в движке Radmir)
+    local _sampT = samp
+    if type(_sampT) == 'table' and type(_sampT.getPlayerPosition) == 'function' then
+        local _okpos, _px, _py, _pz = pcall(_sampT.getPlayerPosition, id)
+        if _okpos and _px and _py and _pz then
+            return true, _px, _py, _pz
+        end
     end
     local ok, ptr = pcall(_sampSafe_origStructPtr, id)
     if not ok or not ptr or ptr == 0 then return false, 0, 0, 0 end
