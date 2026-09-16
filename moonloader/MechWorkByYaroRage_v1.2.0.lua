@@ -10,6 +10,12 @@
 -- по ПКМ и колесиком/курсором): если ближайшая машина в радиусе имеет
 -- водителя с исключённым id, запрос уходит следующей по близости машине,
 -- чей водитель не исключён. Список хранится в ini ключами excludeId1..N
+-- v1.2.0: комбинация Space + ПКМ (зажать пробел и кликнуть правой кнопкой
+-- мыши) отправляет в чат команду /cancel — ручная отмена текущей миниигры
+-- и ремонта. Срабатывает на фронте комбинации (каждый новый клик ПКМ при
+-- зажатом Space шлёт команду), пропускается при открытом меню, показанном
+-- курсоре выбора цели и вводе в чат/самп-диалог. При зажатом Space ручной
+-- запрос /repair по ПКМ (v1.1.4) не отправляется, чтобы команды не конфликтовали.
 -- v1.1.9: персонаж в «Эвакуаторе» (модель 525 = Towtruck, в списке Les -
 -- «Эвакуатор») автоматически попадает в исключения и не получает /repair:
 -- рантайм-фильтр отсекает водителей за рулём эвакуатора во всех режимах
@@ -81,7 +87,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.1.9")
+script_version("1.2.0")
 
 require "moonloader"
 
@@ -1124,6 +1130,8 @@ function main()
     local mbProcessed = false  -- удержание уже обработано (показали/скрыли)
     -- ---------- v1.1.4: фронт правой кнопки для ручного запроса /repair ----------
     local rmbPrev = false      -- ПКМ была нажата на прошлом кадре
+    -- ---------- v1.2.0: фронт комбинации Space + ПКМ для /cancel ----------
+    local cancelPrev = false   -- комбинация Space+ПКМ была активна на прошлом кадре
     while true do
         -- Меню: imgui берёт ввод (DisableInput=false), курсор виден.
         -- Курсор без меню: ввод отдаётся игре (DisableInput=true), камера вращается.
@@ -1182,6 +1190,7 @@ function main()
             local rmbDown = isVkDown(0x02)
             local rmbOk = optManualRmb.v and not showMenu.v and not state.active
                       and not state.cursorVisible and not (optCursorPick.v and currentCursorVk() == 0x02)
+                      and not isVkDown(0x20) -- v1.2.0: зажат Space - ПКМ резервируется под /cancel
             if rmbDown and not rmbPrev and rmbOk then
                 local okChat = pcall(sampIsChatInputActive)
                 local okDlg = pcall(sampIsDialogActive)
@@ -1190,6 +1199,27 @@ function main()
                 end
             end
             rmbPrev = rmbDown
+        end
+
+        -- ---------- v1.2.0: Space + ПКМ - команда /cancel в чат ----------
+        -- зажать пробел и кликнуть правой кнопкой: в чат уходит /cancel
+        -- (ручная отмена миниигры/ремонта). Фронт комбинации срабатывает
+        -- один раз, повторные клики ПКМ при удержанном Space шлют снова.
+        -- Пропускается при открытом меню, показанном курсоре выбора цели
+        -- и вводе в чат/самп-диалог.
+        do
+            local spDown = isVkDown(0x20)
+            local rbDown = isVkDown(0x02)
+            local cancelOk = spDown and rbDown and not showMenu.v
+                        and not state.cursorVisible and not (optCursorPick.v and currentCursorVk() == 0x02)
+            if cancelOk and not cancelPrev then
+                local okChat = pcall(sampIsChatInputActive)
+                local okDlg = pcall(sampIsDialogActive)
+                if (not okChat or not sampIsChatInputActive()) and (not okDlg or not sampIsDialogActive()) then
+                    pcall(sampSendChat, "/cancel")
+                end
+            end
+            cancelPrev = cancelOk
         end
 
         -- ---------- v1.1.1: авто-ремонт подъехавших в радиус ----------
