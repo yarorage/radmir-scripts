@@ -1312,27 +1312,40 @@ function imgui.OnDrawFrame()
             imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.60, 0.60, 0.60, 1.0))
             imgui.Text(u8"Les - ESP, Аим, Авто Y")
             imgui.PopStyleColor(1)
-            -- Кнопки в шапке: слева переключатель всего чита, справа сохранение конфига
+            -- Кнопки в шапке: выключить чит, включить чит и сохранение конфига
             local _tH = imgui.GetTextLineHeightWithSpacing()
             local _origY = imgui.GetCursorPosY()
             local _bW = 120 * fsc
             local _bH = 20 * fsc
+            imgui.SetCursorPosX(imgui.GetWindowWidth() - _bW * 3 - 26 * fsc)
+            imgui.SetCursorPosY(_origY - _tH - _bH * 0.5)
+            if Les.Master.v then
+                -- Чит включён: кнопка выключения активна (красная)
+                imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.80, 0.18, 0.18, 1.0))
+                imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.0, 0.25, 0.25, 1.0))
+            else
+                -- Чит выключен: кнопка выключения неактивна (серая)
+                imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.35, 0.35, 0.35, 1.0))
+                imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.40, 0.40, 0.40, 1.0))
+            end
+            if imgui.Button(u8"ВЫКЛЮЧИТЬ ЧИТ", ImVec2(_bW, _bH)) and Les.Master.v then
+                setCheatMaster(false)
+            end
+            imgui.PopStyleColor(2)
+            imgui.SameLine()
             imgui.SetCursorPosX(imgui.GetWindowWidth() - _bW * 2 - 18 * fsc)
             imgui.SetCursorPosY(_origY - _tH - _bH * 0.5)
             if Les.Master.v then
-                -- Чит включён: кнопка красная, нажатие выключает всё
-                imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.80, 0.18, 0.18, 1.0))
-                imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.0, 0.25, 0.25, 1.0))
-                if imgui.Button(u8"ВЫКЛЮЧИТЬ ВСЁ", ImVec2(_bW, _bH)) then
-                    setCheatMaster(false)
-                end
+                -- Чит включён: кнопка включения неактивна (серая)
+                imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.35, 0.35, 0.35, 1.0))
+                imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.40, 0.40, 0.40, 1.0))
             else
-                -- Чит выключен: кнопка зелёная, нажатие включает всё
+                -- Чит выключен: кнопка включения активна (зелёная)
                 imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.15, 0.65, 0.20, 1.0))
                 imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.20, 0.85, 0.25, 1.0))
-                if imgui.Button(u8"ВКЛЮЧИТЬ ВСЁ", ImVec2(_bW, _bH)) then
-                    setCheatMaster(true)
-                end
+            end
+            if imgui.Button(u8"ВКЛЮЧИТЬ ЧИТ", ImVec2(_bW, _bH)) and not Les.Master.v then
+                setCheatMaster(true)
             end
             imgui.PopStyleColor(2)
             imgui.SameLine()
