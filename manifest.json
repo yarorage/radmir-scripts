@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.7",
     "launcherVersion":  "1.1.7",
-    "updatedAt":  "2026-09-16 18:07",
+    "updatedAt":  "2026-09-16 18:12",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -146,6 +146,12 @@
                       "path":  "moonloader/LesByYaroRage_v1.7.2.lua",
                       "sha256":  "4b08627aeab41e9685d08e3082a0850381d93c4b9cb21e9cb2aeb449c60173fa",
                       "size":  100986,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/MachinistByYaroRage_v0.7.6.lua",
+                      "sha256":  "20683e453a80ab6c9e2a4c612a2e73c7ca4139dbb40eb3467ee9db76d3c1c651",
+                      "size":  77586,
                       "dest":  "gameRoot"
                   },
                   {
@@ -2420,6 +2426,30 @@
                       "path":  "moonloader/lib/windows/message.lua",
                       "sha256":  "ffa4278c91e1498b89907c60a01402174b59aa04f878c3a237702fb68eef6a86",
                       "size":  25898,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/MachinistByYaroRage/admin.lua",
+                      "sha256":  "d9848d004e3f67926389d5125d8a888283f455db0138fab34b401ab1c4da3cf3",
+                      "size":  8640,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/MachinistByYaroRage/cef.lua",
+                      "sha256":  "94610a9362e942662b1b1f86490f42c23ee208f84fb755d111573fec849ec883",
+                      "size":  11991,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/MachinistByYaroRage/state.lua",
+                      "sha256":  "e7583271541fed33e1fd0a1da8b996745c06abbbe5d1632bb2cf9236bc06a4ce",
+                      "size":  17036,
+                      "dest":  "gameRoot"
+                  },
+                  {
+                      "path":  "moonloader/MachinistByYaroRage/telegram.lua",
+                      "sha256":  "6602b9edcbddd9f339dec50c2bf20e4f6afbc4120f4520e21cc0003d444cfb56",
+                      "size":  7799,
                       "dest":  "gameRoot"
                   },
                   {
