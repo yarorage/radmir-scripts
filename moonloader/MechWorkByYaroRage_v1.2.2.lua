@@ -10,6 +10,10 @@
 -- по ПКМ и колесиком/курсором): если ближайшая машина в радиусе имеет
 -- водителя с исключённым id, запрос уходит следующей по близости машине,
 -- чей водитель не исключён. Список хранится в ini ключами excludeId1..N
+-- v1.2.2: фразы автоответа воспроизводятся в цикле (случайный порядок
+-- одного цикла, пока все N фраз не воспроизведутся — ни одна не
+-- повторится, затем случайный порядок обновляется и цикл начинается
+-- заново). Список фраз может быть любым до 10 штук.
 -- v1.2.1: комбинация Space + ПКМ теперь срабатывает и при показанном
 -- курсоре выбора цели (optCursorPick): /cancel уходит, а короткий клик ПКМ
 -- при зажатом Space НЕ выбирает машину под курсором (только /cancel).
@@ -90,7 +94,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.2.1")
+script_version("1.2.2")
 
 require "moonloader"
 
@@ -421,6 +425,8 @@ local state = {
     lastRepair = 0,    -- время последнего автозапроса /repair (GetTickCount, мс)
     lastAutoReply = 0, -- время последнего автоответа в чат (GetTickCount, мс)
     lastAutoReplyText = "", -- последняя отправленная фраза автоответа (CP1251, v1.1.5)
+    replyPool = {},        -- v1.2.2: перемешанный пул индексов фраз (текущий цикл)
+    replyPoolIdx = 1,      -- v1.2.2: текущая позиция в пуле фраз
     cursorVisible = false, -- курсор выбора цели показан (по удержанию колесика)
     -- ---------- v1.1.1: авто-ремонт подъехавших в радиус ----------
     nearQueue = {},      -- таблица прошлых /repair: veh -> nowMs
@@ -978,6 +984,10 @@ end
 -- (одинаковое сообщение в чат писать нельзя) - если в списке есть хоть
 -- одна фраза, отличная от последней отправленной, выбираем только такую.
 -- Пустые строки при отправке пропускаются.
+-- v1.2.2: фразы воспроизводятся случайным порядком в рамках цикла,
+-- пока все не воспроизведутся — ни одна не повторяется.
+-- При изменении количества фраз цикл сбрасывается.
+-- Тасование Фишера-Йетса даёт равномерно-случайный порядок.
 local function pickAutoReplyLine()
     local list = {}
     for i = 1, replyCount.v do
@@ -985,19 +995,31 @@ local function pickAutoReplyLine()
         if t ~= "" then list[#list + 1] = t end
     end
     if #list == 0 then return end
-    local idx = math.random(#list)
-    if state.lastAutoReplyText ~= "" then
-        local tries = 0
-        while list[idx] == state.lastAutoReplyText and tries < #list * 2 do
-            idx = math.random(#list)
-            tries = tries + 1
+    -- пересоздаём пул, если список фраз изменился
+    if #state.replyPool ~= #list then
+        state.replyPool = {}
+        for i = 1, #list do state.replyPool[i] = i end
+        -- тасование Фишера-Йетса
+        for i = #state.replyPool, 2, -1 do
+            local j = math.random(i)
+            state.replyPool[i], state.replyPool[j] = state.replyPool[j], state.replyPool[i]
         end
+        state.replyPoolIdx = 1
     end
-    state.lastAutoReplyText = list[idx]
+    -- пул исчерпан — начинаем новый цикл
+    if state.replyPoolIdx > #state.replyPool then
+        for i = #state.replyPool, 2, -1 do
+            local j = math.random(i)
+            state.replyPool[i], state.replyPool[j] = state.replyPool[j], state.replyPool[i]
+        end
+        state.replyPoolIdx = 1
+    end
+    local idx = state.replyPool[state.replyPoolIdx]
+    state.replyPoolIdx = state.replyPoolIdx + 1
     pcall(sampSendChat, list[idx])
 end
 
--- автоответ на фразу начала ремонта (анти-дубль 5 сек)
+-- v1.2.2: автоответ на фразу начала ремонта (анти-дубль 5 сек, фразы по циклу)
 function sendAutoReplyIfStarted(bs)
     if not payloadHasRepairStart(bs) then return false end
     -- v1.1.7: заявка принята - уведомление «Чиню <ник> (id) - <модель>»
