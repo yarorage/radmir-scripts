@@ -167,7 +167,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("0.8.2")
+script_version("0.8.3")
 script_author("YaroRage")
 
 require "moonloader"
@@ -802,13 +802,16 @@ function onReceivePacket(id, bs)
     st.need_go = false
     if f.info_timer then
         if f.info_timer:find("Снизьте скорость", 1, true) then
-            if st.overspeed then
-                local sec = f.info_timer_sec or 15
-                local remaining = st.overspeed_timer > 0 and (st.overspeed_timer - os.time()) or 0
-                if st.overspeed_timer == 0 or st.overspeed_timer <= os.time() or sec < remaining then
-                    st.overspeed_fine = true
-                    st.overspeed_timer = os.time() + sec
-                end
+            -- v0.8.3: таймер штрафа признаём ВСЕГДА — сервер штрафует за
+            -- физическое превышение вилки даже при обычной езде (уклон, спуск,
+            -- инерция), а значит скрипт обязан планово сбросить скорость,
+            -- а не игнорировать подсказку, пока включён только режим
+            -- «Превышать скорость».
+            local sec = f.info_timer_sec or 15
+            local remaining = st.overspeed_timer > 0 and (st.overspeed_timer - os.time()) or 0
+            if st.overspeed_timer == 0 or st.overspeed_timer <= os.time() or sec < remaining then
+                st.overspeed_fine = true
+                st.overspeed_timer = os.time() + sec
             end
         elseif f.info_timer:find("Увеличьте скорость", 1, true) then
             -- сервер требует разгона: снимаем штраф превышения и включаем need_go
@@ -1167,49 +1170,54 @@ local function driveThread()
                     end
                 end
             else
-                -- Вне зоны станции: всегда разгон до target.
-                -- v0.7.9: режим «Превышать скорость» — на перегоне едем выше
-                -- верхней границы вилки (цель считает физика, см. ниже).
+                -- Вне зоны станции: разгон до обычной цели или режим превышения.
+                -- v0.8.3: ПЛАНОВОЕ торможение по таймеру штрафа («Снизьте
+                -- скорость до штрафа»). Раньше скрипт ставил цель = вилке и
+                -- ждал последней секунды таймера — на 150+ км/ч за 1 секунду
+                -- сбросить физически невозможно, поэтому сервер штрафовал.
+                -- Теперь каждый кадр считается НЕОБХОДИМОЕ замедление: сколько
+                -- м/с^2 нужно, чтобы к моменту окончания таймера плавно войти
+                -- в вилку (с запасом x1.15 на неточность физики состава), и
+                -- тормозим ВЕСЬ период штрафного таймера, а не в последний
+                -- момент. Плюс ограничен потолок разгона в режиме превышения:
+                -- выше скорости, которую успеем плавно сбросить обратно в
+                -- вилку за типовое окно таймера (12 сек), не разгоняемся.
                 drive.stop_preview = 0
-                -- v0.7.9: режим «Превышать скорость» — превышение считается САМО
-                -- из остатка таймера штрафа: на перегоне едем выше обычной цели,
-                -- а примерно за ~1 сек до конца таймера скорость должна уже быть
-                -- В ПРЕДЕЛАХ вилки (обычная цель = максимум диапазона минус 1 км/ч).
-                -- После полного останова таймера (overspeed_fine сброшен) — снова
-                -- разгон: цикл повторяется бесконечно.
                 local useTarget = target
-                local fineMs = st.overspeed and st.speed_hi and st.speed_hi > 1
+                -- v0.8.3: предел вилки и активный штраф определяем ВСЕГДА,
+                -- независимо от режима «Превышать скорость»: при физическом
+                -- превышении (уклон/инерция) таймер штрафа обрабатывается
+                -- в любом режиме, иначе штраф сервера гарантирован.
+                local fineMs = (st.speed_hi and st.speed_hi > 1)
                     and ((st.speed_hi - 1) / 3.6) or nil
-                local activeFine = st.overspeed and st.overspeed_fine
+                local activeFine = st.overspeed_fine
                     and st.overspeed_timer > os.time()
                 local speedMs = math.max(0, speed / 3.6)
-                -- v0.8.1: таймер «Увеличьте скорость до штрафа» — это НЕ штраф
-                -- превышения, а требование РАЗГОНЯТЬСЯ (поезд стоит/медленно едет).
-                -- Сбрасываем ошибочный штраф, чтобы не давил тормоз/нейтраль.
                 local needGo = st.need_go
                 if needGo then
                     st.overspeed_fine = false
                     st.overspeed_timer = 0
                     activeFine = false
                 end
-                local fineNow = false
-                if activeFine and fineMs then
-                    -- v0.8.1: штраф активен — тормозим СРАЗУ, а не в последнюю
-                    -- секунду. Старая логика считала цель 185+ км/ч и «тормоз
-                    -- заранее», но из-за огромного запаса вилка не успевала
-                    -- достигаться. Теперь: есть штраф — вилка, тормозим до неё.
-                    fineNow = (speedMs > fineMs + 0.3)
-                end
-                -- v0.8.1: авто-цель превышения. Пока нет штрафа — вилка +
-                -- фиксированный запас overspeed_extra км/ч (небольшой, но
-                -- эффективный; раньше формула 2.8*...*3.6 давала 185+ км/ч и
-                -- поезд не успевал сброситься за таймер). Штраф активен — цель = вилка.
+                -- Остаток таймера штрафа и насколько ещё превышаем вилку.
+                local fineLeft = activeFine and math.max(0, st.overspeed_timer - os.time()) or 0
+                local vExcess = fineLeft > 0 and math.max(0, speedMs - (fineMs or 9999)) or 0
+                -- Необходимое замедление: превышение / оставшиеся секунды (x1.15).
+                local aNeeded = vExcess > 0 and ((vExcess / fineLeft) * 1.15) or 0
+                -- Тормозим сразу, как только без него к концу таймера не успеть
+                -- (а не когда скорость УЖЕ катастрофически над вилкой).
+                local fineBrake = activeFine
+                    and (vExcess > 0.3) and (aNeeded >= 0.45 or vExcess >= 2.5)
                 if st.overspeed and fineMs then
                     if activeFine then
                         useTarget = fineMs * 3.6
                     else
                         local overspeedTarget = fineMs * 3.6 + (st.overspeed_extra or 8)
-                        useTarget = math.max(target + 1, overspeedTarget)
+                        -- Потолок превышения: не выше скорости, которую реально
+                        -- успеем сбросить в вилку за 12 c (окно типового таймера
+                        -- штрафа) при подтверждённом замедлении состава brakeA.
+                        local vCeil = fineMs * 3.6 + brakeA * 0.8 * 12 * 3.6
+                        useTarget = math.max(target + 1, math.min(overspeedTarget, vCeil))
                     end
                 end
                 if needGo then
@@ -1220,16 +1228,17 @@ local function driveThread()
                     else
                         drive.lastAction = u8"набор/нейтраль"
                     end
-                elseif fineNow then
-                    if speedMs > fineMs + 0.3 then
-                        pcall(writeMemory, 0xB73458 + 0x1C, 1, 255, false)
-                        pcall(setGameKeyState, 14, 255)
-                        drive.lastAction = u8"торможение перед штрафом"
+                elseif fineBrake then
+                    -- Плавный сброс к вилке: aNeeded 0.45..2.6 -> тормоз 150..255.
+                    local bLevel
+                    if aNeeded >= 2.6 then
+                        bLevel = 255
                     else
-                        pcall(writeMemory, 0xB73458 + 0x1C, 1, 0, false)
-                        pcall(setGameKeyState, 14, 0)
-                        drive.lastAction = u8"нейтраль в вилке (штраф)"
+                        bLevel = math.floor(150 + math.max(0, math.min(1, (aNeeded - 0.45) / 2.15)) * 105)
                     end
+                    pcall(writeMemory, 0xB73458 + 0x1C, 1, bLevel, false)
+                    pcall(setGameKeyState, 14, bLevel)
+                    drive.lastAction = u8"плавный сброс скорости к вилке (штраф)"
                 elseif speed < useTarget then
                     pressGasNative()
                     drive.lastAction = u8"разгон"
