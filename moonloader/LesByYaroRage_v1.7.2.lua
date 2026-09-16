@@ -1184,9 +1184,9 @@ function main()
                     -- Задержка перед выстрелом
                     if not Les._triggerbotTimer then Les._triggerbotTimer = 0 end
                     if os.clock() - Les._triggerbotTimer >= (Les.Triggerbot_Delay.v / 1000) then
-                        setGameKeyState(16, -128) -- VK_LBUTTON down
+                        setGameKeyState(17, 255) -- VK_LBUTTON down
                         wait(10)
-                        setGameKeyState(16, 0) -- VK_LBUTTON up
+                        setGameKeyState(17, 0) -- VK_LBUTTON up
                         Les._triggerbotTimer = os.clock()
                     end
                 end
