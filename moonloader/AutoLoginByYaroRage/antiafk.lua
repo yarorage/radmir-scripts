@@ -1,6 +1,7 @@
 -- ћодуль Anti-AFK AutoLoginByYaroRage
 local AL = require("AutoLoginByYaroRage.state")
 local config = require("AutoLoginByYaroRage.config")
+local reconnect_mod = require("AutoLoginByYaroRage.reconnect")
 local M = {}
 
 -- ќффсеты контрол-блока GTA:SA (пр€ма€ эмул€ци€ ввода, как в CLEO char_goto):
@@ -66,6 +67,17 @@ local function angle_diff(from, to)
     return d
 end
 
+-- ѕроверка опоры: есть ли геометри€ вниз от педа (если нет - пед падает/провалилс€)
+local function is_ped_grounded(px, py, pz)
+    if not px then return true end
+    local ok, hit = pcall(processLineOfSight,
+        px, py, pz, px, py, pz - 6.0,
+        true, true, false, true, false, false, false, false
+    )
+    if not ok then return true end
+    return hit
+end
+
 local function is_path_clear(px, py, pz, heading, distance)
     local s = AL.state
     local dx, dy = heading_to_direction(heading)
@@ -77,7 +89,15 @@ local function is_path_clear(px, py, pz, heading, distance)
         true, true, false, true, false, false, false, false
     )
     if not ok then return true end
-    return not result
+    if result then return false end
+    -- ѕроверка обрыва: если в точке впереди ниже на глубину AFK_CLIFF_DEPTH нет земли - идти нельз€
+    local ok2, ground = pcall(processLineOfSight,
+        end_x, end_y, pz,
+        end_x, end_y, pz - (s.AFK_CLIFF_DEPTH or 12.0),
+        true, true, false, true, false, false, false, false
+    )
+    if not ok2 then return true end
+    return ground
 end
 
 local function find_clear_direction(px, py, pz, heading)
@@ -162,7 +182,7 @@ local function hold_run(duration, backwards, heading_deg)
     local tolerance = s.AFK_TURN_TOLERANCE or 6
     local turn_speed = s.AFK_TURN_SPEED or 1.0
     local blocked = false
-    local last_px, last_py = getCharCoordinates(PLAYER_PED)
+    local last_px, last_py, last_pz = getCharCoordinates(PLAYER_PED)
     if not last_px then return false end
     local move_counter = 0
     local still_windows = 0
@@ -194,9 +214,15 @@ local function hold_run(duration, backwards, heading_deg)
         -- (~1 секунда полной остановки) считаютс€ преп€тствием
         if move_counter >= 25 then
             move_counter = 0
-            local cx, cy = getCharCoordinates(PLAYER_PED)
+            local cx, cy, cz = getCharCoordinates(PLAYER_PED)
             local still = not cx or not last_px or math.abs(cx - last_px) + math.abs(cy - last_py) < 0.08
-            last_px, last_py = cx, cy
+            -- «ащита от проваливани€: пед резко ушЄл вниз и под ним пусто - останавливаем движение
+            if last_pz and cz and (last_pz - cz) > 0.5 and not is_ped_grounded(cx, cy, cz) then
+                last_px, last_py, last_pz = cx, cy, cz
+                blocked = true
+                break
+            end
+            last_px, last_py, last_pz = cx, cy, cz
             if still then
                 still_windows = still_windows + 1
             else
@@ -320,6 +346,54 @@ function M.mafk_watchdog_thread()
             lua_thread.create(M.anti_afk_thread)
             AL.chat_msg("{FF6600}[Anti-AFK]{FFFFFF} ‘оновый поток перезапущен после сбо€")
         end
+    end
+end
+
+-- ƒетектор проваливани€ педа под карту/текстуры.
+-- ≈сли пед долго падает без опоры (под ним нет земли) - выполн€ем реконнект,
+-- чтобы не остатьс€ под картой. ѕосле входа mafk_active сохран€етс€ и движение возобновитс€.
+function M.mafk_under_map_watch()
+    local s = AL.state
+    local last_z = nil
+    local fall_dist = 0
+    local fall_time = 0
+    while true do
+        wait(250)
+        if not s.mafk_active then last_z = nil fall_dist = 0 fall_time = 0 goto continue end
+        if not isSampAvailable() then goto continue end
+        if not doesCharExist(PLAYER_PED) then last_z = nil fall_dist = 0 fall_time = 0 goto continue end
+        local px, py, pz = getCharCoordinates(PLAYER_PED)
+        if not pz then goto continue end
+        local grounded = is_ped_grounded(px, py, pz)
+        if grounded then
+            last_z = pz
+            fall_dist = 0
+            fall_time = 0
+            goto continue
+        end
+        if last_z then
+            local drop = last_z - pz
+            if drop > 0 then
+                fall_dist = fall_dist + drop
+                fall_time = fall_time + 0.25
+            else
+                fall_dist = 0
+                fall_time = 0
+            end
+        end
+        last_z = pz
+        if fall_dist > (s.AFK_UNDER_MAP_FALL_DIST or 25.0) and fall_time >= 2.0 then
+            AL.chat_msg("{FF6600}[Anti-AFK]{FFFFFF} ѕровал под карту, реконнект...")
+            AL.log("Anti-AFK: провал под карту, выполн€ю быстрый реконнект")
+            pcall(function()
+                reconnect_mod._internal.mark_manual_reconnect("FalledUnderMap", 3)
+            end)
+            last_z = nil
+            fall_dist = 0
+            fall_time = 0
+            wait(15000)
+        end
+        ::continue::
     end
 end
 

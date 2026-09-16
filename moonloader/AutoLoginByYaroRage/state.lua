@@ -130,6 +130,8 @@ M.state = {
     AFK_TURN_TOLERANCE = 6,
     AFK_MAX_TURN_TIME = 4000,
     AFK_RUN_CHUNK = 250,
+    AFK_CLIFF_DEPTH = 12.0,
+    AFK_UNDER_MAP_FALL_DIST = 25.0,
 
     -- Debug
     debug_step = 0,
