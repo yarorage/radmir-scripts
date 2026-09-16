@@ -167,7 +167,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("0.9.0")
+script_version("0.9.1")
 script_author("YaroRage")
 
 require "moonloader"
@@ -389,10 +389,10 @@ local phaseTitle = {
 -- "attempt to call upvalue 'stopBot' (a nil value)" при админ-сообщении.
 local startBot
 local stopBot
--- v0.8.0: снимок состояния функций в момент выключения чита. Пока чит
--- выключен — хранит, что было включено, чтобы кнопка «Включить чита»
--- вернула всё в том же виде. nil = чит никогда не выключался кнопкой.
-local cheatOffState = nil
+-- v0.9.1: /mqstop и кнопки «Автопилот» выключают ТОЛЬКО автопилот
+-- (optEnabled). Раньше здесь жил снимок всех функций, который
+-- восстанавливался при включении — из-за него уведомление об
+-- админе гасило весь чит. Теперь снимок не нужен: функции не трогаются.
 
 -- Диагностика приёма CEF-пакетов: сколько 215-пакетов в секунду, их размер
 -- и сколько времени уходит на чтение. Выводится в лог раз в 5 секунд, чтобы
@@ -440,7 +440,8 @@ local function processChatText(label, text, authorNick, skipDiag)
     end
     if not who then return end
     sendTg(u8"ВНИМАНИЕ! В чате админ!\nКто: " .. ensureUtf8(who) .. u8"\nСообщение: " .. ensureUtf8(text))
-    if optEnabled.v then stopBot() end
+    -- v0.9.1: stopBot() здесь убран — уведомление об админе больше не
+    -- выключает чит; все функции продолжают работать.
     -- Игровой отклик + строка в журнал, чтобы результат был виден сразу
     -- и проверялся по moonloader.log без перезапусков.
     pcall(sampAddChatMessage, u8:decode(u8"Machinist: админ '" .. ensureUtf8(tostring(who)) ..
@@ -552,7 +553,7 @@ local function handleVoiceChat(v)
                     voiceNotice.last = now
                     voiceNotice.lastId = v.id
                     sendTg(u8"ВНИМАНИЕ! Админ говорит в голосовом чате\nКто: " .. ensureUtf8(who))
-                    if optEnabled.v then stopBot() end
+                    -- v0.9.1: stopBot() убран — голосовой админ больше не выключает чит
                     pcall(sampAddChatMessage, u8:decode(u8"Machinist: голосовой чат — админ '" ..
                         ensureUtf8(tostring(who)) .. u8"', уведомление отправлено"), 0xAAFFAA)
                     print("[MachinistByYaroRage] Голосовой админ: " .. tostring(who))
@@ -725,7 +726,7 @@ function onReceivePacket(id, bs)
         -- v0.7.2: админские вызовы идут отдельным CEF-каналом (не пузырём
         -- setPlayerChatBubble и не onServerMessage), поэтому детектим их
         -- напрямую по маркерам (Администратор/вы тут//report) и прогоняем
-        -- через processChatText: telegram-уведомление + stopBot (кто рядом).
+        -- через processChatText: telegram-уведомление (v0.9.1: чит при этом не выключается).
         if admin.parse_admin_call(txt, st.my_nick) then
             processChatText("адм-вызов", txt)
         end
@@ -1511,70 +1512,35 @@ local function toggleMenu()
 end
 
 startBot = function()
-    -- v0.8.0: «Включить чита» возвращает ВСЕ функции, которые были включены
-    -- в момент выключения (снимок делается в stopBot). Если снимка нет
-    -- (например, /mqstart без предварительного выключения) — включаем
-    -- автопилот как раньше, остальные опции остаются как были.
-    if cheatOffState then
-        optEnabled.v = cheatOffState.enabled
-        optForceCab.v = cheatOffState.force_cab
-        optAutoDrive.v = cheatOffState.auto_drive
-        optNotify.v = cheatOffState.notify
-        optOverspeed.v = cheatOffState.overspeed
-        optTgPoll.v = cheatOffState.tg_poll
-        cheatOffState = nil
-    else
-        optEnabled.v = true
-    end
+    -- v0.9.1: «Включить автопилот» включает ТОЛЬКО автопилот. Остальные
+    -- функции (кабина, уведомления об админе, превышение, опрос Telegram)
+    -- не трогаем: они продолжают работать, как были настроены.
+    optEnabled.v = true
     saveAll()
     if optEnabled.v and not drive.tickThread and not st.dbg_no_thread then
         drive.tickThread = lua_thread.create(driveThread)
     end
-    local restored = 0
-    if optForceCab.v then restored = restored + 1 end
-    if optAutoDrive.v then restored = restored + 1 end
-    if optNotify.v then restored = restored + 1 end
-    if optOverspeed.v then restored = restored + 1 end
-    if optTgPoll.v then restored = restored + 1 end
-    local ok, err = pcall(sampAddChatMessage, u8:decode(u8"Machinist: чит включён (автопилот: " ..
-        (optEnabled.v and u8"он" or u8"выкл") .. u8", восстановлено функций: " ..
-        tostring(restored) .. u8")"), 0xAAFFAA)
+    pcall(sampAddChatMessage, u8:decode(u8"Machinist: автопилот включён"), 0xAAFFAA)
 end
 
 stopBot = function()
-    -- v0.8.0: «Выключить чита» гасит ВСЕ функции разом: автопилот,
-    -- принудительную кабину, автоведение, телеграм-уведомления, превышение
-    -- и опрос Telegram. Перед выключением запоминаем, что было активно,
-    -- чтобы кнопка «Включить чита» вернула всё в том же виде.
-    local activeNow = optEnabled.v or optForceCab.v or optAutoDrive.v or
-        optNotify.v or optOverspeed.v or optTgPoll.v
-    if not activeNow then return end
-    cheatOffState = {
-        enabled = optEnabled.v,
-        force_cab = optForceCab.v,
-        auto_drive = optAutoDrive.v,
-        notify = optNotify.v,
-        overspeed = optOverspeed.v,
-        tg_poll = optTgPoll.v,
-    }
+    -- v0.9.1: «Выключить автопилот» / /mqstop останавливают ТОЛЬКО
+    -- автопилот. Принудительная кабина, уведомления об админе, превышение
+    -- и опрос Telegram продолжают работать в прежнем виде.
+    if not optEnabled.v then return end
     optEnabled.v = false
-    optForceCab.v = false
-    optAutoDrive.v = false
-    optNotify.v = false
-    optOverspeed.v = false
-    optTgPoll.v = false
     saveAll()
     -- Освобождаем газ/тормоз и сбрасываем состояние автопилота, чтобы поезд
     -- не продолжал движение после выключения (поток сам завершится: while
     -- optEnabled.v стал false).
     drive.keys = 0
     drive.phase = "IDLE"
-    drive.lastAction = u8"чит выключен"
+    drive.lastAction = u8"автопилот выключен"
     drive.station_arrived = false
     drive.station_arrive_time = nil
     drive.station_left = false
     pcall(releaseKeysNative)
-    local ok, err = pcall(sampAddChatMessage, u8:decode(u8"Machinist: чит выключен (все функции остановлены)"), 0xFFAAAA)
+    pcall(sampAddChatMessage, u8:decode(u8"Machinist: автопилот выключен (остальные функции работают)"), 0xFFAAAA)
 end
 
 local function testTelegram()
@@ -1645,35 +1611,61 @@ end
 -- просто читается из файла tg_tmp\\updates.json.
 local tgOffset = 0
 local tgPollThread = nil
+-- Путь к файлу ответа getUpdates (тот же, что строит модуль telegram.lua).
+local tgTmpDir = getWorkingDirectory():gsub("[\\/]+$", "") .. "\\MachinistByYaroRage\\tg_tmp\\"
+local tgUpdPath = tgTmpDir .. "updates.json"
+-- v0.9.1: опрос ускорен. Раньше цикл ждал 5000 мс и каждый тик запускал
+-- новый curl — при свёрнутом окне сообщения из лички бота доезжали до чата
+-- по 10-20 секунд. Теперь интервал 900 мс, а в сети держим ТОЛЬКО один
+-- запрос (флаг tgBusy): пока прошлый ответ не прочитан — новый getUpdates
+-- не запускаем, поэтому зависшие curl и потерянные ответы исключены.
+local tgBusy = false
+local tgBusyAt = 0
 local function tgPollLoop()
     while true do
-        wait(5000)
+        wait(900)
         -- Выключение опроса из GUI: чекбокс сняли — поток тихо завершается
         if not st.tg_poll_enable then
             tgPollThread = nil
             print("[MachinistByYaroRage] Опрос Telegram остановлен (чекбокс снят)")
+            tgBusy = false
             return
         end
-        -- 1) читаем ответ прошлого запроса (локально, мгновенно)
-        local upd = telegram.read_updates()
-        if type(upd) == "table" then
-            for _, u in ipairs(upd) do
-                local uid = u and u.update_id
-                if uid then tgOffset = math.max(tgOffset, (tonumber(uid) or 0) + 1) end
-                local msg = u and u.message
-                local from = msg and msg.from
-                local fromChat = msg and msg.chat
-                local fromId = from and from.id or (fromChat and fromChat.id)
-                local fromNick = from and from.username or (from and from.first_name) or ""
-                -- реагируем только на сообщения от владельца (наш chat_id)
-                if fromId and (tostring(fromId) == st.tg_chat_id or tostring(fromChat.id) == st.tg_chat_id) then
-                    handleTgCommand(msg.text)
+        -- 1) читаем ответ прошлого запроса (локально, мгновенно). Файл
+        -- появляется только когда фоновый curl завершился: наличие файла
+        -- = предыдущий запрос сделан, можно запускать следующий.
+        local updPathExists = doesFileExist(tgUpdPath)
+        if updPathExists then
+            tgBusy = false
+            local upd = telegram.read_updates()
+            if type(upd) == "table" then
+                for _, u in ipairs(upd) do
+                    local uid = u and u.update_id
+                    if uid then tgOffset = math.max(tgOffset, (tonumber(uid) or 0) + 1) end
+                    local msg = u and u.message
+                    local from = msg and msg.from
+                    local fromChat = msg and msg.chat
+                    local fromId = from and from.id or (fromChat and fromChat.id)
+                    local fromNick = from and from.username or (from and from.first_name) or ""
+                    -- реагируем только на сообщения от владельца (наш chat_id)
+                    if fromId and (tostring(fromId) == st.tg_chat_id or tostring(fromChat.id) == st.tg_chat_id) then
+                        handleTgCommand(msg.text)
+                    end
                 end
+                telegram.clear_response()
             end
-            telegram.clear_response()
+        elseif tgBusy and wallClockMs() - tgBusyAt > 12000 then
+            -- Запроса нет 12+ сек (curl умер/таймаут/папка отсутствовала):
+            -- сбрасываем флаг, чтобы опрос перезапустился.
+            tgBusy = false
         end
-        -- 2) запускаем следующий опрос в фоне
-        telegram.get_updates(st.tg_bot_token, tgOffset)
+        -- 2) следующий опрос: только когда предыдущий curl уже отработал
+        if not tgBusy then
+            if not doesDirectoryExist(tgTmpDir) then pcall(createDirectory, tgTmpDir) end
+            tgBusy = true
+            tgBusyAt = wallClockMs()
+            telegram.get_updates(st.tg_bot_token, tgOffset)
+        end
     end
 end
 
@@ -1712,7 +1704,7 @@ function main()
     inpToken.v = st.tg_bot_token
     inpChat.v = st.tg_chat_id
 
-    print(string.format("[MachinistByYaroRage] v0.8.0 флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
+    print(string.format("[MachinistByYaroRage] v0.9.1 флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
         st.dbg_no_thread and 1 or 0, st.dbg_no_events and 1 or 0,
         st.dbg_no_gui and 1 or 0, st.dbg_no_chat and 1 or 0, st.tg_poll_enable and 1 or 0,
         st.dbg_log and 1 or 0, st.force_cab and 1 or 0))
@@ -1918,11 +1910,10 @@ local renderUi = function()
         end
         imgui.Separator()
 
-        -- ---------- Панель действий: вкл/выкл всё / сохранить / закрыть ----------
-        -- v0.8.0: ШАПКА — кнопка выключает ВСЕ функции разом (автопилот,
-        -- принудительная кабина, автоведение, телеграм-уведомления, превышение,
-        -- опрос Telegram) и запоминает, что было активно. Повторное включение
-        -- возвращает всё в том же виде. Цвет: зелёный — чит работает,
+        -- ---------- Панель действий: автопилот вкл/выкл / сохранить / закрыть ----------
+        -- v0.9.1: ШАПКА — кнопка включает/выключает ТОЛЬКО автопилот.
+        -- Остальные функции (кабина, уведомления об админе, превышение,
+        -- опрос Telegram) не трогаются. Цвет: зелёный — автопилот работает,
         -- красный — выключен.
         if optEnabled.v then
             imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.22, 0.62, 0.30, 1))
@@ -1931,13 +1922,13 @@ local renderUi = function()
             imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.72, 0.18, 0.15, 1))
             imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
         end
-        if imgui.Button(optEnabled.v and u8"Выключить чита" or u8"Включить чита",
+        if imgui.Button(optEnabled.v and u8"Выключить автопилот" or u8"Включить автопилот",
                         imgui.ImVec2(240 * fsc, 34 * fsc)) then
             if optEnabled.v then stopBot() else startBot() end
         end
         imgui.PopStyleColor(2)
         if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"Выключает вообще все функции скрипта (автопилот, кабина, ведение, телеграм, превышение, опрос Telegram); повторное включение возвращает их в прежнем виде")
+            imgui.SetTooltip(u8"Включает/выключает только автопилот. Кабина, уведомления об админе, превышение и опрос Telegram продолжают работать")
         end
         imgui.Separator()
         if imgui.Button(u8"Сохранить", imgui.ImVec2(200 * fsc, 30 * fsc)) then
