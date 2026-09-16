@@ -167,7 +167,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("0.8.9")
+script_version("0.9.0")
 script_author("YaroRage")
 
 require "moonloader"
@@ -907,6 +907,9 @@ local function pressGasNative()
     -- Газ — только игровая клавиша W (как в mashinist.lua: их цикл
     -- на разгоне жмёт setGameKeyState(16, 255), accel пишет лишь тормоз).
     -- Настоящий accel для сервера уходит через drive.keys в onSendVehicleSync.
+    -- v0.9.0: отмечаем, что газ нажат в этом тике — на отправлении accel-бит
+    -- уходит серверу даже при speed=0 (см. keysData в driveTick).
+    drive._gasPressed = true
     pcall(setGameKeyState, 16, 255)
 end
 
@@ -937,6 +940,14 @@ if ev then
     function ev.onSendVehicleSync(data)
         if type(data) ~= "table" then return end
         if not optEnabled.v then return end
+        -- v0.9.0: резервный тик из исходящего vehicle sync. Если кадровый
+        -- поток давно не тикал (свёрнутое окно, фриз, wall-gap >= 200 мс) —
+        -- ведём состав прямо здесь: сетевые пакеты идут всегда, газ/тормоз
+        -- пишутся нативно, keysData освежается перед самой отправкой.
+        local nowMs = wallClockMs()
+        if nowMs - (drive._lastTickMs or 0) >= 200 then
+            driveTick()
+        end
         if not drive.in_train then return end
         data.keysData = drive.keys or 0
     end
@@ -962,17 +973,22 @@ end
 --   checkpoint       -> driveCp (чекпоинт сервера, если есть)
 -- Цикл идёт КАЖДЫЙ кадр (wait(0)), как в эталоне, а не по tap_interval —
 -- газ/тормоз должны держаться постоянно, а не раз в 150-450 мс.
-local function driveThread()
-    if st.dbg_no_thread then
-        print("[MachinistByYaroRage] driveThread пропущен (dbg_no_thread=1)")
-        drive.tickThread = nil
-        return
-    end
+-- ТИК АВТОПИЛОТА — ОДИН ПРОХОД ВЕДУЩЕГО ЦИКЛА (порт из mashinist.lua).
+-- Раньше весь цикл жил в lua_thread на wait(0): свёрнутое окно почти не
+-- рисует кадры, поток просыпался ~1 раз/сек, и состав «засыпал» (газ/тормоз
+-- не нажимались, keysData не обновлялся). Теперь тик — отдельная функция:
+-- её зовёт кадровый поток (driveThread) и, когда кадров давно не было
+-- (свёрнутая игра/фриз), резервно ev.onSendVehicleSync — сетевые пакеты идут
+-- всегда, поэтому ведение и keysData в свёрнутой игре продолжаются.
+local function driveTick()
+    if st.dbg_no_thread then return end
+    drive._lastTickMs = wallClockMs()
     local timer = os.clock()
     local lastDistance = 0
-    while optEnabled.v do
-        wait(0)
-
+    -- Признак «газ нажат в этом тике» (ставит pressGasNative): на отправлении
+    -- со станции состав ещё стоит (speed=0), но ведущему нужен accel-бит,
+    -- иначе сервер не начинает движение при редких синках (свёрнутое окно).
+    drive._gasPressed = false
         -- ГЛАВНОЕ: не трогаем ничего, когда игрок вне поезда. Ветка «не в
         -- поезде» НЕ зовёт releaseKeysNative()/writeMemory — иначе в обычном
         -- автомобиле каждые 150 мс обнуляются W/S и двигатель не заводится.
@@ -1096,6 +1112,17 @@ local function driveThread()
             local vHardMs = math.sqrt(math.max(0, 2 * brakeA
                 * math.max(0, (stationAhead and brakeDist or 99999) - brakeMargin)))
             local vHard = vHardMs * 3.6
+            -- v0.9.0: УВЕРЕННЫЙ подъезд к станции. В последних 70 м перед
+            -- триггером держим минимум ~22 км/ч (раньше последние ~30 м состав
+            -- полз на 8 км/ч и еле доезжал до маркера). Поднимаем эффективный
+            -- предел кривой effLim: комфортная ветка тормозит не ниже effLim,
+            -- ветка разгона едет на effLim. Потолок — vHard: жёсткая кривая
+            -- по-прежнему гарантирует, что заглушиться состав успеет.
+            local cruiseMin = 0
+            if stationKnown and st.station_dist > 5 and st.station_dist <= 70 then
+                cruiseMin = 22
+            end
+            local effLim = math.max(vLim, math.min(cruiseMin, vHard))
             local speedMsNow = math.max(0, speed / 3.6)
             local brakePathNow = (speedMsNow * speedMsNow) / (2 * brakeA) + brakeMargin
             -- Серверные таймеры: пока висит «Ожидайте отправления» или «Садитесь
@@ -1159,8 +1186,17 @@ local function driveThread()
                     and math.max(0, speedMsSt - (fineMsSt or 9999)) or 0
                 local aNeededSt = vExcessSt > 0
                     and ((vExcessSt / fineLeftSt) * 1.15) or 0
-                local fineBrakeSt = fineActiveSt
-                    and (vExcessSt > 0.3) and (aNeededSt >= 0.45 or vExcessSt >= 2.5)
+                -- v0.9.0: СТРАХОВКА от штрафа «Снизьте скорость». Тормозим
+                -- СРАЗУ при любом превышении вилки под активным таймером
+                -- (раньше при малом aNeeded (<0.45) тик пропускался — скорость
+                -- висела над вилкой до конца таймера и сервер штрафовал).
+                -- insHardSt — экстренный режим: когда за оставшиеся секунды
+                -- даже максимальным тормозом не успеть в вилку либо до конца
+                -- таймера осталось пара секунд с превышением.
+                local fineBrakeSt = fineActiveSt and vExcessSt > 0.3
+                local insHardSt = fineActiveSt and vExcessSt > 0.3 and (
+                    vExcessSt / math.max(0.01, fineLeftSt) >= brakeA * 0.9
+                    or (fineLeftSt <= (st.overspeed_guard or 1) and vExcessSt >= 0.5))
                 if stopCmd and speed < 5 then
                     -- Команда сервера висит, состав уже погасил скорость — стоянка.
                     if not drive.station_arrived then
@@ -1246,17 +1282,20 @@ local function driveThread()
                     pcall(setGameKeyState, 14, softBrake)
                     drive.lastAction = u8"мягкое дотормаживание на станции"
                 elseif fineBrakeSt then
-                    -- Плавный сброс к вилке (штраф «Снизьте скорость»): aNeeded
-                    -- 0.45..2.6 -> тормоз 150..255, как на перегоне.
+                    -- Плавный сброс к вилке (штраф «Снизьте скорость»): уровень
+                    -- тормоза растёт от «игрок долго держит S» (110) до 255 по
+                    -- требующемуся замедлению; страховка/конец таймера — 255.
                     local bLevel
-                    if aNeededSt >= 2.6 then
+                    if insHardSt or aNeededSt >= 2.6 then
                         bLevel = 255
                     else
-                        bLevel = math.floor(150 + math.max(0, math.min(1, (aNeededSt - 0.45) / 2.15)) * 105)
+                        bLevel = math.floor(110 + math.max(0, math.min(1, (aNeededSt - 0.2) / 2.4)) * 145)
                     end
                     pcall(writeMemory, 0xB73458 + 0x1C, 1, bLevel, false)
                     pcall(setGameKeyState, 14, bLevel)
-                    drive.lastAction = u8"плавный сброс к вилке на станции (штраф)"
+                    drive.lastAction = insHardSt
+                        and u8"страховка: экстренный сброс к вилке на станции"
+                        or u8"плавный сброс к вилке на станции (штраф)"
                 elseif speed > vHard + 1 or (stopCmd and speed >= 60) then
                     -- Не успеваем встать даже при максимальном замедлении, либо
                     -- сервер уже командует «Остановитесь на станции», а скорость
@@ -1274,13 +1313,15 @@ local function driveThread()
                         end
                     end
                     drive.lastAction = u8"экстренное торможение до станции"
-                elseif speed > vLim + 1 then
+                elseif speed > effLim + 1 then
                     -- Плавное замедление по комфортной кривой: тормоз мягко
-                    -- растёт от 60 к 150 с глубиной превышения над vLim — как
+                    -- растёт от 60 к 150 с глубиной превышения над effLim — как
                     -- игрок, заранее сбрасывающий скорость на станции. 255 не
                     -- используем, setTrainSpeed-резерв тоже (слишком резкий).
+                    -- effLim = max(vLim, cruiseMin): у самого триггера не
+                    -- тянемся к нулю, а держим уверенный подъезд.
                     local frac = math.max(0, math.min(1,
-                        (speed - vLim) / math.max(1, vHard - vLim)))
+                        (speed - effLim) / math.max(1, vHard - effLim)))
                     local brakeLevel = math.floor(90 + 110 * frac)
                     -- v0.8.8: на малой скорости (35 км/ч и ниже) тормоз мягкий —
                     -- состав плавно дотормаживается без резкого рывка и без
@@ -1290,19 +1331,18 @@ local function driveThread()
                     pcall(setGameKeyState, 14, brakeLevel)
                     drive.lastAction = u8"плавное торможение до станции"
                 else
-                    -- v0.8.6: Пока нет команды «Остановитесь на станции» — едем
-                    -- максимально быстро, но не быстрее комфортной кривой. Возле
-                    -- самой станции кривая уже уходит в ноль, а нам нужно ДОЕХАТЬ
-                    -- до триггера: в последних метрах цель не ниже 8 км/ч, состав
-                    -- подползает и таки въезжает в триггер, где сервер и даёт
-                    -- команду остановиться.
-                    local creepActive = stationKnown and st.station_dist <= 30
-                    local allowed = math.min(target,
-                        math.max(vLim, creepActive and 8 or 0))
+                    -- v0.9.0: УВЕРЕННЫЙ подъезд к станции. Пока нет команды
+                    -- «Остановитесь на станции» — едем быстро и уверенно: цель
+                    -- effLim (max(vLim, cruiseMin)), поэтому у самого триггера
+                    -- НЕ ползём на 8 км/ч, а проходим маркер на ~22 км/ч,
+                    -- ловим серверную команду и плавно доостанавливаемся.
+                    -- vHard сверху не даёт разогнаться быстрее, чем реально
+                    -- получится заглушиться у станции.
+                    local allowed = math.min(target, effLim)
                     if speed < allowed then
                         pressGasNative()
-                        drive.lastAction = creepActive
-                            and u8"подползание к триггеру станции"
+                        drive.lastAction = (cruiseMin > 0)
+                            and u8"уверенный подъезд к станции"
                             or u8"разгон"
                     else
                         drive.lastAction = u8"выжим/нейтраль на станции"
@@ -1343,10 +1383,16 @@ local function driveThread()
                 local vExcess = fineLeft > 0 and math.max(0, speedMs - (fineMs or 9999)) or 0
                 -- Необходимое замедление: превышение / оставшиеся секунды (x1.15).
                 local aNeeded = vExcess > 0 and ((vExcess / fineLeft) * 1.15) or 0
-                -- Тормозим сразу, как только без него к концу таймера не успеть
-                -- (а не когда скорость УЖЕ катастрофически над вилкой).
-                local fineBrake = activeFine
-                    and (vExcess > 0.3) and (aNeeded >= 0.45 or vExcess >= 2.5)
+                -- v0.9.0: СТРАХОВКА от штрафа «Снизьте скорость». Тормозим
+                -- СРАЗУ при любом превышении вилки под активным таймером
+                -- (раньше при малом aNeeded (<0.45) тик пропускался — скорость
+                -- висела над вилкой и сервер успевал штрафовать). insHard —
+                -- экстренный режим: за оставшиеся секунды даже максимальным
+                -- тормозом не успеть в вилку либо таймер на исходе.
+                local fineBrake = activeFine and vExcess > 0.3
+                local insHard = activeFine and vExcess > 0.3 and (
+                    vExcess / math.max(0.01, fineLeft) >= brakeA * 0.9
+                    or (fineLeft <= (st.overspeed_guard or 1) and vExcess >= 0.5))
                 if st.overspeed and fineMs then
                     if activeFine then
                         useTarget = fineMs * 3.6
@@ -1368,16 +1414,20 @@ local function driveThread()
                         drive.lastAction = u8"набор/нейтраль"
                     end
                 elseif fineBrake then
-                    -- Плавный сброс к вилке: aNeeded 0.45..2.6 -> тормоз 150..255.
+                    -- Плавный сброс к вилке: уровень растёт от «игрок долго
+                    -- держит S» (110) до 255 по требующемуся замедлению;
+                    -- страховка / конец таймера — экстренный 255.
                     local bLevel
-                    if aNeeded >= 2.6 then
+                    if insHard or aNeeded >= 2.6 then
                         bLevel = 255
                     else
-                        bLevel = math.floor(150 + math.max(0, math.min(1, (aNeeded - 0.45) / 2.15)) * 105)
+                        bLevel = math.floor(110 + math.max(0, math.min(1, (aNeeded - 0.2) / 2.4)) * 145)
                     end
                     pcall(writeMemory, 0xB73458 + 0x1C, 1, bLevel, false)
                     pcall(setGameKeyState, 14, bLevel)
-                    drive.lastAction = u8"плавный сброс скорости к вилке (штраф)"
+                    drive.lastAction = insHard
+                        and u8"страховка: экстренный сброс скорости к вилке"
+                        or u8"плавный сброс скорости к вилке (штраф)"
                 elseif speed < useTarget then
                     pressGasNative()
                     drive.lastAction = u8"разгон"
@@ -1413,9 +1463,28 @@ local function driveThread()
             elseif speed < 0 then
                 drive.keys = 32
             else
-                drive.keys = 0
+                drive.keys = drive._gasPressed and 8 or 0
             end
         end
+end
+
+-- Поток автопилота — КАДРОВЫЙ источник тиков (порт цикла из mashinist.lua):
+--   bot.state        -> optEnabled.v (наше включение автопилота)
+--   isCharInAnyTrain -> drive.in_train (нативный гейт)
+--   bot.distance     -> st.station_dist (дистанция до станции из setStation)
+--   bot.speed.min/max-> st.speed_lo/st.speed_hi (вилка setSpeed, км/ч)
+--   checkpoint       -> driveCp (чекпоинт сервера, если есть)
+-- Каждый кадр зовём driveTick(). При свёрнутом окне (кадры почти не идут)
+-- ведение продолжает резервный тик из ev.onSendVehicleSync.
+local function driveThread()
+    if st.dbg_no_thread then
+        print("[MachinistByYaroRage] driveThread пропущен (dbg_no_thread=1)")
+        drive.tickThread = nil
+        return
+    end
+    while optEnabled.v do
+        wait(0)
+        driveTick()
     end
     drive.tickThread = nil
 end
