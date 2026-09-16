@@ -1,4 +1,4 @@
--- MachinistByYaroRage v0.7.8
+-- MachinistByYaroRage v0.7.9
 -- Автопилот машиниста метро (Radmir CRMP).
 -- Персонаж уже сидит в поезде и НЕ выходит: смены идут кругами
 -- (Союзная <-> Больничная), автопилот только ведёт состав.
@@ -312,7 +312,6 @@ local optForceCab = imgui.ImBool(st.force_cab)
 local optAutoDrive = imgui.ImBool(st.auto_drive)
 local optNotify = imgui.ImBool(st.notify_telegram)
 local optOverspeed = imgui.ImBool(st.overspeed)
-local optOverspeedExtra = imgui.ImInt(st.overspeed_extra)
 local optTgPoll = imgui.ImBool(st.tg_poll_enable)
 local inpToken = imgui.ImBuffer(128)
 local inpChat = imgui.ImBuffer(64)
@@ -344,7 +343,7 @@ local function saveAll()
     -- НЕ трогаем файлы вовсе (запись INI + CheatAdminList.txt может быть
     -- очень дорогой на этой машине и вешать кадр).
     local sig = table.concat({ tostring(optEnabled.v), tostring(optForceCab.v), tostring(optAutoDrive.v), tostring(optNotify.v),
-        tostring(optOverspeed.v), tostring(optOverspeedExtra.v),
+        tostring(optOverspeed.v),
         tostring(optTgPoll.v),
         tostring(inpToken.v), tostring(inpChat.v), tostring(inpAdmins.v) })
     if sig == lastSavedSig then return false end
@@ -355,7 +354,6 @@ local function saveAll()
     st.auto_drive = optAutoDrive.v
     st.notify_telegram = optNotify.v
     st.overspeed = optOverspeed.v
-    st.overspeed_extra = optOverspeedExtra.v
     st.tg_poll_enable = optTgPoll.v
     st.tg_bot_token = inpToken.v
     st.tg_chat_id = inpChat.v
@@ -989,18 +987,16 @@ local function driveThread()
             local target = (st.speed_hi and st.speed_hi > 0) and (st.speed_hi - 1)
                 or ((st.speed_lo and st.speed_lo > 0) and st.speed_lo or 40)
 
-            -- Зона станции: считаем торможение ТОЛЬКО когда станция близко
-            -- (station_dist - distance в 0..35), финиш-чекпоинт, либо (если
-            -- чекпоинта нет) distance < 300. Вне зоны lastDistance НЕ трогаем,
-            -- иначе формула остановки всегда даёт stop<=1 при скорости >42.
+            -- Зона станции: считаем торможение ТОЛЬКО когда станция близко.
+            -- v0.7.9: убрана хрупкая эвристика (station_dist - distance в 0..35):
+            -- чекпоинт сервера стоит прямо на станции, поэтому разница всегда ~0,
+            -- nearStation было ВСЕГДА true и режим превышения не работал вовсе.
+            -- Теперь: финиш-чекпоинт -> зона 500 м, чекпоинта нет (setStation)
+            -- -> зона 300 м, обычный чекпоинт на перегоне -> false (едем выше вилки).
             local nearStation = false
             if driveCpFinish then
-                nearStation = true
-            elseif driveCp.x ~= 0 or driveCp.y ~= 0 or driveCp.z ~= 0 then
-                nearStation = st.station_dist and st.station_dist >= 0
-                    and (st.station_dist - distance) >= 0
-                    and (st.station_dist - distance) <= 35
-            else
+                nearStation = distance < 500
+            elseif driveCp.x == 0 and driveCp.y == 0 and driveCp.z == 0 then
                 nearStation = distance < 300
             end
 
@@ -1018,17 +1014,23 @@ local function driveThread()
                     lastDistance = distance
                     timer = os.clock() + 1
                 end
-                -- v0.7.5: тормозной путь до станции по текущей скорости.
-                -- раньше тормоз начинался по stopDistance<=1: при 108 км/ч это ~22 м,
-                -- поезд физически не успевал (проезд станций).
+                -- v0.7.9: тормозной путь по реальному замедлению состава.
+                -- v0.7.5: раньше тормоз начинался по stopDistance<=1: при 108 км/ч
+                -- это ~22 м, поезд физически не успевал (проезд станций). После
+                -- замены на brakePath взяли a=2.8 м/с^2 — слишком оптимистично для
+                -- GTA SA состава, а порог distance<300 обрезал тормоз на высоких
+                -- скоростях (brakePath при 130 км/ч = 382 м > 300). Теперь a=1.8
+                -- м/с^2, запас +8 м и порог distance<300 убран (nearStation уже
+                -- ограничил зону 500/300 м, а brakePath при 130 км/ч = 382 м влезает
+                -- в зону финиша).
                 local speedMs = math.max(0, speed / 3.6)
-                local brakePath = (speedMs * speedMs) / (2 * 2.8) + 5
+                local brakePath = (speedMs * speedMs) / (2 * 1.8) + 8
                 local stopDistance = distance - brakePath
                 drive.stop_preview = stopDistance
-                if (stopDistance <= 1 or distance <= brakePath) and distance < 300 then
-                    -- v0.7.5: тормозим постепенно, усилие нарастает от 150
-                    -- (с начала тормозного пути) до 255 (полный) у станции.
-                    if distance < 2 and speed < 8 then
+                if stopDistance <= 1 or distance <= brakePath then
+                    -- v0.7.9: тормозим раньше и сильнее: база 180 (было 150),
+                    -- плюс резерв setTrainSpeed, если штатного тормоза не хватает.
+                    if distance < 3 and speed < 5 then
                         -- Точная остановка: плавно гасим остаток.
                         if ok and type(car) == "number" and car > 0 then
                             local ok5, cur = pcall(getCarSpeed, car)
@@ -1039,11 +1041,19 @@ local function driveThread()
                         drive.phase = "STOP"
                         drive.lastAction = u8"точная остановка"
                     else
-                        -- Плавное торможение у станции: усилие растёт от 150 к 255.
+                        -- Плавное торможение у станции: усилие растёт от 180 к 255.
                         local frac = math.max(0, math.min(1, (brakePath - distance) / brakePath))
-                        local brakeLevel = math.floor(150 + 105 * frac)
+                        local brakeLevel = math.floor(180 + 75 * frac)
                         pcall(writeMemory, 0xB73458 + 0x1C, 1, brakeLevel, false)
                         pcall(setGameKeyState, 14, brakeLevel)
+                        -- Резерв: если скорость всё ещё выше профиля торможения —
+                        -- принудительно гасим набор (setTrainSpeed страхует тормоз).
+                        if ok and type(car) == "number" and car > 0 then
+                            local vDesired = speedMs * (distance / brakePath)
+                            if speedMs > vDesired + 0.5 then
+                                pcall(setTrainSpeed, car, math.max(0, vDesired - 0.2))
+                            end
+                        end
                         drive.lastAction = u8"плавное торможение у станции"
                     end
                 else
@@ -1057,18 +1067,16 @@ local function driveThread()
                 end
             else
                 -- Вне зоны станции: всегда разгон до target.
-                -- v0.7.6: режим «Превышать скорость» — едем выше верхней границы
-                -- вилки на overspeed_extra км/ч (вне станции).
+                -- v0.7.9: режим «Превышать скорость» — на перегоне едем выше
+                -- верхней границы вилки (цель считает физика, см. ниже).
                 drive.stop_preview = 0
-                -- v0.7.7: режим «Превышать скорость» — превышаем бесконечно, но
-                -- к моменту, когда до конца таймера штрафа останется ~1 сек,
-                -- скорость должна уже быть В ПРЕДЕЛАХ вилки (обычная цель
-                -- ведения = maximum диапазона минус 1 км/ч). После полного
-                -- останова таймера (overspeed_fine сброшен) — снова разгон
-                -- выше вилки: цикл повторяется бесконечно.
+                -- v0.7.9: режим «Превышать скорость» — превышение считается САМО
+                -- из остатка таймера штрафа: на перегоне едем выше обычной цели,
+                -- а примерно за ~1 сек до конца таймера скорость должна уже быть
+                -- В ПРЕДЕЛАХ вилки (обычная цель = максимум диапазона минус 1 км/ч).
+                -- После полного останова таймера (overspeed_fine сброшен) — снова
+                -- разгон: цикл повторяется бесконечно.
                 local useTarget = target
-                local overspeedTarget = st.overspeed and st.speed_hi and st.speed_hi > 0
-                    and (st.speed_hi + (st.overspeed_extra or 8)) or nil
                 local fineMs = st.overspeed and st.speed_hi and st.speed_hi > 1
                     and ((st.speed_hi - 1) / 3.6) or nil
                 local activeFine = st.overspeed and st.overspeed_fine
@@ -1077,7 +1085,7 @@ local function driveThread()
                 local fineNow = false
                 if activeFine and fineMs then
                     local tLeft = st.overspeed_timer - os.time()
-                    local tBrake = math.max(0, (speedMs - fineMs) / 2.8)
+                    local tBrake = math.max(0, (speedMs - fineMs) / 1.8)
                     -- Тормозим, когда до конца таймера осталось tBrake + guard
                     -- секунд: профизически скорость входим в вилку за ~1 сек до
                     -- окончания. После входа в вилку НЕ разгоняемся (нейтраль),
@@ -1087,8 +1095,17 @@ local function driveThread()
                         fineNow = true
                     end
                 end
-                if not fineNow and overspeedTarget then
-                    useTarget = overspeedTarget
+                -- v0.7.9: авто-цель превышения. Пока штрафного таймера нет —
+                -- берём 15 сек по умолчанию: физический предел (разгон 2.8 м/с^2
+                -- за (tAvail-guard) сек от вилки) = ~185 км/ч, что выше максимума
+                -- состава, поэтому поезд просто едет на полную. Цель в км/ч:
+                --   (hi-1) + 2.8 * max(1, tAvail - guard) * 3.6,
+                -- но не ниже обычной цели вилки (чтобы и в нейтрали штраф не лить).
+                if st.overspeed and fineMs then
+                    local tAvail = activeFine and (st.overspeed_timer - os.time()) or 15
+                    local overspeedTarget = fineMs * 3.6
+                        + 2.8 * math.max(1, tAvail - (st.overspeed_guard or 1)) * 3.6
+                    useTarget = math.max(target + 1, overspeedTarget)
                 end
                 if fineNow then
                     if speedMs > fineMs + 0.3 then
@@ -1287,12 +1304,11 @@ function main()
     optAutoDrive.v = st.auto_drive
     optNotify.v = st.notify_telegram
     optOverspeed.v = st.overspeed
-    optOverspeedExtra.v = st.overspeed_extra
     optTgPoll.v = st.tg_poll_enable
     inpToken.v = st.tg_bot_token
     inpChat.v = st.tg_chat_id
 
-    print(string.format("[MachinistByYaroRage] v0.7.8 флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
+    print(string.format("[MachinistByYaroRage] v0.7.9 флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
         st.dbg_no_thread and 1 or 0, st.dbg_no_events and 1 or 0,
         st.dbg_no_gui and 1 or 0, st.dbg_no_chat and 1 or 0, st.tg_poll_enable and 1 or 0,
         st.dbg_log and 1 or 0, st.force_cab and 1 or 0))
@@ -1551,12 +1567,8 @@ local renderUi = function()
             imgui.TextWrapped(u8"Мин/макс скорость: " .. st.speed_range .. u8" км/ч (код " .. st.speed_code .. u8")")
             imgui.Checkbox(u8"Превышать скорость", optOverspeed)
             if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Ехать выше вилки сервера (hi+N) и за секунду до штрафа тормозить обратно в вилку")
+                imgui.SetTooltip(u8"Ехать выше вилки сервера (превышение рассчитывается само по таймеру штрафа) и за секунду до останова таймера тормозить обратно в вилку")
             end
-            imgui.SameLine()
-            imgui.PushItemWidth(120 * fsc)
-            imgui.InputInt(u8"Превышение, км/ч", optOverspeedExtra)
-            imgui.PopItemWidth()
 
         -- ---------- Телеграм и админы ----------
         elseif menuTab.v == 3 then
