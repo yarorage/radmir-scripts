@@ -790,6 +790,7 @@ function main()
                             screenX = _X, screenY = _Y, dist = dist, health = health,
                             headX = hxx, headY = hyy, okScreen = okScreen, okHead = okHead,
                             nick = sampGetPlayerNickname(pid) or "Игрок",
+                            pid = pid or 0,
                             armor = Les.WhPlayers.v and getCharArmour(value) or 0,
                             weapon = Les.WhPlayers.v and getCurrentCharWeapon(value) or 0
                         })
@@ -829,7 +830,7 @@ function main()
 
         -- Рендер ESP (трупы/машины/игроки/пикапы)
         if Les.EspTush.v and type(renderEspTush) == "function" then pcall(renderEspTush, deadAnimals) end
-        if Les.EspCars.v and type(renderEspCars) == "function" then pcall(renderEspCars) end
+        if Les.EspCars.v and type(renderEspCars) == "function" then pcall(renderEspCars, players) end
         if Les.WhPlayers.v and type(renderEspPlayers) == "function" then pcall(renderEspPlayers, players) end
         if Les.EspPickups.v and type(renderEspPickups) == "function" then pcall(renderEspPickups) end
         if Les.ClearFol.v then
@@ -1601,7 +1602,7 @@ function renderEspPlayers(players)
 
             local yOffset = 0
             if Les.PlayerShowNick.v then
-                renderFontDrawText(font_whGreen, nick, _X, _Y + yOffset, 0xFF00CCFF); yOffset = yOffset + uiScaled(12)
+                renderFontDrawText(font_whGreen, nick .. " (" .. (p.pid or 0) .. ")", _X, _Y + yOffset, 0xFF00CCFF); yOffset = yOffset + uiScaled(12)
             end
             if Les.PlayerShowHP.v then
                 renderFontDrawText(font_whGreen, string.format("HP: %.0f", health/10), _X, _Y + yOffset, healthColor); yOffset = yOffset + uiScaled(12)
@@ -1763,7 +1764,7 @@ function getVehicleDoorLock(veh)
     return lock
 end
 
-function renderEspCars()
+function renderEspCars(players)
     if type(getAllVehicles) ~= "function" then return end
     if not _vehPosOk then return end
     local camX, camY, camZ = getActiveCameraCoordinates()
@@ -1786,12 +1787,21 @@ function renderEspCars()
                         local doorLock = getVehicleDoorLock(v)
                         local driver = getDriverOfCar(v)
                         local driverName = ""
+                        local driverId = nil
                         if driver and driver ~= 0 then
                             local isPlayer, pid = sampGetPlayerIdByCharHandle(driver)
                             if isPlayer then
                                 driverName = sampGetPlayerNickname(pid) or ""
+                                driverId = pid
                             else
                                 driverName = "Нет"
+                            end
+                        end
+                        -- Если водитель уже показан в ВХ игроков (его ник с ID виден), строку не дублируем
+                        local driverShownInPlayers = false
+                        if driverId and Les.WhPlayers.v and type(players) == "table" then
+                            for _, pl in ipairs(players) do
+                                if pl.handle == driver and pl.okScreen then driverShownInPlayers = true break end
                             end
                         end
                         
@@ -1817,7 +1827,10 @@ function renderEspCars()
                             renderFontDrawText(font_whGreen, string.format("HP: %.0f", health/10), VX, VY + yOff, healthColor)
                             yOff = yOff + uiScaled(12)
                         end
-                        if Les.CarShowDriver.v and driverName ~= "" then
+                        if Les.CarShowDriver.v and driverName ~= "" and not driverShownInPlayers then
+                            if driverId then
+                                driverName = driverName .. " (" .. driverId .. ")"
+                            end
                             renderFontDrawText(font_whGreen, "Водитель: " .. driverName, VX, VY + yOff, 0xFFFFFFFF)
                             yOff = yOff + uiScaled(12)
                         end
