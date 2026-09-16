@@ -54,11 +54,12 @@ local function savePending(payload)
     return true, file
 end
 
--- Устаревший синхронный канал (HTTPS из игрового потока). Оставлен на время
--- тестов фонового режима; при успешной проверке его удалить.
+-- Рабочий канал отправки (HTTPS из игрового потока). Раньше был фоновый
+-- режим через файл pending/, но по требованию владельца вернули прямой:
+-- каждый клиент сам шлёт сводку на вебхук.
 -- ВАЖНО: Apps Script вебхук выполняет doPost на первом же POST, а в ответ
 -- отдаёт 302 (редирект на служебный echo-URL). Повторять запрос по Location
--- нельзя: echo-URL не принимает POST (405). Успехом считается 2xx и 302.
+-- нельзя: echo-URL не принимает POST. Успехом считается 2xx, 302 и 405.
 local function httpPost(url, body)
     local headers = {
         ["Content-Type"] = "text/plain;charset=utf-8",
@@ -74,24 +75,34 @@ local function httpPost(url, body)
         if not okLtn or not ltn12 or not ltn12.source or not ltn12.source.string then
             return nil, "модуль ltn12 недоступен"
         end
-        return pcall(sslHttps.request, {
+        local okCall, code, respStatus = pcall(sslHttps.request, {
             url = url,
             method = "POST",
             headers = headers,
             source = ltn12.source.string(body),
         })
+        if not okCall then
+            return nil, "сетевая ошибка: " .. tostring(code)
+        end
+        -- pcall добавляет результат true перед значениями sslHttps.request,
+        -- поэтому code уже число HTTP-кода, а не заголовки.
+        return true, tostring(code or "нет кода") .. " " .. tostring(respStatus or ""), code
     end
     local okHttp, socketHttp = pcall(require, "socket.http")
     if not okHttp then
         return nil, "модуль socket.http недоступен"
     end
     socketHttp.TIMEOUT = 3
-    return pcall(socketHttp.request, {
+    local okCall, code, respStatus = pcall(socketHttp.request, {
         url = url,
         method = "POST",
         headers = headers,
         source = body,
     })
+    if not okCall then
+        return nil, "сетевая ошибка: " .. tostring(code)
+    end
+    return true, tostring(code or "нет кода") .. " " .. tostring(respStatus or ""), code
 end
 
 local function sendPayload(payload)
@@ -110,7 +121,9 @@ local function sendPayload(payload)
     if not okReq then
         return false, "сетевая ошибка: " .. tostring(statusMsg)
     end
-    if not code or not (tostring(code):match("^2") or code == 302) then
+    -- Успех: 2xx, а также 302 (редирект echo-URL, как отдаёт Apps Script)
+    -- и 405 (echo-URL не даёт POST после следовании редиректу).
+    if not code or not (tostring(code):match("^2") or code == 302 or code == 405) then
         return false, "ответ сервера: " .. tostring(code or "нет кода") .. " (" .. tostring(statusMsg) .. ")"
     end
     return true
@@ -187,7 +200,7 @@ local function buildPayload()
 
     return {
         script = "CefPacketAnalyzer",
-        version = "1.2.1",
+        version = "1.2.2",
         nick = localNick() or "unknown",
         ts = os.time(),
         ts_text = os.date("%Y-%m-%d %H:%M:%S"),
