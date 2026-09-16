@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.9.2")
+script_version("0.9.3")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -71,6 +71,32 @@ local ev            = require("lib.samp.events")
 local inicfg 		= require('inicfg')
 local vector 		= require 'vector3d'
 local memory 		= require 'memory'
+-- Получение позиции игрока по SAMP-id напрямую из памяти SAMP.
+-- Работает даже для неотстримленных/спрятавшихся игроков: координаты
+-- берутся из последнего полученного синк-пакета, а не из GTA-педа.
+local _sampSafe_origStructPtr = sampGetPlayerStructPtr or function() return nil end
+local function sampGetPlayerPos(id)
+    if not isSampAvailable() then return false, 0, 0, 0 end
+    id = tonumber(id) or 0
+    if id < 0 or not sampIsPlayerConnected(id) then return false, 0, 0, 0 end
+    if id == sampGetLocalPlayerId() then
+        local x, y, z = getCharCoordinates(PLAYER_PED)
+        return true, x, y, z
+    end
+    local ok, ptr = pcall(_sampSafe_origStructPtr, id)
+    if not ok or not ptr or ptr == 0 then return false, 0, 0, 0 end
+    -- SFL_RemotePlayer: первый член - указатель на SFL_RemotePlayerData
+    local pData = tonumber(ffi.cast('uintptr_t', ffi.cast('uintptr_t*', ptr)[0]))
+    if not pData or pData == 0 then return false, 0, 0, 0 end
+    -- bytePlayerState на смещении 9: 1 = идёт пешком, 2/3 = в транспорте
+    local state = tonumber(ffi.cast('uint8_t*', pData)[9])
+    -- fOnFootPos = +123, fVehiclePosition = +147 (SAMP 0.3.7-R1, pack 1)
+    local base = (state ~= 1) and (pData + 147) or (pData + 123)
+    local x = tonumber(ffi.cast('float*', base)[0])
+    local y = tonumber(ffi.cast('float*', base + 4)[0])
+    local z = tonumber(ffi.cast('float*', base + 8)[0])
+    return true, x, y, z
+end
 local imgui 		= require('imgui')
 local fsc = 1
 -- DPI-масштаб Windows (4K, 150-200% и т.п.): UI подгоняется под него автоматически.
@@ -391,8 +417,8 @@ function checkSpectators()
     local stream_r = surveillance_radius.v or 150
     local near_r   = surveillance_near.v or 40
 
-    -- Позиции ВСЕХ подключенных игроков: sampGetPlayerPos возвращает
-    -- последнюю известную позицию из SAMP-пула даже для невидимых/спектаторов.
+    -- Обходной путь для неотстримленных/спекторов: sampGetPlayerPos
+    -- читает виртуальную позицию игрока из SAMP-памяти, а не из GTA-педа.
     local pos_of = {}
     local nick_of = {}
     for i = 0, sampGetMaxPlayerId(false) do
