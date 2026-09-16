@@ -167,7 +167,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("0.8.5")
+script_version("0.8.6")
 script_author("YaroRage")
 
 require "moonloader"
@@ -1107,16 +1107,27 @@ local function driveThread()
                     lastDistance = distance
                     timer = os.clock() + 1
                 end
-                -- Прибыли на станцию: скорость погашена и мы в радиусе остановки.
-                local arrivalRadius = st.station_stop_radius or 15
-                if speed < 5 and (distance <= arrivalRadius
-                       or (stationKnown and st.station_dist <= arrivalRadius)) then
+                -- v0.8.6: ОСТАНАВЛИВАЕМСЯ окончательно только по серверной команде
+                -- «Остановитесь на станции» (либо состав уже стоит прямо в самом
+                -- триггере станции — запасной случай при глюке). Раньше прибытие
+                -- считалось по радиусу 15 м от станции/маркера, и состав вставал
+                -- за десяток метров до триггера — станция не защитывалась.
+                local stopCmd = timerText:find("Остановитесь на станции", 1, true)
+                    and st.info_timer_sec and st.info_timer_sec > 0
+                local atTrigger = (distance <= 3
+                    or (stationKnown and st.station_dist <= 1))
+                if stopCmd and speed < 5 then
+                    -- Команда сервера висит, состав уже погасил скорость — стоянка.
                     if not drive.station_arrived then
                         drive.station_arrived = true
                         drive.station_arrive_time = os.time()
                     end
                     local dwellLeft
-                    if stayTimed then
+                    if stopCmd then
+                        -- Команда «Остановитесь на станции» ещё активна: стоим,
+                        -- пока сервер не сменит её на «Ожидайте отправления».
+                        dwellLeft = 60
+                    elseif stayTimed then
                         dwellLeft = st.info_timer_sec
                     else
                         local dwell = st.station_dwell or 5
@@ -1154,11 +1165,37 @@ local function driveThread()
                         drive.lastAction = u8"стоянка на станции (ост. " ..
                             tostring(math.max(0, math.ceil(dwellLeft))) .. u8" с)"
                     end
-                elseif speed > vHard + 1 then
+                elseif not stopCmd and atTrigger and speed < 5 then
+                    -- Оказались прямо в триггере станции, а команда остановки так
+                    -- и не пришла (глюк сервера) — встаём и ждём отправления.
+                    if not drive.station_arrived then
+                        drive.station_arrived = true
+                        drive.station_arrive_time = os.time()
+                    end
+                    local dwellLeft = math.min(st.station_dwell or 5, 45)
+                    if st.need_go or (not driveCpFinish and not (dwellLeft > 0)) then
+                        drive.station_arrived = false
+                        drive.station_arrive_time = nil
+                        drive.phase = "DRIVE"
+                        pcall(writeMemory, 0xB73458 + 0x1C, 1, 0, false)
+                        pcall(setGameKeyState, 14, 0)
+                        local goTarget = (st.speed_hi and st.speed_hi > 0)
+                            and (st.speed_hi - 1)
+                            or ((st.speed_lo and st.speed_lo > 0) and st.speed_lo or 40)
+                        if speed < goTarget then pressGasNative() end
+                        drive.lastAction = u8"отправление после стоянки"
+                    else
+                        drive.phase = "STOP"
+                        pcall(writeMemory, 0xB73458 + 0x1C, 1, 30, false)
+                        pcall(setGameKeyState, 14, 30)
+                        drive.lastAction = u8"стоянка в триггере станции (ост. " ..
+                            tostring(math.max(0, math.ceil(dwellLeft))) .. u8" с)"
+                    end
+                elseif speed > vHard + 1 or (stopCmd and speed >= 15) then
                     -- Не успеваем встать даже при максимальном замедлении, либо
-                    -- серверный дедлайн «Остановитесь на станции» с малым
-                    -- остатком — экстренный тормоз (максимальный/200).
-                    local hardStop = timerText:find("Остановитесь на станции", 1, true)
+                    -- сервер уже командует «Остановитесь на станции», а скорость
+                    -- ещё далека от нуля — экстренный тормоз (максимальный/200).
+                    local hardStop = stopCmd
                         and st.info_timer_sec and st.info_timer_sec <= 15
                     local brakeLevel = hardStop and 255 or 200
                     pcall(writeMemory, 0xB73458 + 0x1C, 1, brakeLevel, false)
@@ -1183,12 +1220,20 @@ local function driveThread()
                     pcall(setGameKeyState, 14, brakeLevel)
                     drive.lastAction = u8"плавное торможение до станции"
                 else
-                    -- Едем максимально быстро, но не быстрее комфортной кривой:
-                    -- цель = мин(целевая, vLim). При достижении — выжим/нейтраль.
-                    local allowed = math.min(target, vLim)
+                    -- v0.8.6: Пока нет команды «Остановитесь на станции» — едем
+                    -- максимально быстро, но не быстрее комфортной кривой. Возле
+                    -- самой станции кривая уже уходит в ноль, а нам нужно ДОЕХАТЬ
+                    -- до триггера: в последних метрах цель не ниже 8 км/ч, состав
+                    -- подползает и таки въезжает в триггер, где сервер и даёт
+                    -- команду остановиться.
+                    local creepActive = stationKnown and st.station_dist <= 30
+                    local allowed = math.min(target,
+                        math.max(vLim, creepActive and 8 or 0))
                     if speed < allowed then
                         pressGasNative()
-                        drive.lastAction = u8"разгон"
+                        drive.lastAction = creepActive
+                            and u8"подползание к триггеру станции"
+                            or u8"разгон"
                     else
                         drive.lastAction = u8"выжим/нейтраль на станции"
                     end
