@@ -1,4 +1,4 @@
--- MechWorkByYaroRage v1.1.6
+-- MechWorkByYaroRage v1.1.7
 -- Автозавершение миниигры починки транспорта (Радмир CRMP).
 -- v1.1.4: в блоке «Авто-подбор подъехавших машин» добавлен ручной
 -- режим: /repair кидается не автоматически, а по клику правой
@@ -10,6 +10,10 @@
 -- по ПКМ и колесиком/курсором): если ближайшая машина в радиусе имеет
 -- водителя с исключённым id, запрос уходит следующей по близости машине,
 -- чей водитель не исключён. Список хранится в ini ключами excludeId1..N
+-- v1.1.7: приоритет мотоциклам при ремонте (авто и по ПКМ) - если в радиусе
+-- есть мотоциклы, /repair сначала уходит им; при принятии заявки водителем
+-- скрипт показывает только пользователю локальное сообщение (не в общий
+-- чат): «Чиню <ник> (id) - <модель машины>» (имена моделей из LesCarNames.txt).
 -- v1.1.5: автоответ — список фраз (до 10): игрок задаёт их через GUI,
 -- в чат при старте ремонта уходит СЛУЧАЙНАЯ фраза из списка, но не та,
 -- что была отправлена только что (одинаковое сообщение в чат дважды
@@ -66,7 +70,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.1.6")
+script_version("1.1.7")
 
 require "moonloader"
 
@@ -383,7 +387,8 @@ local state = {
     nearWaiting = false, -- ждём завершения текущей миниигры (после отправки /repair)
     nearSawActive = false, -- миниигра уже началась (для детекта конца)
     nearLockUntil = 0,   -- не отправлять раньше этого времени (GetTickCount)
-    nearSentAt = 0      -- время последней отправки /repair в ближнем режиме (GetTickCount)
+    nearSentAt = 0,      -- время последней отправки /repair в ближнем режиме (GetTickCount)
+    pendingRepair = nil, -- v1.1.7: последняя отправленная заявка /repair (для уведомления)
 }
 
 function saveSettings()
@@ -571,6 +576,96 @@ local function getVehiclePos(veh)
     return nil
 end
 
+-- ---------- v1.1.7: модели машин, мотоциклы, уведомление «Чиню ...» ----------
+-- Названия моделей берём из ресурса LesByYaroRage\LesCarNames.txt (те же,
+-- что показывает скрипт Les). Файл в CP1251, как и сам скрипт.
+local vehicleNames = {}
+do
+    local dir = thisScript().directory
+    local f = io.open(dir .. "\\LesByYaroRage\\LesCarNames.txt", "r")
+    if not f then f = io.open(dir .. "\\LesCarNames.txt", "r") end
+    if f then
+        for ln in f:lines() do
+            local eq = string.find(ln, "=", 1, true)
+            if eq then
+                local id = tonumber(string.sub(ln, 1, eq - 1))
+                if id then vehicleNames[id] = string.sub(ln, eq + 1) end
+            end
+        end
+        f:close()
+    end
+end
+
+-- id модели транспорта: нативный getCarModel либо чтение из памяти
+-- (CEntity.m_nModelIndex = ptr + 0x22), как в getVehiclePos
+local function getModelId(veh)
+    if type(getCarModel) == "function" then
+        local ok, m = pcall(getCarModel, veh)
+        if ok and m then return m end
+    end
+    if type(getCarPointer) == "function" and type(readMemory) == "function" then
+        local okP, ptr = pcall(getCarPointer, veh)
+        if okP and ptr and ptr > 0x100000 and ptr < 0x40000000 then
+            local okM, model = pcall(readMemory, ptr + 0x22, 2, false)
+            if okM and model and model > 0 and model < 1000 then return model end
+        end
+    end
+    return nil
+end
+
+-- v1.1.7: мотоциклы получают /repair раньше машин (приоритет в радиусе)
+local motoModels = {
+    [448] = true, [461] = true, [462] = true, [463] = true, [468] = true,
+    [521] = true, [522] = true, [523] = true, [581] = true, [586] = true,
+}
+local function isMoto(veh)
+    local m = getModelId(veh)
+    return m and motoModels[m] or false
+end
+
+-- название модели машины: имя из LesCarNames.txt, иначе заводское
+local function vehicleDisplayName(veh)
+    local model = getModelId(veh)
+    if not model then return "" end
+    local name = vehicleNames[model]
+    if not name or name == "" then
+        if type(getNameOfVehicleModel) == "function" then
+            local okN, n = pcall(getNameOfVehicleModel, model)
+            if okN and n then name = n end
+        end
+    end
+    return name or ("ID:" .. model)
+end
+
+-- v1.1.7: водитель принял заявку /repair - показываем ТОЛЬКО пользователю
+-- (не в общий чат): «Чиню <ник> (id) - <модель машины>». pid/veh заполняются
+-- при каждой отправке /repair в state.pendingRepair.
+local function notifyRepairAccepted()
+    local p = state.pendingRepair
+    if not p or not p.pid then return end
+    -- заявка слишком старая (5 мин) - водитель так и не принял, забываем
+    if nowMs() - p.at > 300000 then state.pendingRepair = nil return end
+    state.pendingRepair = nil
+    local nick = nil
+    if type(sampGetPlayerNickname) == "function" then
+        local okN, n = pcall(sampGetPlayerNickname, p.pid)
+        if okN and n and n ~= "" then nick = n end
+    end
+    local msg
+    if nick then
+        msg = "Чиню " .. nick .. " (" .. p.pid .. ")"
+    else
+        msg = "Чиню id " .. p.pid
+    end
+    if p.veh then
+        local modelName = vehicleDisplayName(p.veh)
+        if modelName ~= "" then msg = msg .. " — " .. modelName end
+    end
+    if type(sampAddChatMessage) == "function" then
+        pcall(sampAddChatMessage, msg, 0xFF00CCFF)
+    end
+end
+
 -- ---------- v1.1.1: поиск ближайшей машины-игрока в радиусе метров ----------
 -- машины игроков в радиусе radiusM вокруг персонажа игрока.
 -- Возвращает veh, pid водителя (такой, которому ещё не слали /repair недавно).
@@ -595,7 +690,8 @@ local function findNearRepairTarget(radiusM, cooldownMs)
                     local okP, isP, pid = pcall(sampGetPlayerIdByCharHandle, driver)
                     -- v1.1.6: водители с исключённым id не получают /repair
                     if okP and isP and pid and pid >= 1 and not idExcluded(pid) then
-                        cands[#cands + 1] = { veh = veh, pid = pid, d = dx * dx + dy * dy + dz * dz }
+                        -- v1.1.7: помечаем мотоциклы - их чиним в первую очередь
+                        cands[#cands + 1] = { veh = veh, pid = pid, moto = isMoto(veh), d = dx * dx + dy * dy + dz * dz }
                     end
                 end
             end
@@ -613,8 +709,12 @@ local function findNearRepairTarget(radiusM, cooldownMs)
         if not still then state.nearQueue[veh] = nil end
     end
 
+    -- v1.1.7: сначала мотоциклы, внутри группы — по близости к игроку
+    table.sort(cands, function(a, b)
+        if a.moto ~= b.moto then return a.moto end
+        return a.d < b.d
+    end)
     -- самая близкая из тех, кому ещё не слали (или слали давно — машина снова подъехала)
-    table.sort(cands, function(a, b) return a.d < b.d end)
     for _, c in ipairs(cands) do
         local last = state.nearQueue[c.veh]
         if not last or nowA - last >= cooldownMs then
@@ -660,6 +760,8 @@ local function sendRepairByCursor()
             -- v1.1.6: исключённые id водителей пропускаем — берём следующего
             if okP and isPlayer and pid and pid >= 1 and not idExcluded(pid) then
                 state.lastRepair = nowMs()
+                -- v1.1.7: запоминаем заявку для уведомления «Чиню ...»
+                state.pendingRepair = { pid = pid, veh = veh, at = nowMs() }
                 pcall(sampSendChat, "/repair " .. pid)
                 return
             end
@@ -679,6 +781,8 @@ local function sendNearRepairManual()
     local vehId, pid = findNearRepairTarget(optNearRadiusM.v, optNearDelaySec.v * 1000)
     if pid then
         state.lastRepair = nowMs()
+        -- v1.1.7: запоминаем заявку для уведомления «Чиню ...»
+        state.pendingRepair = { pid = pid, veh = vehId, at = nowMs() }
         pcall(sampSendChat, "/repair " .. pid)
     end
 end
@@ -792,8 +896,11 @@ end
 
 -- автоответ на фразу начала ремонта (анти-дубль 5 сек)
 function sendAutoReplyIfStarted(bs)
-    if not optAutoReply.v then return false end
     if not payloadHasRepairStart(bs) then return false end
+    -- v1.1.7: заявка принята - уведомление «Чиню <ник> (id) - <модель>»
+    -- показываем всегда (независимо от включённого автоответа)
+    notifyRepairAccepted()
+    if not optAutoReply.v then return true end
     if nowMs() - state.lastAutoReply < 5000 then return true end
     state.lastAutoReply = nowMs()
     pickAutoReplyLine()
@@ -810,6 +917,7 @@ function onServerMessage(color, text)
         if text:find(repairStartPhrases[i], 1, true) then hit = true break end
     end
     if not hit then return nil end
+    notifyRepairAccepted()
     if nowMs() - state.lastAutoReply < 5000 then return nil end
     state.lastAutoReply = nowMs()
     pickAutoReplyLine()
@@ -849,6 +957,9 @@ function onReceiveRpc(id, bs)
             -- кулдаун между запросами
             if nowMs() - state.lastRepair >= (optRepairCooldown.v or 4000) then
                 state.lastRepair = nowMs()
+                -- v1.1.7: запоминаем заявку (машину здесь не определяем -
+                -- уведомление покажет только ник и id)
+                state.pendingRepair = { pid = playerId, at = nowMs() }
                 pcall(sampSendChat, "/repair " .. playerId)
             end
             break
@@ -1012,6 +1123,8 @@ function main()
                     state.nearSawActive = false
                     state.lastRepair = nowB
                     state.nearSentAt = nowB
+                    -- v1.1.7: запоминаем заявку для уведомления «Чиню ...»
+                    state.pendingRepair = { pid = pid, veh = vehId, at = nowB }
                     pcall(sampSendChat, "/repair " .. pid)
                 end
             end
@@ -1237,7 +1350,7 @@ function imgui.OnDrawFrame()
             if imgui.SliderInt(u8"   радиус, м", optNearRadiusM, 2, 20) then changed = true end
             if imgui.SliderInt(u8"   пауза, сек", optNearDelaySec, 5, 300) then changed = true end
             imgui.PopItemWidth()
-            imgui.TextWrapped(u8"Подъехавшая в радиус машина-игрок один раз получит /repair. В авто-режиме скрипт сам последовательно ремонтирует машины (пауза между отправками — N сек), в ручном — только по клику ПКМ, ближайшему свободному водителю. Водители с исключённым id (список в блоке выше) пропускаются — запрос уходит следующему по близости.")
+            imgui.TextWrapped(u8"Подъехавшая в радиус машина-игрок один раз получит /repair. Приоритет — мотоциклам: если рядом есть мото, /repair уйдёт сначала ему. В авто-режиме скрипт сам последовательно ремонтирует машины (пауза между отправками — N сек), в ручном — только по клику ПКМ, ближайшему свободному водителю. Водители с исключённым id (список в блоке выше) пропускаются — запрос уходит следующему по близости.")
             imgui.Separator()
             if imgui.Button(u8"Сохранить", imgui.ImVec2(200 * fsc, 34 * fsc)) then
                 changed = true
