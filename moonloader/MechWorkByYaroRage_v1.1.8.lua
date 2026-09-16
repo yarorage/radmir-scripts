@@ -1,4 +1,4 @@
--- MechWorkByYaroRage v1.1.7
+-- MechWorkByYaroRage v1.1.8
 -- Автозавершение миниигры починки транспорта (Радмир CRMP).
 -- v1.1.4: в блоке «Авто-подбор подъехавших машин» добавлен ручной
 -- режим: /repair кидается не автоматически, а по клику правой
@@ -10,6 +10,11 @@
 -- по ПКМ и колесиком/курсором): если ближайшая машина в радиусе имеет
 -- водителя с исключённым id, запрос уходит следующей по близости машине,
 -- чей водитель не исключён. Список хранится в ini ключами excludeId1..N
+-- v1.1.8: время до успешного финиша миниигры задаётся диапазоном «от - до»
+-- (мс): при КАЖДОЙ новой миниигре в нём выбирается случайное значение,
+-- по истечении которого отправляется OnHelloweenBuildComplete и сервер
+-- считает ремонт успешным. Старые конфиги с одиночным ключом delayMs
+-- (фиксированная задержка) мигрируют в диапазон ±1000 мс вокруг него.
 -- v1.1.7: приоритет мотоциклам при ремонте (авто и по ПКМ) - если в радиусе
 -- есть мотоциклы, /repair сначала уходит им; при принятии заявки водителем
 -- скрипт показывает только пользователю локальное сообщение (не в общий
@@ -70,7 +75,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.1.7")
+script_version("1.1.8")
 
 require "moonloader"
 
@@ -224,6 +229,23 @@ local function loadSettings()
     if #s.replyLines == 0 then
         s.replyLines = { "Починю быстро за хороший чай! Заранее спасибо!", "Подгони машину поближе, начну ремонт!" }
     end
+    -- v1.1.8: диапазон случайной задержки перед закрытием миниигры.
+    -- Ключи delayMinMs/delayMaxMs (мс); в старых конфигах был только
+    -- одиночный delayMs - разворачиваем его в диапазон ±1000 мс.
+    if s.delayMinMs == nil and s.delayMaxMs == nil then
+        if s.delayMs then
+            s.delayMinMs = math.max(0, s.delayMs - 1000)
+            s.delayMaxMs = s.delayMs + 1000
+        else
+            s.delayMinMs, s.delayMaxMs = 2000, 5000
+        end
+    end
+    s.delayMinMs = tonumber(s.delayMinMs) or s.delayMinMs or 2000
+    s.delayMaxMs = tonumber(s.delayMaxMs) or s.delayMaxMs or 5000
+    if s.delayMinMs < 0 then s.delayMinMs = 0 end
+    if s.delayMaxMs < 0 then s.delayMaxMs = 0 end
+    if s.delayMaxMs > 10000 then s.delayMaxMs = 10000 end
+    if s.delayMinMs > s.delayMaxMs then s.delayMinMs = s.delayMaxMs end
     return s
 end
 local settings = loadSettings()
@@ -295,6 +317,9 @@ end
 local optEnabled = imgui.ImBool(settings.enabled)
 -- задержка после старта миниигры до отправки финиша, мс
 local optDelayMs = imgui.ImInt(settings.delayMs)
+-- v1.1.8: диапазон случайной задержки перед закрытием миниигры, мс
+local optDelayMinMs = imgui.ImInt(settings.delayMinMs)
+local optDelayMaxMs = imgui.ImInt(settings.delayMaxMs)
 -- авто-старт ремонта при появлении окна Interactions
 local optAutoStart = imgui.ImBool(settings.autoStart)
 -- задержка после появления окна до клика, мс
@@ -395,6 +420,8 @@ function saveSettings()
     local lines = {
         "enabled = " .. (optEnabled.v and "true" or "false"),
         "delayMs = " .. optDelayMs.v,
+        "delayMinMs = " .. optDelayMinMs.v,
+        "delayMaxMs = " .. optDelayMaxMs.v,
         "autoStart = " .. (optAutoStart.v and "true" or "false"),
         "startDelayMs = " .. optStartDelayMs.v,
         "autoRepair = " .. (optAutoRepair.v and "true" or "false"),
@@ -536,8 +563,20 @@ end
 -- ---------- Поток автозакрытия миниигры ----------
 local function finishMinigameThread()
     state.busy = true
-    -- ждём регулируемую задержку (миниигра только что запустилась)
-    if optDelayMs.v > 0 then wait(optDelayMs.v) end
+    -- v1.1.8: при КАЖДОЙ новой миниигре время до успешного финиша
+    -- выбирается СЛУЧАЙНО в диапазоне от/до (мс), заданном игроком
+    -- в GUI. Если границы совпали/выродились - берём это значение.
+    local delayMin, delayMax = optDelayMinMs.v or 0, optDelayMaxMs.v or 0
+    if delayMin > delayMax then delayMin, delayMax = delayMax, delayMin end
+    if delayMin < 0 then delayMin = 0 end
+    if delayMax < 0 then delayMax = 0 end
+    local delay = delayMin
+    if delayMax > delayMin then
+        -- подсед от реального времени: каждое значение непредсказуемо
+        math.randomseed(nowMs() + math.random(0, 32767))
+        delay = delayMin + math.random(0, delayMax - delayMin)
+    end
+    if delay > 0 then wait(delay) end
     if state.active and optEnabled.v then
         sendComplete()
     end
@@ -1179,11 +1218,14 @@ function imgui.OnDrawFrame()
         imgui.PopItemWidth()
 
         imgui.Separator()
-        imgui.Text(u8"Задержка перед закрытием:")
-        if imgui.SliderInt(u8"   задержка, мс", optDelayMs, 0, 10000) then changed = true end
+        imgui.Text(u8"Случайная задержка перед закрытием:")
+        imgui.PushItemWidth(120 * fsc)
+        if imgui.SliderInt(u8"   от, мс", optDelayMinMs, 0, 10000) then changed = true end
+        if imgui.SliderInt(u8"   до, мс", optDelayMaxMs, 0, 10000) then changed = true end
         if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"После старта миниигры подождать это время и отправить успешный финиш")
+            imgui.SetTooltip(u8"При КАЖДОЙ новой миниигре время до успешного финиша выбирается случайно в этом диапазоне: «от» — минимум, «до» — максимум")
         end
+        imgui.PopItemWidth()
 
         imgui.Separator()
         imgui.Text(u8"Авто-ремонт:")
@@ -1325,7 +1367,7 @@ function imgui.OnDrawFrame()
             status = u8"Миниигра активна: " .. (state.title ~= "" and u8(state.title) or u8"без названия")
         end
         imgui.TextWrapped(status)
-        imgui.Text(u8"Авто-закрытие: " .. (optEnabled.v and u8"включено" or u8"выключено"))
+        imgui.Text(u8"Авто-закрытие: " .. (optEnabled.v and u8"включено" or u8"выключено") .. ": случайная задержка " .. optDelayMinMs.v .. "-" .. optDelayMaxMs.v .. " мс")
         imgui.Text(u8"Авто-старт: " .. (optAutoStart.v and u8"включён" or u8"выключен"))
         imgui.Text(u8"Авто-ремонт: " .. (optAutoRepair.v and u8"включён" or u8"выключен"))
 
