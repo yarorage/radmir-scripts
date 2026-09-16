@@ -167,7 +167,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("0.8.6")
+script_version("0.8.7")
 script_author("YaroRage")
 
 require "moonloader"
@@ -785,6 +785,7 @@ function onReceivePacket(id, bs)
     end
     if f.info_timer then
         st.info_timer = f.info_timer
+        st.info_timer_sec = f.info_timer_sec
     end
     -- v0.8.1: таймеры штрафа делим на ДВА разных (оба содержат «штраф»):
     --   «Снизьте скорость до штрафа», N  — превышение вилки, нужно ТОРМОЗИТЬ;
@@ -812,6 +813,9 @@ function onReceivePacket(id, bs)
             if st.overspeed_timer == 0 or st.overspeed_timer <= os.time() or sec < remaining then
                 st.overspeed_fine = true
                 st.overspeed_timer = os.time() + sec
+                print(string.format(
+                    '[MachinistByYaroRage] FINE: найдено «Снизьте скорость до штрафа», остаток %d c',
+                    sec))
             end
         elseif f.info_timer:find("Увеличьте скорость", 1, true) then
             -- сервер требует разгона: снимаем штраф превышения и включаем need_go
@@ -1085,7 +1089,7 @@ local function driveThread()
             -- Пока серверная дистанция станции больше дистанции до маркера,
             -- кривую строим от станции.
             local brakeDist = stationKnown and math.max(distance, st.station_dist) or distance
-            local aComf = brakeA * 0.55
+            local aComf = brakeA * 0.75
             local vLimMs = math.sqrt(math.max(0, 2 * aComf
                 * math.max(0, (stationAhead and brakeDist or 99999) - brakeMargin)))
             local vLim = vLimMs * 3.6
@@ -1116,6 +1120,23 @@ local function driveThread()
                     and st.info_timer_sec and st.info_timer_sec > 0
                 local atTrigger = (distance <= 3
                     or (stationKnown and st.station_dist <= 1))
+                -- v0.8.7: штраф за превышение вилки обрабатываем и на станции.
+                -- Раньше станционная ветка «съедала» таймер «Снизьте скорость
+                -- до штрафа»: на подъезде состав держался выше вилки (code=2),
+                -- и сервер штрафовал (получен реальный штраф).
+                local fineMsSt = (st.speed_hi and st.speed_hi > 1)
+                    and ((st.speed_hi - 1) / 3.6) or nil
+                local fineActiveSt = st.overspeed_fine
+                    and st.overspeed_timer > os.time()
+                local speedMsSt = math.max(0, speed / 3.6)
+                local fineLeftSt = fineActiveSt
+                    and math.max(0, st.overspeed_timer - os.time()) or 0
+                local vExcessSt = fineLeftSt > 0
+                    and math.max(0, speedMsSt - (fineMsSt or 9999)) or 0
+                local aNeededSt = vExcessSt > 0
+                    and ((vExcessSt / fineLeftSt) * 1.15) or 0
+                local fineBrakeSt = fineActiveSt
+                    and (vExcessSt > 0.3) and (aNeededSt >= 0.45 or vExcessSt >= 2.5)
                 if stopCmd and speed < 5 then
                     -- Команда сервера висит, состав уже погасил скорость — стоянка.
                     if not drive.station_arrived then
@@ -1191,6 +1212,18 @@ local function driveThread()
                         drive.lastAction = u8"стоянка в триггере станции (ост. " ..
                             tostring(math.max(0, math.ceil(dwellLeft))) .. u8" с)"
                     end
+                elseif fineBrakeSt then
+                    -- Плавный сброс к вилке (штраф «Снизьте скорость»): aNeeded
+                    -- 0.45..2.6 -> тормоз 150..255, как на перегоне.
+                    local bLevel
+                    if aNeededSt >= 2.6 then
+                        bLevel = 255
+                    else
+                        bLevel = math.floor(150 + math.max(0, math.min(1, (aNeededSt - 0.45) / 2.15)) * 105)
+                    end
+                    pcall(writeMemory, 0xB73458 + 0x1C, 1, bLevel, false)
+                    pcall(setGameKeyState, 14, bLevel)
+                    drive.lastAction = u8"плавный сброс к вилке на станции (штраф)"
                 elseif speed > vHard + 1 or (stopCmd and speed >= 15) then
                     -- Не успеваем встать даже при максимальном замедлении, либо
                     -- сервер уже командует «Остановитесь на станции», а скорость
@@ -1215,7 +1248,7 @@ local function driveThread()
                     -- используем, setTrainSpeed-резерв тоже (слишком резкий).
                     local frac = math.max(0, math.min(1,
                         (speed - vLim) / math.max(1, vHard - vLim)))
-                    local brakeLevel = math.floor(60 + 90 * frac)
+                    local brakeLevel = math.floor(90 + 110 * frac)
                     pcall(writeMemory, 0xB73458 + 0x1C, 1, brakeLevel, false)
                     pcall(setGameKeyState, 14, brakeLevel)
                     drive.lastAction = u8"плавное торможение до станции"
