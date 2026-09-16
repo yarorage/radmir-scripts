@@ -167,7 +167,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("0.8.1")
+script_version("0.8.2")
 script_author("YaroRage")
 
 require "moonloader"
@@ -1039,48 +1039,75 @@ local function driveThread()
             -- v0.7.4: при обнаружении станции держим допустимую скорость = среднюю
             -- диапазона, если скоростной режим не запрещает (speed_code не «стоп»
             -- и не «тормоз»). Средняя = lo + (hi-lo)/2 (как в MACH-диагностике).
+            -- v0.8.2: умный автопилот — физика торможения и таймеры сервера.
+            -- Из CEF-пакетов интерфейса 'Machinist' известна вся картина:
+            --   setSpeed("39-45",2) — вилка допустимой скорости и код;
+            --   setStation("Больничная",697,1) — станция и ДИСТАНЦИЯ до неё;
+            --   InformationTimer["Ожидайте отправления",15] и др. — таймеры.
+            -- Скрипт по реальному замедлению состава считает тормозной путь
+            -- (за сколько метров какую скорость можно погасить), знает, успеет
+            -- ли остановиться на станции, держит тормозную кривую и потому
+            -- маршрут проходится максимально быстро и без штрафов.
             if nearStation and st.speed_lo and st.speed_hi and st.speed_hi > st.speed_lo
                and (not st.speed_code or st.speed_code ~= 2) then
                 target = st.speed_lo + ((st.speed_hi - st.speed_lo) / 2)
             end
-
-            if nearStation then
-                -- Раз в секунду запоминаем дистанцию — только в зоне станции.
+            -- «Станция впереди»: штатная зона (чекпоинт) ЛИБО серверная
+            -- дистанция setStation меньше 800 м. Раньше торможение начиналось
+            -- только в зоне 500/300 м — при 130 км/ч (путь ~326 м) и зоне 300 м
+            -- без чекпоинта состав не успевал. Теперь тормозим по кривой СРАЗУ.
+            local stationAhead = nearStation
+                or (st.station_dist and st.station_dist >= 0 and st.station_dist < 800)
+            -- Физика: замедление состава a (м/с^2), запас пути brakeMargin (м).
+            local brakeA = (st.brake_decel and st.brake_decel > 0) and st.brake_decel or 2.0
+            local brakeMargin = (st.brake_margin and st.brake_margin >= 0) and st.brake_margin or 6
+            -- Максимальная скорость, при которой успеем остановиться к станции:
+            --   vStop(км/ч) = sqrt(2*a*(distance-brakeMargin))*3.6.
+            -- Пока живой предел vStop ВЫШЕ целевой — едем на целевой; как только
+            -- кривая подходит — скорость сама плавно снижается, и состав точно
+            -- останавливается у станции (без проезда и без долгого «мёртвого»
+            -- торможения на последних метрах).
+            local vStopMs = math.sqrt(math.max(0, 2 * brakeA
+                * math.max(0, (stationAhead and distance or 99999) - brakeMargin)))
+            local vStop = vStopMs * 3.6
+            local speedMsNow = math.max(0, speed / 3.6)
+            local brakePathNow = (speedMsNow * speedMsNow) / (2 * brakeA) + brakeMargin
+            -- Серверные таймеры: пока висит «Ожидайте отправления» или «Садитесь
+            -- в поезд» с остатком — стоим ровно столько, сколько требует сервер
+            -- (раньше — фиксированные 5 секунд station_dwell).
+            local timerText = st.info_timer or ""
+            local stayTimed = (timerText:find("Ожидайте отправления", 1, true)
+                or timerText:find("Садитесь в поезд", 1, true))
+                and st.info_timer_sec and st.info_timer_sec > 0
+            if stationAhead then
+                drive.stop_preview = distance - brakePathNow
                 if timer < os.clock() then
                     lastDistance = distance
                     timer = os.clock() + 1
                 end
-                -- v0.7.9: тормозной путь по реальному замедлению состава.
-                -- v0.7.5: раньше тормоз начинался по stopDistance<=1: при 108 км/ч
-                -- это ~22 м, поезд физически не успевал (проезд станций). После
-                -- замены на brakePath взяли a=2.8 м/с^2 — слишком оптимистично для
-                -- GTA SA состава, а порог distance<300 обрезал тормоз на высоких
-                -- скоростях (brakePath при 130 км/ч = 382 м > 300). Теперь a=1.8
-                -- м/с^2, запас +8 м и порог distance<300 убран (nearStation уже
-                -- ограничил зону 500/300 м, а brakePath при 130 км/ч = 382 м влезает
-                -- в зону финиша).
-                local speedMs = math.max(0, speed / 3.6)
-                local brakePath = (speedMs * speedMs) / (2 * 1.8) + 8
-                local stopDistance = distance - brakePath
-                drive.stop_preview = stopDistance
-
-                -- v0.8.1: прибытие и отправление со станции.
-                -- Раньше «точная остановка» требовала distance<3 и speed<5, но поезд
-                -- физически не доезжал до маркера (~9-12 м), «мёртво» стоял с тормозом,
-                -- а сервер слал «Увеличьте скорость до штрафа» (требование ускорения),
-                -- которое трактовалось как штраф превышения и не трогало газ.
-                -- Теперь: «прибыл» = speed<5 и distance<=station_stop_radius, стоим
-                -- station_dwell сек (лёгкий тормоз), затем либо сервер потребовал
-                -- движение (need_go), либо время стоянки вышло — отправляемся.
+                -- Прибыли на станцию: скорость погашена и мы в радиусе остановки.
                 if speed < 5 and distance <= (st.station_stop_radius or 15) then
                     if not drive.station_arrived then
                         drive.station_arrived = true
                         drive.station_arrive_time = os.time()
                     end
-                    local dwell = st.station_dwell or 5
-                    local dwellLeft = dwell - (os.time() - drive.station_arrive_time)
+                    local dwellLeft
+                    if stayTimed then
+                        dwellLeft = st.info_timer_sec
+                    else
+                        local dwell = st.station_dwell or 5
+                        dwellLeft = dwell - (os.time() - (drive.station_arrive_time or os.time()))
+                    end
+                    -- Страховка от «застрявшего» таймера сервера: после 45 секунд
+                    -- стоянки отправляемся сами (для конечной станции — только по
+                    -- команде сервера need_go).
+                    dwellLeft = math.min(dwellLeft,
+                        45 - (os.time() - (drive.station_arrive_time or os.time())))
+                    -- Пора трогаться: сервер требует скорость (need_go), либо
+                    -- таймер ожидания закончился/не задан (но не уезжаем сами
+                    -- с финишной станции круга).
                     if st.need_go or (not driveCpFinish and not (dwellLeft > 0)) then
-                        -- Отправление: тормоз 0, фаза DRIVE, газ до цели
+                        -- Отправление: тормоз 0, фаза DRIVE, газ до цели.
                         drive.station_arrived = false
                         drive.station_arrive_time = nil
                         drive.phase = "DRIVE"
@@ -1094,47 +1121,49 @@ local function driveThread()
                             and u8"отправление (сервер требует скорость)"
                             or u8"отправление после стоянки"
                     else
-                        -- Стоянка: лёгкий тормоз удерживает состав на месте
+                        -- Стоянка: лёгкий тормоз удерживает состав; время стоянки —
+                        -- из таймера сервера (обновляется каждым пакетом) или из
+                        -- настроек station_dwell.
                         drive.phase = "STOP"
                         pcall(writeMemory, 0xB73458 + 0x1C, 1, 30, false)
                         pcall(setGameKeyState, 14, 30)
                         drive.lastAction = u8"стоянка на станции (ост. " ..
-                            tostring(math.max(0, dwellLeft)) .. u8" с)"
+                            tostring(math.max(0, math.ceil(dwellLeft))) .. u8" с)"
                     end
-                elseif stopDistance <= 1 or distance <= brakePath then
-                    -- v0.7.9: тормозим раньше и сильнее: база 180 (было 150),
-                    -- плюс резерв setTrainSpeed, если штатного тормоза не хватает.
-                    if distance < 3 and speed < 5 then
-                        -- Точная остановка: плавно гасим остаток.
-                        if ok and type(car) == "number" and car > 0 then
-                            local ok5, cur = pcall(getCarSpeed, car)
-                            if ok5 and type(cur) == "number" then
-                                pcall(setTrainSpeed, car, math.max(0, cur / 1.1 - 1))
-                            end
-                        end
-                        drive.phase = "STOP"
-                        drive.lastAction = u8"точная остановка"
+                elseif speed > vStop + 1 then
+                    -- Физика: с текущей скоростью к станции не успеем (не погасим
+                    -- за оставшийся путь) — тормозим по кривой. Усилие растёт от
+                    -- 180 к 255 с глубиной нарушения, плюс резерв setTrainSpeed.
+                    -- Если сервер выдал «Остановитесь на станции» с малым остатком
+                    -- (дедлайн) — сразу максимальный тормоз, чтобы успеть.
+                    local frac = math.max(0, math.min(1, (brakePathNow - distance) / brakePathNow))
+                    local hardStop = timerText:find("Остановитесь на станции", 1, true)
+                        and st.info_timer_sec and st.info_timer_sec <= 15
+                    local brakeLevel
+                    if hardStop or speed > vStop + 20 then
+                        brakeLevel = 255
                     else
-                        -- Плавное торможение у станции: усилие растёт от 180 к 255.
-                        local frac = math.max(0, math.min(1, (brakePath - distance) / brakePath))
-                        local brakeLevel = math.floor(180 + 75 * frac)
-                        pcall(writeMemory, 0xB73458 + 0x1C, 1, brakeLevel, false)
-                        pcall(setGameKeyState, 14, brakeLevel)
-                        if ok and type(car) == "number" and car > 0 then
-                            local vDesired = speedMs * (distance / brakePath)
-                            if speedMs > vDesired + 0.5 then
-                                pcall(setTrainSpeed, car, math.max(0, vDesired - 0.2))
-                            end
-                        end
-                        drive.lastAction = u8"плавное торможение у станции"
+                        brakeLevel = math.floor(180 + 75 * frac)
                     end
+                    pcall(writeMemory, 0xB73458 + 0x1C, 1, brakeLevel, false)
+                    pcall(setGameKeyState, 14, brakeLevel)
+                    if ok and type(car) == "number" and car > 0 then
+                        local vDesired = math.min(speedMsNow, vStopMs)
+                            * (distance / math.max(1, brakePathNow))
+                        if speedMsNow > vDesired + 0.5 then
+                            pcall(setTrainSpeed, car, math.max(0, vDesired - 0.2))
+                        end
+                    end
+                    drive.lastAction = u8"торможение по физике до станции"
                 else
-                    -- v0.7.5: в зоне станции пока ещё не время тормозить: держим целевую.
-                    if speed < target then
+                    -- Едем максимально быстро, но не быстрее тормозной кривой:
+                    -- цель = мин(целевая, vStop). При достижении — выжим/нейтраль.
+                    local allowed = math.min(target, vStop)
+                    if speed < allowed then
                         pressGasNative()
                         drive.lastAction = u8"разгон"
                     else
-                        drive.lastAction = u8"выжим/нейтраль у станции"
+                        drive.lastAction = u8"выжим/нейтраль на станции"
                     end
                 end
             else
