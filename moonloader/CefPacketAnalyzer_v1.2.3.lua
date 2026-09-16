@@ -1,4 +1,4 @@
--- CefPacketAnalyzer v1.2.2
+-- CefPacketAnalyzer v1.2.3
 -- Анализатор CEF-пакетов Radmir CRMP.
 -- Перехватывает RakNet-пакеты (в первую очередь id=215 - команды интерфейса,
 -- id=61 - диалоги) и текстовые потоки, классифицирует их по базе знаний
@@ -11,7 +11,7 @@
 --   packets_unique_table.html - итоговая таблица без дублей, сгруппированная по категориям (CP1251)
 -- Команды: /cpa, /cpa save, /cpa clear, /cpa log on|off, /cpa len N, /cpa status.
 script_name("CefPacketAnalyzer")
-script_version("1.2.2")
+script_version("1.2.3")
 
 require "moonloader"
 require "lib.samp.events"
@@ -133,7 +133,7 @@ local function onCommand(param)
             if st.backgroundUpload == false then
                 state.chat("Агрегат отправлен.")
             else
-                state.chat("Агрегат сохранён для фоновой отправки (сборщик подхватит).")
+                state.chat("Агрегат отправляется в фоне (async движка).")
             end
         else
             state.chat("Сохранить агрегат не удалось: " .. (detail or "неизвестная причина"))
@@ -192,7 +192,7 @@ function main()
     setupOutputDir()
     registerCommands()
     state.state.startTime = os.date("%Y-%m-%d %H:%M:%S")
-    state.log("CefPacketAnalyzer v1.2.2 запущен. Команды: /cpa")
+    state.log("CefPacketAnalyzer v1.2.3 запущен. Команды: /cpa")
 
     -- В геймплее тяжёлые отчёты НЕ пересобираются (чтобы не лагать).
     -- Поток packets_stream.txt дописывается автоматически вживую (через

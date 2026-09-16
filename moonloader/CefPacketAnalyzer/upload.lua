@@ -3,6 +3,15 @@
 -- счётчики категорий и событий, список открытых окон по URL и уникальные типы
 -- пакетов. Пакет маленький, отправка редкая, чтобы не грузить игру и не
 -- упираться в лимиты Google. Ник идёт в UTF-8 (JSON).
+--
+-- КАНАЛ ПО УМОЛЧАНИЮ — неблокирующий движковый async.httpPost: запрос
+-- выполняется в фоновом потоке движка MoonRage (WinHTTP, пул потоков),
+-- игровой поток при этом не блокируется, фризов нет, внешние процессы и окна
+-- не запускаются. Результат приходит в callback, накапливается в общей
+-- очереди и разбирается в главном цикле (tick). Если async недоступен
+-- (старый движок) — автоматический фолбэк на фоновый файл pending/ для
+-- ПК-сборщика. Синхронный отправитель оставлен только как ручной резерв
+-- (backgroundUpload == false).
 local state = require("CefPacketAnalyzer.state")
 local encUtils = require("CefPacketAnalyzer.enc_utils")
 
@@ -11,6 +20,18 @@ local M = {}
 local nextUploadAt = 0
 local pendingPayload = nil
 local fails = 0
+
+-- Фоновый канал движка: результаты приходят из callback`а пула потоков и
+-- складываются сюда, а в tick разбираются уже в главном потоке.
+local asyncResults = {}
+local asyncInFlight = false -- идёт ли сейчас неблокирующий запрос
+local asyncSeq = 0          -- серийник запущенного запроса (для сопоставления)
+local asyncStartedAt = 0    -- время запуска (сторож зависшего запроса)
+
+-- Доступен ли неблокирующий HTTP-канал движка MoonRage
+local function hasAsyncHttp()
+    return type(async) == "table" and type(async.httpPost) == "function"
+end
 
 -- Родительская папка файла/пути
 local function parentDirectory(path)
@@ -33,6 +54,7 @@ end
 -- Запись агрегата файлом для фоновой отправки ПК-сборщиком.
 -- Сеть в игровом потоке НЕ используется вообще, поэтому фризов нет.
 -- Файл подхватывает collect_cefpackets.ps1 и отправляет на вебхук.
+-- Это фолбэк, когда движок не даёт async.httpPost.
 local function savePending(payload)
     local okEnc, body = pcall(function()
         local dkjson = require("dkjson")
@@ -54,9 +76,9 @@ local function savePending(payload)
     return true, file
 end
 
--- Рабочий канал отправки (HTTPS из игрового потока). Раньше был фоновый
--- режим через файл pending/, но по требованию владельца вернули прямой:
--- каждый клиент сам шлёт сводку на вебхук.
+-- Синхронный резервный отправитель (HTTPS из игрового потока). Блокирует
+-- игровой поток на доли секунды, поэтому используется ТОЛЬКО при
+-- backgroundUpload == false (ручная диагностика).
 -- ВАЖНО: Apps Script вебхук выполняет doPost на первом же POST, а в ответ
 -- отдаёт 302 (редирект на служебный echo-URL). Повторять запрос по Location
 -- нельзя: echo-URL не принимает POST. Успехом считается 2xx, 302 и 405.
@@ -127,6 +149,65 @@ local function sendPayload(payload)
         return false, "ответ сервера: " .. tostring(code or "нет кода") .. " (" .. tostring(statusMsg) .. ")"
     end
     return true
+end
+
+-- Неблокирующая отправка через движковый async.httpPost. Возвращает true —
+-- запрос успешно запущен в фоне; результат придёт в asyncResults и будет
+-- разобран в tick. Callback выполняет минимум работы: только кладёт ответ
+-- в общую очередь (тяжёлая логика — чисты/логи — в главном потоке).
+local function startAsync(payload)
+    if not hasAsyncHttp() then
+        return false, "async.httpPost недоступен на этом движке"
+    end
+    local okEnc, body = pcall(function()
+        local dkjson = require("dkjson")
+        return dkjson.encode(payload)
+    end)
+    if not okEnc or not body or body == "" then
+        return false, "не удалось собрать JSON агрегата"
+    end
+    local url = state.state.uploadUrl
+    if not url or url == "" then
+        return false, "не задан адрес вебхука"
+    end
+
+    asyncSeq = asyncSeq + 1
+    local mySeq = asyncSeq
+    local okCall, err = pcall(async.httpPost, url, body, function(resp)
+        local code = resp and resp.statusCode or 0
+        -- Движок ставит success=true только для 2xx; для вебхука Apps Script
+        -- редирект 302 — это нормальный ответ (echo-URL), 405 — тоже успех.
+        local okSend = resp ~= nil and (
+            resp.success or code == 302 or code == 405 or tostring(code):match("^2")
+        )
+        asyncResults[#asyncResults + 1] = {
+            seq    = mySeq,
+            ok     = okSend and true or false,
+            code   = code,
+            detail = (resp and (resp.success and "" or (resp.error or ""))) or "нет ответа",
+        }
+    end)
+    if not okCall then
+        return false, "ошибка запуска async.httpPost: " .. tostring(err)
+    end
+
+    asyncInFlight = true
+    asyncStartedAt = os.time()
+    return true
+end
+
+-- Забирает один накопленный ответ фонового канала (только для текущего
+-- запущенного запроса). Для старых ответов (seq != asyncSeq) не трогает
+-- флаг inFlight — это ответы уже неактуальных попыток.
+local function drainAsync()
+    if #asyncResults == 0 then
+        return nil
+    end
+    local res = table.remove(asyncResults, 1)
+    if res.seq == asyncSeq then
+        asyncInFlight = false
+    end
+    return res
 end
 
 -- После успешной отправки подчищаем локальные данные, чтобы не копились:
@@ -200,7 +281,7 @@ local function buildPayload()
 
     return {
         script = "CefPacketAnalyzer",
-        version = "1.2.2",
+        version = "1.2.3",
         nick = localNick() or "unknown",
         ts = os.time(),
         ts_text = os.date("%Y-%m-%d %H:%M:%S"),
@@ -220,12 +301,22 @@ local function buildPayload()
     }
 end
 
--- Текущий канал отправки: фоновый (файл) по умолчанию, синхронный — резерв.
+-- Основной канал: неблокирующий async движка. Если движок не даёт async —
+-- фоновый файл pending/ (сборщик). Синхронный отправитель — только ручной
+-- резерв (backgroundUpload == false).
+-- Возвращает: okSend, detail, deferredSend. deferredSend == true — запрос лишь
+-- стартован в фоне, подтверждение (и чистка) придёт через asyncResults.
 local function doSend(payload)
     if state.state.backgroundUpload == false then
-        return sendPayload(payload)
+        local okReq, detail = sendPayload(payload)
+        return okReq, detail, false
     end
-    return savePending(payload)
+    if hasAsyncHttp() then
+        local okReq, detail = startAsync(payload)
+        return okReq, detail, okReq and true or false
+    end
+    local okSave, detail = savePending(payload)
+    return okSave, detail, false
 end
 
 -- Плановый тик: вызывается из главного цикла, сам решает, когда отправлять.
@@ -237,6 +328,34 @@ function M.tick()
     if not localNick() then
         return
     end
+
+    -- 1) Разбираем накопленные ответы фонового канала (если пришли).
+    local res = drainAsync()
+    if res ~= nil then
+        if res.ok then
+            pendingPayload = nil
+            fails = 0
+            cleanAfterUpload()
+        else
+            fails = fails + 1
+            if fails <= 3 then
+                local why = res.detail
+                if why == nil or why == "" then
+                    why = "код " .. tostring(res.code or 0)
+                end
+                state.log("Ошибка фоновой отправки агрегата (попытка " .. fails .. ": " .. tostring(why) .. ")")
+            end
+        end
+    end
+
+    -- 2) Сторож: если запрос "завис" дольше лимита — освобождаем inFlight,
+    --    чтобы следующий тик запустил новую попытку.
+    if asyncInFlight and os.time() - asyncStartedAt > 180 then
+        asyncInFlight = false
+        fails = fails + 1
+    end
+
+    -- 3) Проверяем интервал.
     local now = os.time()
     if now < nextUploadAt then
         return
@@ -247,17 +366,26 @@ function M.tick()
         nextUploadAt = now + 60
     end
 
+    -- Запрос ещё в полёте — второй не запускаем.
+    if asyncInFlight then
+        return
+    end
+
     local payload = pendingPayload or buildPayload()
-    local okSend, detail = doSend(payload)
+    local okSend, detail, deferredSend = doSend(payload)
     if okSend then
-        pendingPayload = nil
-        fails = 0
-        cleanAfterUpload()
+        -- Для асинхронного канала очистка/сброс произойдут после подтверждения
+        -- в drainAsync; pendingPayload храним, пока ответ не пришёл.
+        if not deferredSend then
+            pendingPayload = nil
+            fails = 0
+            cleanAfterUpload()
+        end
     else
         fails = fails + 1
         pendingPayload = payload
         if fails <= 3 then
-            state.log("Ошибка фоновой отправки агрегата (попытка " .. fails .. ", причина: " .. tostring(detail) .. ")")
+            state.log("Ошибка запуска фоновой отправки агрегата (попытка " .. fails .. ": " .. tostring(detail) .. ")")
         end
     end
 end
@@ -266,11 +394,13 @@ end
 -- Возвращает: okSend (bool), detail (причина отказа, если есть).
 function M.force()
     local payload = buildPayload()
-    local okSend, detail = doSend(payload)
+    local okSend, detail, deferredSend = doSend(payload)
     if okSend then
-        pendingPayload = nil
-        fails = 0
-        cleanAfterUpload()
+        if not deferredSend then
+            pendingPayload = nil
+            fails = 0
+            cleanAfterUpload()
+        end
     else
         pendingPayload = payload
         fails = fails + 1
@@ -283,6 +413,9 @@ function M.reset()
     nextUploadAt = 0
     pendingPayload = nil
     fails = 0
+    asyncResults = {}
+    asyncInFlight = false
+    asyncStartedAt = 0
 end
 
 -- Статус для команды /cpa upload
@@ -304,10 +437,14 @@ function M.statusText()
     if not nick or nick == "" then
         nick = "не подключён"
     end
+    local mode = "синхронно (резерв)"
+    if st.backgroundUpload ~= false then
+        mode = hasAsyncHttp() and "фон. движком (async)" or "фон. сборщиком (файл)"
+    end
     return string.format(
         "отправка: %s | режим: %s | адрес: %s | интервал: %d сек (±%d) | ник: %s",
         st.uploadEnabled and "вкл" or "выкл",
-        st.backgroundUpload == false and "синхронно (резерв)" or "фон. сборщиком",
+        mode,
         link and link ~= "" and link or "не задан",
         st.uploadEvery or 600,
         st.uploadJitter or 0,
