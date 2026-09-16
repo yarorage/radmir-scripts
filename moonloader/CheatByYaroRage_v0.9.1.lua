@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.9.0")
+script_version("0.9.1")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -111,6 +111,12 @@ local chat_admins = {}         -- {ник = true} админы, выявленные по сообщениям 
 local chat_detected_list = {}  -- {ник = {reason=..., date=...}} список выявленных по чату админов (для показа оффлайн)
 local known_online = {}        -- {ник = pid} онлайн статус админов из списка known_admins
 local spectator_list = {}      -- {id = {nick, time, dist, reason, date}}
+local surveillance_list = {}   -- {kind, nick, target, dist}
+local surveillance_enabled = imgui.ImBool(true)
+local surveillance_radius = imgui.ImFloat(150.0)
+local surveillance_near = imgui.ImFloat(40.0)
+local surveillance_font = nil
+local surveillance_font_scale = 0
 local show_admin_hud = imgui.ImBool(false)
 local admin_hud_pos = {x = 10, y = 10}
 local admin_hud_scale = imgui.ImFloat(1.0)
@@ -373,27 +379,71 @@ end
 
 function checkSpectators()
     spectator_list = {}
+    surveillance_list = {}
     if not PLAYER_PED or not doesCharExist(PLAYER_PED) then
         return
     end
+    local okid, my_id = sampGetPlayerIdByCharHandle(PLAYER_PED)
+    if not okid then return end
+    local mx, my, mz = getCharCoordinates(PLAYER_PED)
+    local stream_r = surveillance_radius.v or 150
+    local near_r   = surveillance_near.v or 40
+
+    -- Позиции ВСЕХ подключенных игроков: sampGetPlayerPos возвращает
+    -- последнюю известную позицию из SAMP-пула даже для невидимых/спектаторов.
+    local pos_of = {}
+    local nick_of = {}
+    for i = 0, sampGetMaxPlayerId(false) do
+        local ok, px, py, pz = sampGetPlayerPos(i)
+        if ok then
+            pos_of[i] = {x = px, y = py, z = pz}
+            nick_of[i] = sampGetPlayerNickname(i) or ""
+        end
+    end
+
+    -- Для каждого известного админа: слежка за мной / за игроком / админ рядом.
     for id, admin_data in pairs(admin_list) do
-        if sampIsPlayerConnected(id) then
-            local _, ped = sampGetCharHandleBySampPlayerId(id)
-            if ped and doesCharExist(ped) then
-                local _, my_id = sampGetPlayerIdByCharHandle(PLAYER_PED)
-                if id ~= my_id then
-                    local mx, my, mz = getCharCoordinates(PLAYER_PED)
-                    local px, py, pz = getCharCoordinates(ped)
-                    local dist = getDistanceBetweenCoords3d(mx, my, mz, px, py, pz)
-                    if dist < 100 then  -- Увеличен радиус для админов
+        if sampIsPlayerConnected(id) and id ~= my_id then
+            local nick = admin_data.nick or nick_of[id] or ""
+            if nick ~= "" then
+                local pos = pos_of[id]
+                if pos then
+                    local _, ped = sampGetCharHandleBySampPlayerId(id)
+                    local has_ped = (ped ~= nil and ped ~= false and doesCharExist(ped))
+                    local dist = getDistanceBetweenCoords3d(mx, my, mz, pos.x, pos.y, pos.z)
+                    if not has_ped then
+                        -- Невидимый админ (спектатор): вероятная слежка.
+                        if dist <= near_r then
+                            table.insert(surveillance_list, {kind = 1, nick = nick, target = nil, dist = math.floor(dist)})
+                        elseif dist <= stream_r then
+                            -- Слежка за другим игроком: ищем ближайшего видимого к позиции админа.
+                            local best_j, best_d
+                            for j, jpos in pairs(pos_of) do
+                                if j ~= my_id and j ~= id then
+                                    local _, jped = sampGetCharHandleBySampPlayerId(j)
+                                    if jped ~= nil and jped ~= false and doesCharExist(jped) then
+                                        local d = getDistanceBetweenCoords3d(pos.x, pos.y, pos.z, jpos.x, jpos.y, jpos.z)
+                                        if d <= near_r and (not best_d or d < best_d) then
+                                            local jme = getDistanceBetweenCoords3d(mx, my, mz, jpos.x, jpos.y, jpos.z)
+                                            if jme <= stream_r then
+                                                best_j, best_d = j, d
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            if best_j then
+                                table.insert(surveillance_list, {kind = 2, nick = nick, target = nick_of[best_j] or ("ID" .. best_j), dist = math.floor(dist)})
+                            end
+                        end
+                    elseif dist < 100 then
                         table.insert(spectator_list, {
-                            id = id,
-                            nick = admin_data.nick,
-                            dist = math.floor(dist),
-                            time = os.date("%H:%M:%S"),
-                            reason = admin_data.reason,
-                            date = admin_data.date
+                            id = id, nick = nick, dist = math.floor(dist),
+                            time = os.date("%H:%M:%S"), reason = admin_data.reason, date = admin_data.date
                         })
+                        if dist <= near_r then
+                            table.insert(surveillance_list, {kind = 3, nick = nick, target = nil, dist = math.floor(dist)})
+                        end
                     end
                 end
             end
@@ -603,6 +653,9 @@ local mainIni = inicfg.load({
 		admin_hud_color_r = 255,
 		admin_hud_color_g = 255,
 		admin_hud_color_b = 255,
+		surveillance_enabled = true,
+		surveillance_radius = 150,
+		surveillance_near = 40,
 		theme = 0,
 		profile = 0,
 		menuTab = 1,
@@ -684,6 +737,9 @@ admin_hud_scale.v = mainIni.CheatByYaroRage.admin_hud_scale or 1.0
 admin_hud_color_r.v = mainIni.CheatByYaroRage.admin_hud_color_r or 255
 admin_hud_color_g.v = mainIni.CheatByYaroRage.admin_hud_color_g or 255
 admin_hud_color_b.v = mainIni.CheatByYaroRage.admin_hud_color_b or 255
+surveillance_enabled.v = mainIni.CheatByYaroRage.surveillance_enabled ~= false
+surveillance_radius.v = tonumber(mainIni.CheatByYaroRage.surveillance_radius) or 150
+surveillance_near.v = tonumber(mainIni.CheatByYaroRage.surveillance_near) or 40
 
 -- Справочник всех настраиваемых переменных для профилей (объявлен ДО save()).
 local profile_vars = {
@@ -714,6 +770,9 @@ local profile_vars = {
 	admin_hud_color_g = admin_hud_color_g,
 	NoAnimationMoney = NoAnimationMoney,
 	admin_hud_color_b = admin_hud_color_b,
+	surveillance_enabled = surveillance_enabled,
+	surveillance_radius = surveillance_radius,
+	surveillance_near = surveillance_near,
 }
 
 ffi.cdef[[
@@ -2508,6 +2567,14 @@ if imgui.Checkbox(u8'Вкл. детекцию админов', admin_detection) then
 				sbox(u8'Показать HUD админов', show_admin_hud)
 				imgui.TextDisabled(u8'Отображать список админов на экране')
 
+				imgui.Separator()
+				sbox(u8'Большое сообщение о слежке', surveillance_enabled)
+				imgui.TextDisabled(u8'Крупный текст внизу экрана, пока идёт слежка')
+				imgui.Text(u8'Радиус стрима (м):')
+				if imgui.SliderFloat(u8'##surv_radius', surveillance_radius, 50, 400, u8'%.0f') then save() end
+				imgui.Text(u8'Радиус рядом (м):')
+				if imgui.SliderFloat(u8'##surv_near', surveillance_near, 10, 100, u8'%.0f') then save() end
+
 				-- Настройки HUD админов: масштаб, цвет, перемещение
 				imgui.Separator()
 				imgui.TextColored(imgui.ImVec4(1, 0.8, 0.3, 1), u8'Настройки HUD:')
@@ -3314,6 +3381,9 @@ imgui.OnDrawFrame = function()
     if show_admin_hud.v and admin_detection.v then
         renderAdminHUD()
     end
+    if surveillance_enabled.v and admin_detection.v then
+        renderSurveillanceWarn()
+    end
 end
 
 -- Admin HUD рендер
@@ -3391,4 +3461,38 @@ function renderAdminHUD()
 end
 
 -- Применение сохранённой темы сразу при загрузке (иначе окно полупрозрачное)
+
+
+-- Большое предупреждение о слежке внизу экрана (крупный текст).
+function renderSurveillanceWarn()
+    local cnt = #surveillance_list
+    if cnt == 0 then return end
+    local resX, resY = getScreenResolution()
+    local want = math.floor(40 * fsc + 0.5)
+    if want < 14 then want = 14 end
+    if surveillance_font_scale ~= want then
+        surveillance_font = renderCreateFont("Arial", want, 12)
+        surveillance_font_scale = want
+    end
+    local sfont = surveillance_font or font2
+    local line_h = 52 * fsc
+    local y = resY - 20 * fsc - cnt * line_h
+    for _, s in ipairs(surveillance_list) do
+        local txt, col
+        if s.kind == 1 then
+            txt = "ВНИМАНИЕ! ЗА ВАМИ СЛЕЖКА! " .. s.nick .. " [дист. " .. s.dist .. " м]"
+            col = 0xFF0000FF
+        elseif s.kind == 2 then
+            txt = "СЛЕЖКА ЗА ИГРОКОМ " .. s.target .. " дист. " .. s.dist .. " м, рядом с вами! (" .. s.nick .. ")"
+            col = 0xFF00AAFF
+        else
+            txt = "АДМИН РЯДОМ С ВАМИ " .. s.nick .. " [дист. " .. s.dist .. " м]"
+            col = 0xFF00FFFF
+        end
+        local tw = renderGetFontDrawTextLength(sfont, txt)
+        local x = math.max(10, math.floor((resX - tw) / 2))
+        renderFontDrawText(sfont, txt, x, y, col)
+        y = y + line_h
+    end
+end
 applyTheme(mainIni.CheatByYaroRage.theme or 0)
