@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.9.1")
+script_version("0.9.2")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -118,6 +118,8 @@ local surveillance_near = imgui.ImFloat(40.0)
 local surveillance_font = nil
 local surveillance_font_scale = 0
 local show_admin_hud = imgui.ImBool(false)
+local masterToggle = imgui.ImBool(true)   -- глобальный выключатель всего чита
+
 local admin_hud_pos = {x = 10, y = 10}
 local admin_hud_scale = imgui.ImFloat(1.0)
 local admin_hud_color_r = imgui.ImInt(255)
@@ -653,10 +655,11 @@ local mainIni = inicfg.load({
 		admin_hud_color_r = 255,
 		admin_hud_color_g = 255,
 		admin_hud_color_b = 255,
+		theme = 0,
+		masterToggle = true,
 		surveillance_enabled = true,
 		surveillance_radius = 150,
 		surveillance_near = 40,
-		theme = 0,
 		profile = 0,
 		menuTab = 1,
     }
@@ -737,6 +740,7 @@ admin_hud_scale.v = mainIni.CheatByYaroRage.admin_hud_scale or 1.0
 admin_hud_color_r.v = mainIni.CheatByYaroRage.admin_hud_color_r or 255
 admin_hud_color_g.v = mainIni.CheatByYaroRage.admin_hud_color_g or 255
 admin_hud_color_b.v = mainIni.CheatByYaroRage.admin_hud_color_b or 255
+masterToggle.v = mainIni.CheatByYaroRage.masterToggle ~= false
 surveillance_enabled.v = mainIni.CheatByYaroRage.surveillance_enabled ~= false
 surveillance_radius.v = tonumber(mainIni.CheatByYaroRage.surveillance_radius) or 150
 surveillance_near.v = tonumber(mainIni.CheatByYaroRage.surveillance_near) or 40
@@ -770,6 +774,7 @@ local profile_vars = {
 	admin_hud_color_g = admin_hud_color_g,
 	NoAnimationMoney = NoAnimationMoney,
 	admin_hud_color_b = admin_hud_color_b,
+	masterToggle = masterToggle,
 	surveillance_enabled = surveillance_enabled,
 	surveillance_radius = surveillance_radius,
 	surveillance_near = surveillance_near,
@@ -1189,6 +1194,33 @@ local function mainLoop()
 	while true do
 		wait(0)
 
+		-- Глобальный выключатель всего чита: хоткеи N (меню) и F12 (релоад) работают всегда.
+		if isKeyJustPressed(VK_N) and not sampIsChatInputActive() and not sampIsDialogActive() then
+			if mcheat.v then
+				mcheat.v = false
+			else
+				local press_start = os.clock()
+				local opened = false
+				while isKeyDown(VK_N) do
+					if os.clock() - press_start >= 1.0 then
+						mcheat.v = true
+						opened = true
+						break
+					end
+					wait(0)
+				end
+				if not opened and not mcheat.v then
+					-- короткое нажатие - ничего не делаем
+				end
+			end
+		end
+
+		if isKeyJustPressed(VK_F12) and not sampIsChatInputActive() and not sampIsDialogActive()  then
+			thisScript():reload()
+		end
+
+		if masterToggle.v then
+
 		-- Admin Detection обновление (каждые 2 сек, работает и без чекбокса детекции — для трекера онлайн)
 		do
 			local cur_time = os.clock()
@@ -1286,30 +1318,6 @@ local function mainLoop()
 		if myId >= 0 and sampGetPlayerAnimationId(myId) == 1537 and autokick.v then
             sync = true
         end
-
-		if isKeyJustPressed(VK_N) and not sampIsChatInputActive() and not sampIsDialogActive() then
-			if mcheat.v then
-				mcheat.v = false
-			else
-				local press_start = os.clock()
-				local opened = false
-				while isKeyDown(VK_N) do
-					if os.clock() - press_start >= 1.0 then
-						mcheat.v = true
-						opened = true
-						break
-					end
-					wait(0)
-				end
-				if not opened and not mcheat.v then
-					-- короткое нажатие - ничего не делаем
-				end
-			end
-		end
-
-		if isKeyJustPressed(VK_F12) and not sampIsChatInputActive() and not sampIsDialogActive()  then
-			thisScript():reload()
-		end
 
 		if favskin ~= 0 then
 			nowskinid = getCharModel(PLAYER_PED)
@@ -1635,6 +1643,7 @@ local function mainLoop()
 			end
 		end
 
+		end     -- masterToggle
 		if mcheat.v then
 			imgui.ShowCursor = true
 			imgui.Process = true
@@ -1643,7 +1652,7 @@ local function mainLoop()
 			imgui.Process = true
 			imgui.ShowCursor = true
 			imgui.DisableInput = false
-		elseif show_admin_hud.v and admin_detection.v then
+		elseif masterToggle.v and show_admin_hud.v and admin_detection.v then
 			-- HUD рисуется через ImGui, поэтому держим кадры активными,
 			-- но без курсора и без перехвата ввода
 			imgui.Process = true
@@ -2153,6 +2162,13 @@ function imgui.OnDrawFrame()
 		imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - winW / 2, resY / 2 - winH / 2), imgui.Cond.FirstUseEver)
 		imgui.SetNextWindowSize(imgui.ImVec2(winW, winH), imgui.Cond.FirstUseEver)
 		imgui.Begin(u8'CheatByYaroRage', mcheat, imgui.WindowFlags.NoCollapse)
+
+		-- Шапка: глобальный выключатель всего чита
+		if imgui.Button((masterToggle.v and u8"ЧИТ: ВКЛ" or u8"ЧИТ: ВЫКЛ"), imgui.ImVec2(winW - 16 * fsc, 30 * fsc)) then
+			masterToggle.v = not masterToggle.v
+			save()
+		end
+		imgui.Separator()
 
 		-- Вкладки в одну строку в шапке окна
 		local tabs = {
@@ -3378,10 +3394,10 @@ local originalOnDrawFrame = imgui.OnDrawFrame
 imgui.OnDrawFrame = function()
     originalOnDrawFrame()
     -- Admin HUD (рисуется каждый кадр, пока включён)
-    if show_admin_hud.v and admin_detection.v then
+			if show_admin_hud.v and admin_detection.v and masterToggle.v then
         renderAdminHUD()
     end
-    if surveillance_enabled.v and admin_detection.v then
+			if surveillance_enabled.v and admin_detection.v and masterToggle.v then
         renderSurveillanceWarn()
     end
 end
