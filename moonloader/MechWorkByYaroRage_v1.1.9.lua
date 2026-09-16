@@ -1,4 +1,4 @@
--- MechWorkByYaroRage v1.1.8
+-- MechWorkByYaroRage v1.1.9
 -- Автозавершение миниигры починки транспорта (Радмир CRMP).
 -- v1.1.4: в блоке «Авто-подбор подъехавших машин» добавлен ручной
 -- режим: /repair кидается не автоматически, а по клику правой
@@ -10,6 +10,12 @@
 -- по ПКМ и колесиком/курсором): если ближайшая машина в радиусе имеет
 -- водителя с исключённым id, запрос уходит следующей по близости машине,
 -- чей водитель не исключён. Список хранится в ini ключами excludeId1..N
+-- v1.1.9: персонаж в «Эвакуаторе» (модель 525 = Towtruck, в списке Les -
+-- «Эвакуатор») автоматически попадает в исключения и не получает /repair:
+-- рантайм-фильтр отсекает водителей за рулём эвакуатора во всех режимах
+-- (авто-радиус, ПКМ, курсор), а собственный id игрока, когда он сам сидит
+-- в эвакуаторе, добавляется в список исключений (ini ключ excludeId) и
+-- сохраняется там.
 -- v1.1.8: время до успешного финиша миниигры задаётся диапазоном «от - до»
 -- (мс): при КАЖДОЙ новой миниигре в нём выбирается случайное значение,
 -- по истечении которого отправляется OnHelloweenBuildComplete и сервер
@@ -75,7 +81,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.1.8")
+script_version("1.1.9")
 
 require "moonloader"
 
@@ -705,6 +711,51 @@ local function notifyRepairAccepted()
     end
 end
 
+-- ---------- v1.1.9: «Эвакуатор» (служебный транспорт механика) ----------
+-- Модель 525 (Towtruck, в списке Les - «Эвакуатор»). Водителей за рулём
+-- эвакуатора не чиним: служебный транспорт механика ремонту не подлежит.
+local towtruckModels = { [525] = true }
+-- персонаж игрока в «Эвакуаторе»? (используется статусом GUI и автоисключением)
+local inTowtruck = false
+-- машина, в которой сидит наш персонаж: натив getCarCharIsIn либо SAMPFUNCS
+local function getMyCar()
+    if type(getCarCharIsIn) == "function" then
+        local ok, v = pcall(getCarCharIsIn, PLAYER_PED)
+        if ok and v and v ~= 0 then return v end
+    end
+    if type(sampGetPlayerCarHandle) == "function" then
+        local ok, v = pcall(sampGetPlayerCarHandle, 0)
+        if ok and v and v ~= 0 then return v end
+    end
+    return nil
+end
+local function isTowtruck(veh)
+    local m = getModelId(veh)
+    return m and towtruckModels[m] or false
+end
+-- v1.1.9: раз в 0.5 сек проверяем, не сидит ли персонаж в эвакуаторе;
+-- если да - его собственный id автоматически попадает в исключения
+-- (и /repair ему не отправляется), как если бы он оставил это вручную.
+local lastTowtruckCheck = 0
+local function autoExcludeSelfInTowtruck()
+    if nowMs() - lastTowtruckCheck < 500 then return end
+    lastTowtruckCheck = nowMs()
+    local myCar = getMyCar()
+    inTowtruck = myCar and isTowtruck(myCar) or false
+    if not inTowtruck then return end
+    local selfId = 0
+    if type(sampGetPlayerNickname) == "function" and type(sampGetPlayerIdByNickName) == "function" then
+        local okN, nick = pcall(sampGetPlayerNickname, 0)
+        if okN and nick and nick ~= "" then
+            local okI, id = pcall(sampGetPlayerIdByNickName, nick)
+            if okI and id then selfId = id or 0 end
+        end
+    end
+    if selfId and selfId >= 1 and not idExcluded(selfId) then
+        addExcludedId(selfId)
+    end
+end
+
 -- ---------- v1.1.1: поиск ближайшей машины-игрока в радиусе метров ----------
 -- машины игроков в радиусе radiusM вокруг персонажа игрока.
 -- Возвращает veh, pid водителя (такой, которому ещё не слали /repair недавно).
@@ -727,8 +778,10 @@ local function findNearRepairTarget(radiusM, cooldownMs)
                 local okD, driver = pcall(getDriverOfCar, veh)
                 if okD and driver and driver ~= 0 then
                     local okP, isP, pid = pcall(sampGetPlayerIdByCharHandle, driver)
-                    -- v1.1.6: водители с исключённым id не получают /repair
-                    if okP and isP and pid and pid >= 1 and not idExcluded(pid) then
+                    -- v1.1.6: водители с исключённым id не получают /repair.
+                    -- v1.1.9: водители за рулём «Эвакуатора» тоже не получают /repair
+                    if okP and isP and pid and pid >= 1
+                        and not idExcluded(pid) and not isTowtruck(veh) then
                         -- v1.1.7: помечаем мотоциклы - их чиним в первую очередь
                         cands[#cands + 1] = { veh = veh, pid = pid, moto = isMoto(veh), d = dx * dx + dy * dy + dz * dz }
                     end
@@ -796,8 +849,10 @@ local function sendRepairByCursor()
         local okD, driver = pcall(getDriverOfCar, veh)
         if okD and driver and driver ~= 0 then
             local okP, isPlayer, pid = pcall(sampGetPlayerIdByCharHandle, driver)
-            -- v1.1.6: исключённые id водителей пропускаем — берём следующего
-            if okP and isPlayer and pid and pid >= 1 and not idExcluded(pid) then
+            -- v1.1.6: исключённые id водителей пропускаем — берём следующего.
+            -- v1.1.9: водителей за рулём «Эвакуатора» тоже пропускаем
+            if okP and isPlayer and pid and pid >= 1
+                and not idExcluded(pid) and not isTowtruck(veh) then
                 state.lastRepair = nowMs()
                 -- v1.1.7: запоминаем заявку для уведомления «Чиню ...»
                 state.pendingRepair = { pid = pid, veh = veh, at = nowMs() }
@@ -1087,6 +1142,10 @@ function main()
             imgui.DisableInput = false
         end
 
+        -- v1.1.9: персонаж в «Эвакуаторе» - автоисключение из автоматического
+        -- ремонта (фильтр + запись собственного id в список исключений)
+        autoExcludeSelfInTowtruck()
+
         -- ---- отслеживание выбранной кнопки показа курсора ----
         local now = nowMs()
         local down = isVkDown(currentCursorVk())
@@ -1370,6 +1429,10 @@ function imgui.OnDrawFrame()
         imgui.Text(u8"Авто-закрытие: " .. (optEnabled.v and u8"включено" or u8"выключено") .. ": случайная задержка " .. optDelayMinMs.v .. "-" .. optDelayMaxMs.v .. " мс")
         imgui.Text(u8"Авто-старт: " .. (optAutoStart.v and u8"включён" or u8"выключен"))
         imgui.Text(u8"Авто-ремонт: " .. (optAutoRepair.v and u8"включён" or u8"выключен"))
+        -- v1.1.9: предупреждение, если персонаж сам в «Эвакуаторе»
+        if inTowtruck then
+            imgui.TextWrapped(u8"Вы в «Эвакуаторе»: ваш id автоматически в списке исключений — /repair вам не отправляется")
+        end
 
         imgui.Separator()
         if imgui.Button(u8"Сохранить", imgui.ImVec2(200 * fsc, 34 * fsc)) then
