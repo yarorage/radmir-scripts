@@ -1,4 +1,4 @@
--- MechWorkByYaroRage v1.2.6
+-- MechWorkByYaroRage v1.2.7
 -- Автозавершение миниигры починки транспорта (Радмир CRMP).
 -- v1.1.4: в блоке «Авто-подбор подъехавших машин» добавлен ручной
 -- режим: /repair кидается не автоматически, а по клику правой
@@ -10,6 +10,10 @@
 -- по ПКМ и колесиком/курсором): если ближайшая машина в радиусе имеет
 -- водителя с исключённым id, запрос уходит следующей по близости машине,
 -- чей водитель не исключён. Список хранится в ini ключами excludeId1..N
+-- v1.2.7: мастер-выключатель всего чита: кнопка в шапке окна «ВЫКЛЮЧИТЬ ЧИТ»/«ВКЛЮЧИТЬ ЧИТ»
+-- включает/выключает все автоматизации одним кликом: автозавершение, авто-старт, авто-ответ и
+-- деньги, курсор-пик, ПКМ-ремонт и авто-подбор. При выключении сбрасываются активные состояния.
+-- Добавлена опция cheatEnabled (true/false) в ini.
 -- v1.2.6: фразы автоответа расширены до 30 (добавление по одной и блоком из
 -- многострочного поля, каждая строка = фраза); фразы по окончанию миниигры
 -- (5 шт, отправляются через 1 сек после закрытия окна, /cancel на них никак
@@ -111,7 +115,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.2.6")
+script_version("1.2.7")
 
 require "moonloader"
 
@@ -178,7 +182,7 @@ local fsc = 1
 local iniFile = getGameDirectory() .. "\\moonloader\\MechWorkByYaroRage.ini"
 
 local function loadSettings()
-    local s = { enabled = true, delayMs = 3000, autoStart = true, startDelayMs = 300,
+    local s = { enabled = true, cheatEnabled = true, delayMs = 3000, autoStart = true, startDelayMs = 300,
                 autoRepair = true, repairCooldown = 4000,
                 autoReply = true,
                 replyLines = {}, -- список фраз автоответа (до 30, v1.1.5)
@@ -415,6 +419,8 @@ local function removeTrigger(idx)
 end
 
 local optEnabled = imgui.ImBool(settings.enabled)
+-- v1.2.7: мастер-выключатель всего чита (кнопка в шапке окна)
+local optCheat = imgui.ImBool(settings.cheatEnabled)
 -- задержка после старта миниигры до отправки финиша, мс
 local optDelayMs = imgui.ImInt(settings.delayMs)
 -- v1.1.8: диапазон случайной задержки перед закрытием миниигры, мс
@@ -568,6 +574,7 @@ local state = {
 function saveSettings()
     local lines = {
         "enabled = " .. (optEnabled.v and "true" or "false"),
+        "cheatEnabled = " .. (optCheat.v and "true" or "false"),
         "delayMs = " .. optDelayMs.v,
         "delayMinMs = " .. optDelayMinMs.v,
         "delayMaxMs = " .. optDelayMaxMs.v,
@@ -618,6 +625,21 @@ function saveSettings()
         f:write(table.concat(lines, "\r\n"))
         f:close()
     end
+end
+-- v1.2.7: переключение мастер-выключателя всего чита (кнопка в шапке).
+-- При выключении сбрасываем активные состояния, чтобы зависшие проверки
+-- и потоки ничего не запустили/не отправили.
+function setCheatMaster(v)
+    optCheat.v = v
+    if not v then
+        state.active = false
+        state.busy = false
+        state.autoStarting = false
+        state.pendingRepair = nil
+        state.nearWaiting = false
+        state.nearSawActive = false
+    end
+    saveSettings()
 end
 
 -- ---------- Формирование и отправка TX id=215 ----------
@@ -738,7 +760,7 @@ local function finishMinigameThread()
         delay = delayMin + math.random(0, delayMax - delayMin)
     end
     if delay > 0 then wait(delay) end
-    if state.active and optEnabled.v then
+    if state.active and optEnabled.v and optCheat.v then
         sendComplete()
     end
     state.busy = false
@@ -1168,7 +1190,7 @@ end
 -- закрывается, поэтому на неё этот поток никак не реагирует.
 local function sendFinishReplyThread()
     wait(1000)
-    if not optAutoReply.v then return end
+    if not optCheat.v or not optAutoReply.v then return end
     if state.active then return end -- уже началась новая миниигра
     local list = collectPhrases(optFinishLines, finishCount.v)
     if #list == 0 then return end
@@ -1179,7 +1201,7 @@ end
 -- Если сумма до 4000 - свой пул фраз, от 4001 - свой. КД 10 сек на каждую
 -- группу суммы: пока КД активен, повторные переводы не спамят чат.
 local function sendMoneyReply(sum)
-    if not optAutoReply.v then return end
+    if not optCheat.v or not optAutoReply.v then return end
     local list, st, lastField
     if sum <= 4000 then
         list = collectPhrases(optMoneyLowLines, moneyLowCount.v)
@@ -1199,6 +1221,7 @@ end
 
 -- v1.2.2: автоответ на фразу начала ремонта (анти-дубль 5 сек, фразы по циклу)
 function sendAutoReplyIfStarted(bs)
+    if not optCheat.v then return false end
     if not payloadHasRepairStart(bs) then return false end
     -- v1.1.7: заявка принята - уведомление «Чиню <ник> (id) - <модель>»
     -- показываем всегда (независимо от включённого автоответа)
@@ -1213,6 +1236,7 @@ end
 --перестраховка: если фраза пришла не RPC-пакетом, а через стандартный
 -- колбэк onServerMessage (текст в чате) - тоже отвечаем (анти-дубль 5 сек)
 function onServerMessage(color, text)
+    if not optCheat.v then return nil end
     -- v1.2.6: перевод денег «Игрок [Nick] передал Вам $5000»
     if text and text ~= "" then
         local sum = tonumber(text:match("передал [Вв]ам %$(%d+)"))
@@ -1237,6 +1261,7 @@ end
 
 -- перехват всех входящих RPC (выполняется для каждого скрипта отдельно)
 function onReceiveRpc(id, bs)
+    if not optCheat.v then return end
     -- автоответ: фраза начала ремонта может прийти и чатом (101),
     -- и серверным сообщением (93) - проверяем оба ДО фильтра playerId
     if id == 101 or id == 93 then
@@ -1286,7 +1311,8 @@ function onReceivePacket(id, bs)
     -- появление окна Interactions с кнопками работы: скрипт сам нажимает
     -- кнопку «Начать работу» (не трогая «Завершить работу»), чтобы миниигра
     -- ремонта стартовала автоматически
-    if optAutoStart.v and txt:find("Interactions", 1, true) and txt:find("setInfo", 1, true) then
+    if optCheat.v and optAutoStart.v and txt:find("Interactions", 1, true)
+       and txt:find("setInfo", 1, true) then
         local code = findStartButtonCode(txt)
         if code and not state.autoStarting then
             state.autoStarting = true
@@ -1302,7 +1328,7 @@ function onReceivePacket(id, bs)
         state.active = true
         state.autoStarting = false
         state.title = title or ""
-        if optEnabled.v and not state.busy then
+        if optCheat.v and optEnabled.v and not state.busy then
             lua_thread.create(finishMinigameThread)
         end
         return
@@ -1310,7 +1336,7 @@ function onReceivePacket(id, bs)
     -- закрытие миниигры (команда HelloweenBuild без аргументов)
     if txt:find("HelloweenBuild", 1, true) then
         -- v1.2.6: миниигра шла и закрылась - через 1 сек отправляем фразу
-        if state.active and optAutoReply.v then
+        if optCheat.v and state.active and optAutoReply.v then
             lua_thread.create(sendFinishReplyThread)
         end
         state.active = false
@@ -1387,7 +1413,8 @@ function main()
                 mbDown = true
                 mbDownAt = now
                 mbProcessed = false
-            elseif not mbProcessed and optCursorPick.v and now - mbDownAt >= optCursorDelaySec.v * 1000 then
+            elseif not mbProcessed and optCheat.v and optCursorPick.v
+                   and now - mbDownAt >= optCursorDelaySec.v * 1000 then
                 -- удержание заданное время без отпускания: показать/скрыть курсор
                 mbProcessed = true
                 state.cursorVisible = not state.cursorVisible
@@ -1400,7 +1427,8 @@ function main()
                 mbDown = false
                 mbProcessed = false
                 -- v1.2.1: не выбираем цель, если только что ушёл /cancel (Space+ПКМ)
-                if optCursorPick.v and state.cursorVisible and held < optCursorDelaySec.v * 1000
+                if optCheat.v and optCursorPick.v and state.cursorVisible
+                   and held < optCursorDelaySec.v * 1000
                    and not showMenu.v and not cancelPrev then
                     sendRepairByCursor()
                 end
@@ -1414,7 +1442,8 @@ function main()
         -- в чат/самп-диалог и когда кнопкой ПКМ занят режим выбора цели.
         do
             local rmbDown = isVkDown(0x02)
-            local rmbOk = optManualRmb.v and not showMenu.v and not state.active
+            local rmbOk = optCheat.v and optManualRmb.v and not showMenu.v
+                      and not state.active
                       and not state.cursorVisible and not (optCursorPick.v and currentCursorVk() == 0x02)
                       and not isVkDown(0x20) -- v1.2.0: зажат Space - ПКМ резервируется под /cancel
             if rmbDown and not rmbPrev and rmbOk then
@@ -1451,7 +1480,8 @@ function main()
 
         -- ---------- v1.1.1: авто-ремонт подъехавших в радиус ----------
         -- авто-режим отключается, если включён ручной режим по ПКМ (v1.1.4)
-        if optNearRepair.v and not optManualRmb.v and optEnabled.v and not state.active and not showMenu.v then
+        if optCheat.v and optNearRepair.v and not optManualRmb.v
+           and optEnabled.v and not state.active and not showMenu.v then
             local nowB = nowMs()
             if state.nearWaiting then
                 -- миниигра началась? фиксируем для детекта её окончания
@@ -1513,6 +1543,32 @@ function imgui.OnDrawFrame()
         imgui.SetNextWindowPos(imgui.ImVec2(resX / 2 - winW / 2, resY / 2 - winH / 2), imgui.Cond.Always)
         imgui.SetNextWindowSize(imgui.ImVec2(winW, winH), imgui.Cond.Always)
         imgui.Begin(u8"MechWorkByYaroRage", showMenu, imgui.WindowFlags.NoCollapse)
+
+        -- ===== ШАПКА: КНОПКА ВКЛЮЧЕНИЯ/ВЫКЛЮЧЕНИЯ ВСЕГО ЧИТА =====
+        -- v1.2.7: мастер-переключатель всех функций (как в Les/Machinist):
+        -- красная «Выключить чит» при включённом, зелёная «Включить чит» при выключенном.
+        local _tH = imgui.GetTextLineHeightWithSpacing()
+        local _oy = imgui.GetCursorPosY()
+        local _bW = 150 * fsc
+        local _bH = 24 * fsc
+        if optCheat.v then
+            imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.80, 0.18, 0.18, 1.0))
+            imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.0, 0.25, 0.25, 1.0))
+        else
+            imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.15, 0.65, 0.20, 1.0))
+            imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.20, 0.85, 0.25, 1.0))
+        end
+        imgui.SetCursorPosX(imgui.GetWindowWidth() - _bW - 34 * fsc)
+        imgui.SetCursorPosY(_oy - _tH - _bH * 0.5)
+        if imgui.Button(optCheat.v and u8"ВЫКЛЮЧИТЬ ЧИТ" or u8"ВКЛЮЧИТЬ ЧИТ", imgui.ImVec2(_bW, _bH)) then
+            setCheatMaster(not optCheat.v)
+        end
+        imgui.PopStyleColor(2)
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip(u8"Выключить или включить весь чит одним кликом")
+        end
+        imgui.SetCursorPos(imgui.ImVec2(0.0, _oy))
+        imgui.Separator()
 
         -- ===== ПАНЕЛЬ ВКЛАДОК =====
         local tabNames = { u8"Миниигра", u8"Ремонт", u8"Курсор", u8"Подбор", u8"Фразы", u8"Статус" }
