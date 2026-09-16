@@ -1,4 +1,4 @@
--- MechWorkByYaroRage v1.1.4
+-- MechWorkByYaroRage v1.1.5
 -- Автозавершение миниигры починки транспорта (Радмир CRMP).
 -- v1.1.4: в блоке «Авто-подбор подъехавших машин» добавлен ручной
 -- режим: /repair кидается не автоматически, а по клику правой
@@ -6,6 +6,10 @@
 -- отправки водитель «замораживается» на паузу из GUI (optNearDelaySec)
 -- — следующий клик берёт следующего по близости, после паузы можно
 -- выбрать того же снова.
+-- v1.1.5: автоответ — список фраз (до 10): игрок задаёт их через GUI,
+-- в чат при старте ремонта уходит СЛУЧАЙНАЯ фраза из списка, но не та,
+-- что была отправлена только что (одинаковое сообщение в чат дважды
+-- подряд писать нельзя). Список хранится в ini ключами replyLine1..N
 -- v1.1.3: автоответ при начале ремонта снова работает: RPC 101 (чат)
 -- разбирался со сдвигом (id отправителя читался Int16 вместо BYTE),
 -- из-за чего длина/текст ломались и фраза не отправлялась; теперь
@@ -58,7 +62,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.1.4")
+script_version("1.1.5")
 
 require "moonloader"
 
@@ -113,6 +117,9 @@ local function nowMs()
     return os.clock() * 1000
 end
 
+-- v1.1.5: зерно генератора случайных чисел (выбор фразы автоответа)
+math.randomseed(nowMs())
+
 local fsc = 1
 
 -- ---------- Настройки (привязка к GUI) ----------
@@ -125,7 +132,7 @@ local function loadSettings()
     local s = { enabled = true, delayMs = 3000, autoStart = true, startDelayMs = 300,
                 autoRepair = true, repairCooldown = 4000,
                 autoReply = true,
-                replyText = "Починю быстро за хороший чай! Заранее спасибо!",
+                replyLines = {}, -- список фраз автоответа (до 10, v1.1.5)
                 cursorPick = false,
                 cursorButton = 0x04,
                 cursorDelayMs = 1000,
@@ -152,12 +159,50 @@ local function loadSettings()
         end
         f:close()
         if #trig > 0 then s.triggers = {} for i = 1, #trig do if trig[i] then s.triggers[#s.triggers + 1] = trig[i] end end end
+        -- v1.1.5: список фраз автоответа (ключи replyLine1..replyLine10)
+        if s.replyLine1 or s.replyLine2 or s.replyLine3 then
+            local rl = {}
+            for ln = 1, 10 do
+                local v = s["replyLine" .. ln]
+                if v and v ~= "" then rl[#rl + 1] = v end
+            end
+            if #rl > 0 then s.replyLines = rl end
+        end
     end
     -- защита от повреждённых значений старых версий (в ini попали байты
     -- EF BF BD = символы замены U+FFFD вместо CP1251): тогда берём дефолт
     local fffd = string.char(0xEF, 0xBF, 0xBD)
-    if s.replyText and s.replyText:find(fffd, 1, true) then
-        s.replyText = "Починю быстро за хороший чай! Заранее спасибо!"
+    s.replyLines = s.replyLines or {}
+    if #s.replyLines == 0 then
+        -- старый формат: одна фраза replyText (v1.1.0-v1.1.4) - первая фраза
+        if s.replyText and s.replyText ~= "" and not s.replyText:find(fffd, 1, true) then
+            s.replyLines[1] = s.replyText
+        end
+        -- доводим список минимум до двух фраз (для выбора «не повторять»)
+        local defs = {
+            "Починю быстро за хороший чай! Заранее спасибо!",
+            "Подгони машину поближе, начну ремонт!",
+        }
+        for i = 1, #defs do
+            local dup = false
+            for j = 1, #s.replyLines do
+                if s.replyLines[j] == defs[i] then dup = true break end
+            end
+            if not dup and #s.replyLines < 2 then
+                s.replyLines[#s.replyLines + 1] = defs[i]
+            end
+        end
+    else
+        -- вычищаем пустые/повреждённые (U+FFFD) фразы из сохранённого списка
+        local tmp = {}
+        for i = 1, #s.replyLines do
+            local t = s.replyLines[i]
+            if t and t ~= "" and not t:find(fffd, 1, true) then tmp[#tmp + 1] = t end
+        end
+        s.replyLines = tmp
+    end
+    if #s.replyLines == 0 then
+        s.replyLines = { "Починю быстро за хороший чай! Заранее спасибо!", "Подгони машину поближе, начну ремонт!" }
     end
     return s
 end
@@ -240,10 +285,17 @@ local optAutoRepair = imgui.ImBool(settings.autoRepair)
 local optRepairCooldown = imgui.ImInt(settings.repairCooldown)
 -- автоответ в чат после принятия заявки на ремонт
 local optAutoReply = imgui.ImBool(settings.autoReply)
--- текст автоответа (игрок его якобы сам пишет в чат)
--- imgui работает в UTF-8, а настройки лежат в CP1251 -> конвертируем
-local optReplyText = imgui.ImBuffer(128)
-optReplyText.v = u8(settings.replyText or "")
+-- список входов фраз автоответа (до 10): каждое поле GUI привязано к
+-- своему буферу; imgui работает в UTF-8, в ini сохраняем CP1251 (v1.1.5)
+local optReplyLines = {}
+for i = 1, 10 do
+    optReplyLines[i] = imgui.ImBuffer(128)
+end
+-- количество активных полей фраз (1..10, сколько задано в настройках)
+local replyCount = imgui.ImInt(math.max(1, math.min(#(settings.replyLines or {}), 10)))
+for i = 1, replyCount.v do
+    optReplyLines[i].v = u8(settings.replyLines[i] or "")
+end
 -- режим выбора цели курсором: удержание колесика 1 сек -> показать/скрыть курсор,
 -- короткий клик по машине -> /repair её водителю
 local optCursorPick = imgui.ImBool(settings.cursorPick)
@@ -271,6 +323,7 @@ local state = {
     autoStarting = false, -- поток авто-старта уже запущен
     lastRepair = 0,    -- время последнего автозапроса /repair (GetTickCount, мс)
     lastAutoReply = 0, -- время последнего автоответа в чат (GetTickCount, мс)
+    lastAutoReplyText = "", -- последняя отправленная фраза автоответа (CP1251, v1.1.5)
     cursorVisible = false, -- курсор выбора цели показан (по удержанию колесика)
     -- ---------- v1.1.1: авто-ремонт подъехавших в радиус ----------
     nearQueue = {},      -- таблица прошлых /repair: veh -> nowMs
@@ -289,8 +342,6 @@ function saveSettings()
         "autoRepair = " .. (optAutoRepair.v and "true" or "false"),
         "repairCooldown = " .. optRepairCooldown.v,
         "autoReply = " .. (optAutoReply.v and "true" or "false"),
-        -- optReplyText.v в UTF-8 (imgui), в ini пишем CP1251
-        "replyText = " .. toCp(optReplyText.v or ""),
         "cursorPick = " .. (optCursorPick.v and "true" or "false"),
         "cursorButton = " .. currentCursorVk(),
         "cursorDelayMs = " .. math.floor((optCursorDelaySec.v or 1.0) * 1000 + 0.5),
@@ -299,6 +350,15 @@ function saveSettings()
         "nearDelaySec = " .. optNearDelaySec.v,
         "manualRmb = " .. (optManualRmb.v and "true" or "false"),
     }
+    -- фразы автоответа (v1.1.5): replyLineN = <фраза>; replyText = первая
+    -- непустая фраза (её ещё читают старые версии скрипта как одиночный ответ)
+    local firstReply = ""
+    for i = 1, replyCount.v do
+        local t = toCp(optReplyLines[i].v or "")
+        lines[#lines + 1] = "replyLine" .. i .. " = " .. t
+        if firstReply == "" and t ~= "" then firstReply = t end
+    end
+    lines[#lines + 1] = "replyText = " .. firstReply
     -- триггеры авто-ремонта: triggerN = <фраза>
     for i = 1, #repairTriggers do
         lines[#lines + 1] = "trigger" .. i .. " = " .. repairTriggers[i]
@@ -647,16 +707,37 @@ local function payloadHasRepairStart(bs)
     return false
 end
 
+-- выбор случайной фразы из списка автоответа и отправка её в чат (CP1251).
+-- v1.1.5: фраз до 10; одна и та же фраза два раза подряд НЕ отправляется
+-- (одинаковое сообщение в чат писать нельзя) - если в списке есть хоть
+-- одна фраза, отличная от последней отправленной, выбираем только такую.
+-- Пустые строки при отправке пропускаются.
+local function pickAutoReplyLine()
+    local list = {}
+    for i = 1, replyCount.v do
+        local t = toCp(optReplyLines[i].v or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if t ~= "" then list[#list + 1] = t end
+    end
+    if #list == 0 then return end
+    local idx = math.random(#list)
+    if state.lastAutoReplyText ~= "" then
+        local tries = 0
+        while list[idx] == state.lastAutoReplyText and tries < #list * 2 do
+            idx = math.random(#list)
+            tries = tries + 1
+        end
+    end
+    state.lastAutoReplyText = list[idx]
+    pcall(sampSendChat, list[idx])
+end
+
 -- автоответ на фразу начала ремонта (анти-дубль 5 сек)
 function sendAutoReplyIfStarted(bs)
     if not optAutoReply.v then return false end
     if not payloadHasRepairStart(bs) then return false end
     if nowMs() - state.lastAutoReply < 5000 then return true end
     state.lastAutoReply = nowMs()
-    local reply = optReplyText.v or ""
-    if reply == "" then return true end
-    -- imgui отдаёт текст в UTF-8, в чат нужен CP1251
-    pcall(sampSendChat, toCp(reply))
+    pickAutoReplyLine()
     return true
 end
 
@@ -672,10 +753,7 @@ function onServerMessage(color, text)
     if not hit then return nil end
     if nowMs() - state.lastAutoReply < 5000 then return nil end
     state.lastAutoReply = nowMs()
-    local reply = optReplyText.v or ""
-    if reply == "" then return nil end
-    -- imgui отдаёт текст в UTF-8, в чат нужен CP1251
-    pcall(sampSendChat, toCp(reply))
+    pickAutoReplyLine()
     return nil
 end
 
@@ -965,14 +1043,45 @@ function imgui.OnDrawFrame()
         end
 
         imgui.Separator()
-        imgui.Text(u8"Автоответ при ремонте:")
+        imgui.Text(u8"Автоответ при ремонте (фразы персонажа):")
         if imgui.Checkbox(u8"   отвечать в чат при старте ремонта", optAutoReply) then changed = true end
         if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"Когда водитель принял ваш /repair, сервер пишет «Подойдите к капоту... У Вас есть 1 минута на ремонт» — скрипт отправит текст ниже в чат от имени персонажа")
+            imgui.SetTooltip(u8"Когда водитель принял ваш /repair, сервер пишет «Подойдите к капоту... У Вас есть 1 минута на ремонт» — скрипт отправит в чат случайную фразу из списка ниже. Та же фраза два раза подряд не повторяется (одинаковое сообщение в чат дважды писать нельзя)")
         end
-        imgui.PushItemWidth(300 * fsc)
-        if imgui.InputText(u8"   текст ответа##replyText", optReplyText) then changed = true end
+        -- список фраз автоответа (до 10, v1.1.5): каждая фраза - своё поле
+        -- ввода, удаляется кнопкой «удалить», добавить можно пока их меньше 10
+        imgui.PushItemWidth(280 * fsc)
+        for i = 1, replyCount.v do
+            imgui.PushID(100 + i)
+            if imgui.InputText(u8("   фраза " .. i .. "##replyLine"), optReplyLines[i]) then changed = true end
+            imgui.SameLine(0, 12)
+            if replyCount.v > 1 then
+                if imgui.Button(u8"удалить", imgui.ImVec2(90 * fsc, 0)) then
+                    -- удаляем строку и сдвигаем все последующие на одну вверх
+                    for j = i, replyCount.v - 1 do
+                        optReplyLines[j].v = optReplyLines[j + 1].v
+                    end
+                    optReplyLines[replyCount.v].v = ""
+                    replyCount.v = replyCount.v - 1
+                    changed = true
+                end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(u8"Удалить эту фразу (при отправке пустые строки пропускаются)")
+                end
+            end
+            imgui.PopID()
+        end
         imgui.PopItemWidth()
+        if replyCount.v < 10 then
+            if imgui.Button(u8"Добавить фразу", imgui.ImVec2(170 * fsc, 0)) then
+                replyCount.v = replyCount.v + 1
+                optReplyLines[replyCount.v].v = ""
+                changed = true
+            end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Добавить ещё одно поле для фразы (всего до 10)")
+            end
+        end
 
         -- Редактирование списка триггеров (сообщения, по которым шлём /repair)
         imgui.Text(u8"Триггеры авто-ремонта:")
