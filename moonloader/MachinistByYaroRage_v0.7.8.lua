@@ -1,4 +1,4 @@
--- MachinistByYaroRage v0.7.7
+-- MachinistByYaroRage v0.7.8
 -- Автопилот машиниста метро (Radmir CRMP).
 -- Персонаж уже сидит в поезде и НЕ выходит: смены идут кругами
 -- (Союзная <-> Больничная), автопилот только ведёт состав.
@@ -1292,7 +1292,7 @@ function main()
     inpToken.v = st.tg_bot_token
     inpChat.v = st.tg_chat_id
 
-    print(string.format("[MachinistByYaroRage] v0.7.7 флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
+    print(string.format("[MachinistByYaroRage] v0.7.8 флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
         st.dbg_no_thread and 1 or 0, st.dbg_no_events and 1 or 0,
         st.dbg_no_gui and 1 or 0, st.dbg_no_chat and 1 or 0, st.tg_poll_enable and 1 or 0,
         st.dbg_log and 1 or 0, st.force_cab and 1 or 0))
@@ -1498,7 +1498,26 @@ local renderUi = function()
         end
         imgui.Separator()
 
-        -- ---------- Панель действий: сохранить / закрыть ----------
+        -- ---------- Панель действий: вкл/выкл всё / сохранить / закрыть ----------
+        -- v0.7.8: ШАПКА — одна кнопка включает/выключает весь чит (автопилот
+        -- и все подсистемы). Цвет показывает состояние: зелёный — чит работает,
+        -- красный — выключен.
+        if optEnabled.v then
+            imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.22, 0.62, 0.30, 1))
+            imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
+        else
+            imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.72, 0.18, 0.15, 1))
+            imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1, 1, 1, 1))
+        end
+        if imgui.Button(optEnabled.v and u8"Выключить чита" or u8"Включить чита",
+                        imgui.ImVec2(240 * fsc, 34 * fsc)) then
+            if optEnabled.v then stopBot() else startBot() end
+        end
+        imgui.PopStyleColor(2)
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip(u8"Включает/выключает весь чит сразу (то же, что /mqstart и /mqstop)")
+        end
+        imgui.Separator()
         if imgui.Button(u8"Сохранить", imgui.ImVec2(200 * fsc, 30 * fsc)) then
             saveAll()
             pcall(sampAddChatMessage, u8:decode(u8"Machinist: настройки сохранены"), 0xAAFFAA)
