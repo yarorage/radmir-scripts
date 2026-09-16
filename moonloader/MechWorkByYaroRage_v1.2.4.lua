@@ -10,6 +10,9 @@
 -- по ПКМ и колесиком/курсором): если ближайшая машина в радиусе имеет
 -- водителя с исключённым id, запрос уходит следующей по близости машине,
 -- чей водитель не исключён. Список хранится в ini ключами excludeId1..N
+-- v1.2.4: буфер фраз автоответа расширен до 168 байт, что в UTF-8
+-- даёт до 83 кириллических символов во фразе (было 128 байт / ~63
+-- символа). В ini фразы по-прежнему сохраняются в CP1251.
 -- v1.2.3: убран мигающий курсор при подключении/перезагрузке скрипта:
 -- состояние imgui (ShowCursor/Process/DisableInput) сбрасывается в
 -- первом же кадре main(), не дожидаясь игрового цикла (модуль imgui
@@ -98,7 +101,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.2.3")
+script_version("1.2.4")
 
 require "moonloader"
 
@@ -354,10 +357,11 @@ local optRepairCooldown = imgui.ImInt(settings.repairCooldown)
 -- автоответ в чат после принятия заявки на ремонт
 local optAutoReply = imgui.ImBool(settings.autoReply)
 -- список входов фраз автоответа (до 10): каждое поле GUI привязано к
+-- v1.2.4: поле вмещает до 83 кириллических символов (буфер 168 байт UTF-8)
 -- своему буферу; imgui работает в UTF-8, в ini сохраняем CP1251 (v1.1.5)
 local optReplyLines = {}
 for i = 1, 10 do
-    optReplyLines[i] = imgui.ImBuffer(128)
+    optReplyLines[i] = imgui.ImBuffer(168) -- v1.2.4: до 83 кириллических символов (UTF-8)
 end
 -- количество активных полей фраз (1..10, сколько задано в настройках)
 local replyCount = imgui.ImInt(math.max(1, math.min(#(settings.replyLines or {}), 10)))
