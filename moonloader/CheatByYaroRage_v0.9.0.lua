@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.8.9")
+script_version("0.9.0")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -1260,24 +1260,6 @@ local function mainLoop()
 			end
 		end
 
-		if trigger.v and not isCharOnAnyBike(PLAYER_PED) and not isCharDead(PLAYER_PED) then
-			local pool = readMemory(0xB6F3B8, 4, 0)
-			if pool ~= 0 then
-				local int = pool + 0x79C
-				local intS = readMemory(int, 4, 0)
-				if intS > 0 then
-					local lol = 0xB73458
-					lol = lol + 34
-					writeMemory(lol, 4, 255, 0)
-					wait(100)
-					local pool2 = readMemory(0xB6F3B8, 4, 0)
-					if pool2 ~= 0 then
-						local int2 = pool2 + 0x79C
-						writeMemory(int2, 4, 0, 0)
-					end
-				end
-			end
-		end
 
 		if godcar.v then
 			if isCharInAnyCar(PLAYER_PED) then
@@ -2239,11 +2221,12 @@ function drawAimTab()
 				imgui.NewLine()
 				imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"TriggerBot")
 				imgui.Separator()
-				if imgui.Button(u8'Режим 1 (наведение)') then triggermode.v = 1; save() end
+				sbox(u8'Trigger', trigger)
+				if imgui.Button(u8'Режим 1 (наведение)') then triggermode.v = 1; trigger.v = true; save() end
 				imgui.SameLine()
-				if imgui.Button(u8'Режим 2 (автострелба)') then triggermode.v = 2; save() end
+				if imgui.Button(u8'Режим 2 (автострелба)') then triggermode.v = 2; trigger.v = true; save() end
 				imgui.SameLine()
-				if imgui.Button(u8'ВЫКЛ') then triggermode.v = 3; save() end
+				if imgui.Button(u8'ВЫКЛ') then triggermode.v = 3; trigger.v = false; save() end
 				
 				imgui.NewLine()
 				sbox(u8'NoSpread', nodamage)
@@ -2839,7 +2822,7 @@ function ClickWP()
 			wait(100)
 		end
 
-		if triggermode.v ~= 3 then
+		if trigger.v and triggermode.v ~= 3 then
 			if triggermode.v == 1 then
 				local _, ped = getCharPlayerIsTargeting(PLAYER_HANDLE)
 				if _ and not isCharDead(ped) then
