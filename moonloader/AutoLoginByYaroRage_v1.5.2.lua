@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.5.1")
+script_version("1.5.2")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -166,10 +166,6 @@ local close_cef_anytime_keywords = {
     "anti cheat",         -- Anti cheat
     "античит",            -- Античит
     "анти-чит",           -- Анти-чит
-    "cheat detected",     -- Cheat detected
-    "forbidden",          -- Forbidden
-    "запрещен",           -- Запрещен
-    "banned",             -- Banned
 }
 
 local function should_close_cef_before_login(text)
