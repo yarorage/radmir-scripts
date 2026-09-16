@@ -167,7 +167,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("0.8.3")
+script_version("0.8.4")
 script_author("YaroRage")
 
 require "moonloader"
@@ -1051,10 +1051,12 @@ local function driveThread()
             -- (за сколько метров какую скорость можно погасить), знает, успеет
             -- ли остановиться на станции, держит тормозную кривую и потому
             -- маршрут проходится максимально быстро и без штрафов.
-            if nearStation and st.speed_lo and st.speed_hi and st.speed_hi > st.speed_lo
-               and (not st.speed_code or st.speed_code ~= 2) then
-                target = st.speed_lo + ((st.speed_hi - st.speed_lo) / 2)
-            end
+            -- v0.8.4: на станционной зоне цель НЕ занижаем до середины вилки —
+            -- состав должен ехать на максимуме (hi-1), а плавность подъезда
+            -- к станции обеспечивает физическая кривая vStop ниже. Раньше
+            -- целевая была серединой диапазона (lo + (hi-lo)/2), из-за чего
+            -- при широких вилках (например 2..150) состав полз на ~76 км/ч
+            -- всю 800-метровую зону и «вообще не превышал скорость».
             -- «Станция впереди»: штатная зона (чекпоинт) ЛИБО серверная
             -- дистанция setStation меньше 800 м. Раньше торможение начиналось
             -- только в зоне 500/300 м — при 130 км/ч (путь ~326 м) и зоне 300 м
@@ -1070,8 +1072,16 @@ local function driveThread()
             -- кривая подходит — скорость сама плавно снижается, и состав точно
             -- останавливается у станции (без проезда и без долгого «мёртвого»
             -- торможения на последних метрах).
+            local stationKnown = st.station_dist and st.station_dist >= 0
+            -- v0.8.4: цель тормозной кривой — СТАНЦИЯ, а не чекпоинт-маркер.
+            -- Сервер ставит race checkpoint (маркер) ПЕРЕД станцией (например
+            -- на входной стрелке), и если гасить скорость по дистанции до
+            -- маркера — состав останавливается за 300+ метров до станции.
+            -- Пока серверная дистанция станции больше дистанции до маркера,
+            -- кривую строим от станции.
+            local brakeDist = stationKnown and math.max(distance, st.station_dist) or distance
             local vStopMs = math.sqrt(math.max(0, 2 * brakeA
-                * math.max(0, (stationAhead and distance or 99999) - brakeMargin)))
+                * math.max(0, (stationAhead and brakeDist or 99999) - brakeMargin)))
             local vStop = vStopMs * 3.6
             local speedMsNow = math.max(0, speed / 3.6)
             local brakePathNow = (speedMsNow * speedMsNow) / (2 * brakeA) + brakeMargin
@@ -1083,13 +1093,15 @@ local function driveThread()
                 or timerText:find("Садитесь в поезд", 1, true))
                 and st.info_timer_sec and st.info_timer_sec > 0
             if stationAhead then
-                drive.stop_preview = distance - brakePathNow
+                drive.stop_preview = brakeDist - brakePathNow
                 if timer < os.clock() then
                     lastDistance = distance
                     timer = os.clock() + 1
                 end
                 -- Прибыли на станцию: скорость погашена и мы в радиусе остановки.
-                if speed < 5 and distance <= (st.station_stop_radius or 15) then
+                local arrivalRadius = st.station_stop_radius or 15
+                if speed < 5 and (distance <= arrivalRadius
+                       or (stationKnown and st.station_dist <= arrivalRadius)) then
                     if not drive.station_arrived then
                         drive.station_arrived = true
                         drive.station_arrive_time = os.time()
