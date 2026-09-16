@@ -582,18 +582,26 @@ end
 local windowNotice = { last = 0, lastSig = "", cooldown = 25 }
 local function notifyWindowOpened(desc)
     if not optEnabled.v then return end
-    if desc == windowNotice.lastSig then return end
+    -- v0.9.2: parse_window_open вернул таблицу { sig, short, long }:
+    -- short Ч коротка€ строка дл€ игрового чата, long Ч подробное
+    -- содержимое окна (заголовок, кнопки, текст) дл€ Telegram.
+    local sig = (type(desc) == "table" and desc.sig) or tostring(desc)
+    if sig == windowNotice.lastSig then return end
     local nowT = os.time()
     if nowT - windowNotice.last < windowNotice.cooldown then return end
     windowNotice.last = nowT
-    windowNotice.lastSig = desc
-    -- всегда сообщаем в игровом чате
-    pcall(sampAddChatMessage, u8:decode(u8"Machinist: открылось окно Ч " .. ensureUtf8(desc)), 0xFFFFAA)
-    -- и в телеграм, если включены уведомлени€
+    windowNotice.lastSig = sig
+    local short = (type(desc) == "table" and desc.short) or tostring(desc)
+    local long = (type(desc) == "table" and desc.long) or tostring(desc)
+    -- всегда сообщаем в игровом чате (коротка€ строка)
+    pcall(sampAddChatMessage, u8:decode(u8"Machinist: открылось окно Ч " .. ensureUtf8(short)), 0xFFFFAA)
+    -- и подробное содержимое в телеграм, если включены уведомлени€
     if optNotify.v and st.tg_bot_token ~= "" and st.tg_chat_id ~= "" then
-        sendTg(u8"¬Ќ»ћјЌ»≈! ќткрылось окно: " .. ensureUtf8(desc))
+        local body = ensureUtf8(long)
+        if #body > 3800 then body = body:sub(1, 3800) .. u8"\nЕ (обрезано)" end
+        sendTg(u8"ќ“ –џЋќ—№ ќ Ќќ:\n" .. body)
     end
-    print("[MachinistByYaroRage] ќкно-детект: " .. desc)
+    print("[MachinistByYaroRage] ќкно-детект: " .. long)
 end
 
 -- ѕерехват отправл€емых CEF-пакетов (TX 215). Ќа Radmir чат при отправке

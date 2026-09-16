@@ -258,7 +258,10 @@ end
 --   window.addDialogInQueue('[216,"Заголовок",0,"ОК","Отмена","текст"]', ...)
 --   PlayerInteraction... / interface('PlayerInteraction').onServerResponse(...)
 --   Quests / QuestsTalks
--- Возвращает описание окна (label + первая надпись) или nil.
+-- Возвращает таблицу { sig, short, long } или nil:
+--   sig   — подпись для дедупликации (тип + id + заголовок);
+--   short — короткая строка для игрового чата;
+--   long  — подробное многострочное описание для Telegram.
 local WINDOW_CMDS = {
     { name = "addDialogInQueue", label = "диалог" },
     { name = "PlayerInteraction", label = "окно взаимодействия" },
@@ -266,21 +269,162 @@ local WINDOW_CMDS = {
     { name = "Quests", label = "окно квестов" },
 }
 
-function M.parse_window_open(txt)
-    if not txt or #txt == 0 then return nil end
-    for _, c in ipairs(WINDOW_CMDS) do
-        local s = txt:find(c.name, 1, true)
-        if s then
-            local after = txt:sub(s + #c.name)
-            -- первый непустой текст в кавычках после команды — заголовок/действие
-            local title = after:match("['\"]([^'\"]+)")
-            if title and #title > 0 then
-                return c.label .. ": '" .. title .. "'"
-            end
-            return c.label
+-- Поиск имени команды как отдельного слова (чтобы «Quests» не находилось
+-- внутри «QuestsTalks»). Возвращает позицию или nil.
+local function find_word(txt, name, pos)
+    while true do
+        local hit = txt:find(name, pos, true)
+        if not hit then return nil end
+        local prev = hit > 1 and txt:sub(hit - 1, hit - 1) or ""
+        local nxt  = txt:sub(hit + #name, hit + #name)
+        if not prev:match("[%w_]") and not nxt:match("[%w_]") then
+            return hit
+        end
+        pos = hit + 1
+    end
+end
+
+-- Достаёт содержимое первой строки в кавычках (одинарных или двойных).
+-- Возвращает (содержимое, остаток_строки) или nil, если закрывающей
+-- кавычки нет. Экранированные кавычки не считаются закрывающими.
+local function take_quoted(s)
+    if not s or #s == 0 then return nil end
+    local i = s:find("['\"]")
+    if not i then return nil end
+    local q = s:sub(i, i)
+    local buf, esc = {}, false
+    for j = i + 1, #s do
+        local ch = s:sub(j, j)
+        if esc then
+            buf[#buf + 1] = ch
+            esc = false
+        elseif ch == "\\" then
+            buf[#buf + 1] = ch
+            esc = true
+        elseif ch == q then
+            return table.concat(buf), s:sub(j + 1)
+        else
+            buf[#buf + 1] = ch
         end
     end
     return nil
+end
+
+-- Разбирает полезную нагрузку диалога (JSON-массив внутри строки):
+--   '[216,"Заголовок",0,"ОК","Отмена","текст"]'
+-- Запятые внутри строк не считаются разделителями, \n и \" разэкранируются.
+-- Возвращает массив полей (числа — как числа, строки — как строки).
+local function split_fields(s)
+    local fields, cur, inStr, esc = {}, {}, false, false
+    for i = 1, #s do
+        local ch = s:sub(i, i)
+        if esc then
+            if ch == "n" then cur[#cur + 1] = "\n"
+            elseif ch == "t" then cur[#cur + 1] = "\t"
+            else cur[#cur + 1] = ch end
+            esc = false
+        elseif ch == "\\" and inStr then
+            esc = true
+        elseif ch == "\"" then
+            inStr = not inStr
+        elseif ch == "," and not inStr then
+            fields[#fields + 1] = table.concat(cur)
+            cur = {}
+        else
+            cur[#cur + 1] = ch
+        end
+    end
+    fields[#fields + 1] = table.concat(cur)
+    for i, f in ipairs(fields) do
+        local nf = tonumber(f)
+        if nf then fields[i] = nf end
+    end
+    return fields
+end
+
+-- Склеивает кнопки из двух полей (пропускает «0» и пустые).
+local function join_buttons(b1, b2)
+    local btns = {}
+    if type(b1) == "string" and #b1 > 0 and b1 ~= "0" then btns[#btns + 1] = b1 end
+    if type(b2) == "string" and #b2 > 0 and b2 ~= "0" then btns[#btns + 1] = b2 end
+    if #btns == 0 then return nil end
+    return table.concat(btns, " / ")
+end
+
+-- Диалог addDialogInQueue: [id, заголовок, стиль, кнопка1, кнопка2, текст...].
+local function describe_dialog(c, after)
+    local payload = take_quoted(after)
+    if not payload or #payload == 0 then return nil end
+    payload = payload:gsub("^%s*[%[%(]", ""):gsub("[%]%)]%s*$", "")
+    local f = split_fields(payload)
+    local id    = f[1]
+    local title = type(f[2]) == "string" and f[2] or ""
+    local text  = ""
+    for k = 6, #f do
+        text = text .. tostring(f[k])
+    end
+    local lines = { c.label .. ": \"" .. title .. "\"" }
+    local btns = join_buttons(f[4], f[5])
+    if btns then lines[#lines + 1] = "Кнопки: " .. btns end
+    if #text > 0 then lines[#lines + 1] = "Текст: " .. text end
+    return {
+        sig   = c.label .. "|" .. tostring(id) .. "|" .. title,
+        short = c.label .. ": '" .. title .. "'",
+        long  = table.concat(lines, "\n"),
+    }
+end
+
+-- Прочие окна (PlayerInteraction/QuestsTalks/Quests): собираем до трёх
+-- читаемых надписей, которые идут после команды в кавычках.
+local function describe_generic(c, after)
+    if #after > 0 and (after:sub(1, 1) == "'" or after:sub(1, 1) == "\"") then
+        after = after:sub(2)
+    end
+    local parts = {}
+    local rest  = after
+    for _ = 1, 3 do
+        local piece, tail = take_quoted(rest)
+        if not piece then break end
+        piece = piece:gsub("\"", "'"):gsub("^%s+", ""):gsub("%s+$", "")
+        if #piece > 0 and #piece <= 300 then parts[#parts + 1] = piece end
+        rest = tail or ""
+    end
+    if #parts == 0 then return nil end
+    return {
+        sig   = c.label .. "|" .. table.concat(parts, "|"),
+        short = c.label .. ": '" .. parts[1] .. "'",
+        long  = c.label .. "\n" .. table.concat(parts, "\n"),
+    }
+end
+
+function M.parse_window_open(txt)
+    if not txt or #txt == 0 then return nil end
+    local found = nil
+    for _, c in ipairs(WINDOW_CMDS) do
+        local pos = 1
+        while true do
+            local hit = find_word(txt, c.name, pos)
+            if not hit then break end
+            local after = txt:sub(hit + #c.name)
+            local desc
+            if c.name == "addDialogInQueue" then
+                desc = describe_dialog(c, after)
+            else
+                desc = describe_generic(c, after)
+            end
+            if desc then
+                if found then
+                    found.sig   = found.sig .. " | " .. desc.sig
+                    found.short = found.short .. " + " .. desc.short
+                    found.long  = found.long .. "\n\n" .. desc.long
+                else
+                    found = desc
+                end
+            end
+            pos = hit + #c.name
+        end
+    end
+    return found
 end
 
 return M
