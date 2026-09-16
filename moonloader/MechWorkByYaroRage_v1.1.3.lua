@@ -1,5 +1,11 @@
--- MechWorkByYaroRage v1.1.2
+-- MechWorkByYaroRage v1.1.3
 -- Автозавершение миниигры починки транспорта (Радмир CRMP).
+-- v1.1.3: автоответ при начале ремонта снова работает: RPC 101 (чат)
+-- разбирался со сдвигом (id отправителя читался Int16 вместо BYTE),
+-- из-за чего длина/текст ломались и фраза не отправлялась; теперь
+-- фраза старта ремонта ищется прямо в сырых байтах пакета для RPC
+-- 101 и 93 (плюс дубль через onServerMessage), варианты формулировок
+-- расширены (минута/минуту/минут на ремонт, начните ремонт транспорта).
 -- v1.1.2: меню переведено с вкладок на обычные секции (в этой сборке
 -- нет API вкладок, из-за чего меню вообще не открывалось);
 -- кнопка показа курсора настраивается (мышь/боковые/клавиши);
@@ -46,7 +52,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.1.2")
+script_version("1.1.3")
 
 require "moonloader"
 
@@ -533,24 +539,53 @@ end
 -- Входящий чат приходит RPC id=101 (RPC_CHAT), структура:
 -- int16 playerId, string8 text (байт длины + строка).
 -- id игрока берём прямо из пакета - /repair отправляется по id, а не по нику.
-local function readChatRpc(bs)
-    -- сначала сбрасываем указатель на начало: другие скрипты
-    -- тоже могут читать один и тот же bs
-    pcall(raknetBitStreamResetReadPointer, bs)
-    local okId, playerId = pcall(raknetBitStreamReadInt16, bs)
-    if not okId then
-        pcall(raknetBitStreamResetReadPointer, bs)
-        return nil
+-- чтение чат-RPC id=101 (SAMP 0.3.7): BYTE id отправителя, BYTE длина, строка.
+-- В v1.1.2 id читался как Int16 (2 байта) - сдвиг на байт ломал длину/текст,
+-- из-за чего автоответ на начало ремонта не отправлялся. Читаем с проверкой
+-- размера пакета, чтобы не выйти за его конец.
+local function chatTextValid(t)
+    if not t or t == "" then return false end
+    for i = 1, #t do
+        if t:byte(i) < 32 then return false end
     end
-    local okTl, textLen = pcall(raknetBitStreamReadInt8, bs)
-    local text = ""
-    if okTl and textLen and textLen > 0 and textLen <= 512 then
-        local okT, t = pcall(raknetBitStreamReadString, bs, textLen)
-        if okT and t then text = t end
-    end
-    pcall(raknetBitStreamResetReadPointer, bs)
-    return playerId, text
+    return true
 end
+
+local function readChatRpc(bs)
+    pcall(raknetBitStreamResetReadPointer, bs)
+    local okTotal, total = pcall(raknetBitStreamGetNumberOfBytesUsed, bs)
+    if not okTotal or type(total) ~= "number" then total = nil end
+
+    -- основной формат: BYTE id, BYTE длина, строка (SAMP 0.3.7)
+    pcall(raknetBitStreamResetReadPointer, bs)
+    local okId, playerId = pcall(raknetBitStreamReadInt8, bs)
+    local okLen, textLen = pcall(raknetBitStreamReadInt8, bs)
+    if okId and okLen and playerId ~= nil and textLen and textLen > 0 and textLen <= 128
+       and (not total or (2 + textLen) <= total) then
+        local okT, t = pcall(raknetBitStreamReadString, bs, textLen)
+        if okT and chatTextValid(t) then
+            pcall(raknetBitStreamResetReadPointer, bs)
+            return playerId, t
+        end
+    end
+
+    -- запасной формат: Int16 id, BYTE длина, строка (старый вариант)
+    pcall(raknetBitStreamResetReadPointer, bs)
+    local okId16, pid16 = pcall(raknetBitStreamReadInt16, bs)
+    local okLen16, len16 = pcall(raknetBitStreamReadInt8, bs)
+    if okId16 and okLen16 and pid16 ~= nil and len16 and len16 > 0 and len16 <= 128
+       and (not total or (3 + len16) <= total) then
+        local okT16, t16 = pcall(raknetBitStreamReadString, bs, len16)
+        if okT16 and chatTextValid(t16) then
+            pcall(raknetBitStreamResetReadPointer, bs)
+            return pid16, t16
+        end
+    end
+
+    pcall(raknetBitStreamResetReadPointer, bs)
+    return nil
+end
+
 
 -- автоответ в чат при старте ремонта: сервер пишет
 -- «Подойдите к капоту и начните ремонт транспорта. У Вас есть 1 минута на ремонт.»
@@ -559,15 +594,34 @@ end
 -- защита от дубля одной и той же надписи), а не 120 секунд — иначе при
 -- частых заявках сообщение писалось бы только раз в 2 минуты.
 --
--- ВАЖНО: надпись приходит НЕ через onServerMessage, а как обычный чат-RPC
--- (id=101) с системным id отправителя (сервер). Поэтому автоответ обрабатывается
--- в onReceiveRpc ДО фильтра playerId (он пропускает только игроков 1..1004).
-function sendAutoReplyIfStarted(text)
+-- ВАЖНО: фраза приходит как обычное чат-сообщение, поэтому в v1.1.3 она
+-- ищется СРАЗУ В СЫРЫХ байтах пакета и для RPC id=101 (чат), и для id=93
+-- (серверные сообщения) — так ответ не зависит от структуры полей пакета.
+local repairStartPhrases = {
+    "1 минута на ремонт",
+    "минуту на ремонт",
+    "минут на ремонт",
+    "начните ремонт транспорта",
+}
+
+-- поиск фразы начала ремонта прямо в сыром буфере пакета
+local function payloadHasRepairStart(bs)
+    local okTotal, total = pcall(raknetBitStreamGetNumberOfBytesUsed, bs)
+    if not okTotal or not total or total <= 0 or total > 4096 then return false end
+    pcall(raknetBitStreamResetReadPointer, bs)
+    local okR, raw = pcall(raknetBitStreamReadString, bs, total)
+    pcall(raknetBitStreamResetReadPointer, bs)
+    if not okR or not raw or raw == "" then return false end
+    for i = 1, #repairStartPhrases do
+        if raw:find(repairStartPhrases[i], 1, true) then return true end
+    end
+    return false
+end
+
+-- автоответ на фразу начала ремонта (анти-дубль 5 сек)
+function sendAutoReplyIfStarted(bs)
     if not optAutoReply.v then return false end
-    if not text or text == "" then return false end
-    -- ключевая фраза старта ремонта (серверная надпись «…1 минута на ремонт»)
-    if not text:find("1 минута на ремонт", 1, true) then return false end
-    -- анти-дубль: игнорируем повтор той же надписи в течение 5 сек
+    if not payloadHasRepairStart(bs) then return false end
     if nowMs() - state.lastAutoReply < 5000 then return true end
     state.lastAutoReply = nowMs()
     local reply = optReplyText.v or ""
@@ -577,16 +631,40 @@ function sendAutoReplyIfStarted(text)
     return true
 end
 
+--перестраховка: если фраза пришла не RPC-пакетом, а через стандартный
+-- колбэк onServerMessage (текст в чате) - тоже отвечаем (анти-дубль 5 сек)
+function onServerMessage(color, text)
+    if not optAutoReply.v then return nil end
+    if not text or text == "" then return nil end
+    local hit = false
+    for i = 1, #repairStartPhrases do
+        if text:find(repairStartPhrases[i], 1, true) then hit = true break end
+    end
+    if not hit then return nil end
+    if nowMs() - state.lastAutoReply < 5000 then return nil end
+    state.lastAutoReply = nowMs()
+    local reply = optReplyText.v or ""
+    if reply == "" then return nil end
+    -- imgui отдаёт текст в UTF-8, в чат нужен CP1251
+    pcall(sampSendChat, toCp(reply))
+    return nil
+end
+
 -- перехват всех входящих RPC (выполняется для каждого скрипта отдельно)
 function onReceiveRpc(id, bs)
+    -- автоответ: фраза начала ремонта может прийти и чатом (101),
+    -- и серверным сообщением (93) - проверяем оба ДО фильтра playerId
+    if id == 101 or id == 93 then
+        if sendAutoReplyIfStarted(bs) then
+            pcall(raknetBitStreamResetReadPointer, bs)
+            return
+        end
+        pcall(raknetBitStreamResetReadPointer, bs)
+    end
     if id ~= 101 then return end
 
     local playerId, text = readChatRpc(bs)
     if not text then return end
-
-    -- автоответ по надписи старта ремонта: проверяем ДО фильтра playerId,
-    -- т.к. это системное сообщение сервера (не игрок)
-    if sendAutoReplyIfStarted(text) then return end
 
     if not optAutoRepair.v then return end
     if state.active then return end
@@ -599,6 +677,7 @@ function onReceiveRpc(id, bs)
     if playerId == selfId then return end
 
     local t = text:lower()
+
     for i = 1, #repairTriggers do
         if t:find(repairTriggers[i]:lower(), 1, true) then
             -- кулдаун между запросами
