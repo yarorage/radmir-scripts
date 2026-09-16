@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.4.9")
+script_version("1.5.0")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -510,11 +510,9 @@ function onReceivePacket(id, bs)
         if is_real then
             s.cef_open_menu_pause_seen = true
         end
-        -- Меню паузы закрываем ТОЛЬКО при реконнекте: пока идёт реконнект
-        -- или в окне эмуляции после него (CLOSE_MENU_EMUL_AFTER_SEC) и пока
-        -- автовход ещё не сработал. Как только игрок в мире - не трогаем.
-        local in_reconnect_phase = s.is_reconnecting or reconnect_mod._internal.in_close_menu_emul_window()
-        if in_reconnect_phase and not s.login_submitted and not s.is_spawned and not s.is_logging_in then
+        -- Меню паузы закрываем до спавна: если получен OnPlayerOpenMenuPause раньше входа в игру
+        -- (любой вход: обычный, реконнект) - эмулируем закрытие пакетом OnPlayerCloseMenuPause.
+        if not s.login_submitted and not s.is_spawned and not s.is_logging_in then
             local now = os.clock()
             if (now - s.last_close_menu_emul) >= 0.15 then
                 s.last_close_menu_emul = now

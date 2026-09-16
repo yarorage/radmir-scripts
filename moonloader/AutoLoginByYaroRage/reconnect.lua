@@ -163,6 +163,15 @@ function M.handle_auth_limit_cef()
             user32.keybd_event(0x7A, 0, 2, 0)
             wait(50)
             user32.keybd_event(0x12, 0, 2, 0)
+            wait(100)
+        end
+        --  райнее средство: эмул€ци€ нажати€ ESC, если окно все еще не закрылось
+        if not s.is_spawned and not s.is_reconnecting and not s.login_submitted then
+            AL.log("handle_auth_limit_cef: ESC как крайнее средство")
+            user32.keybd_event(0x1B, 0, 0, 0)
+            wait(50)
+            user32.keybd_event(0x1B, 0, 2, 0)
+            wait(100)
         end
         s.cef_limit_seen = false
         AL.log("handle_auth_limit_cef: завершено")
