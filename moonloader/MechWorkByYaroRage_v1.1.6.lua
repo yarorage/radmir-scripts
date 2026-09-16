@@ -1,4 +1,4 @@
--- MechWorkByYaroRage v1.1.5
+-- MechWorkByYaroRage v1.1.6
 -- Автозавершение миниигры починки транспорта (Радмир CRMP).
 -- v1.1.4: в блоке «Авто-подбор подъехавших машин» добавлен ручной
 -- режим: /repair кидается не автоматически, а по клику правой
@@ -6,6 +6,10 @@
 -- отправки водитель «замораживается» на паузу из GUI (optNearDelaySec)
 -- — следующий клик берёт следующего по близости, после паузы можно
 -- выбрать того же снова.
+-- v1.1.6: список исключённых id водителей (им не шлём /repair в авто-режиме,
+-- по ПКМ и колесиком/курсором): если ближайшая машина в радиусе имеет
+-- водителя с исключённым id, запрос уходит следующей по близости машине,
+-- чей водитель не исключён. Список хранится в ini ключами excludeId1..N
 -- v1.1.5: автоответ — список фраз (до 10): игрок задаёт их через GUI,
 -- в чат при старте ремонта уходит СЛУЧАЙНАЯ фраза из списка, но не та,
 -- что была отправлена только что (одинаковое сообщение в чат дважды
@@ -62,7 +66,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.1.5")
+script_version("1.1.6")
 
 require "moonloader"
 
@@ -140,6 +144,7 @@ local function loadSettings()
         nearRadiusM = 5,
         nearDelaySec = 30,
         manualRmb = false, -- ручной запрос /repair по ПКМ (v1.1.4)
+        excludedIds = {}, -- v1.1.6: исключённые id водителей (им не шлём /repair)
                 triggers = { "почини", "чини", "почин", "чин", "отремонтируй", "ремонт", "репа", "repair" } }
     local ok, f = pcall(io.open, iniFile, "r")
     if ok and f then
@@ -168,6 +173,17 @@ local function loadSettings()
             end
             if #rl > 0 then s.replyLines = rl end
         end
+        -- v1.1.6: исключённые id водителей (ключи excludeId1..N)
+        local ei = {}
+        local en = 1
+        while s["excludeId" .. en] do
+            local num = tonumber(s["excludeId" .. en])
+            if num and num >= 1 and num <= 1004 and num == math.floor(num) then
+                ei[#ei + 1] = num
+            end
+            en = en + 1
+        end
+        if #ei > 0 then s.excludedIds = ei end
     end
     -- защита от повреждённых значений старых версий (в ini попали байты
     -- EF BF BD = символы замены U+FFFD вместо CP1251): тогда берём дефолт
@@ -313,6 +329,43 @@ local optNearDelaySec = imgui.ImInt(settings.nearDelaySec) -- пауза между отправ
 -- ручной режим подбора: /repair по клику правой кнопки мыши (v1.1.4)
 local optManualRmb = imgui.ImBool(settings.manualRmb)
 
+-- ---------- v1.1.6: исключённые id водителей ----------
+-- Им не шлём /repair ни в авто-режиме, ни по ПКМ, ни колесиком (курсором):
+-- если ближайшая машина имеет исключённого водителя, запрос уходит следующей
+-- по близости машине, чей водитель не исключён.
+local excludedIds = {}
+for i = 1, #(settings.excludedIds or {}) do
+    excludedIds[#excludedIds + 1] = settings.excludedIds[i]
+end
+local excludeIdHint = ""       -- текст ошибки добавления id (для GUI)
+local excludeIdInput = imgui.ImBuffer(16) -- поле ввода нового id в GUI
+
+local function idExcluded(pid)
+    for i = 1, #excludedIds do
+        if excludedIds[i] == pid then return true end
+    end
+    return false
+end
+
+-- добавляет id в список; возвращает nil при успехе или строку-причину ошибки
+local function addExcludedId(idText)
+    local num = tonumber(idText)
+    if not num or num ~= math.floor(num) or num < 1 or num > 1004 then
+        return "id должен быть целым числом от 1 до 1004"
+    end
+    if idExcluded(num) then
+        return "такой id уже есть в списке"
+    end
+    excludedIds[#excludedIds + 1] = num
+    saveSettings()
+    return nil
+end
+
+local function removeExcludedId(i)
+    table.remove(excludedIds, i)
+    saveSettings()
+end
+
 local showMenu = imgui.ImBool(false)
 
 -- ---------- Состояние миниигры ----------
@@ -359,6 +412,10 @@ function saveSettings()
         if firstReply == "" and t ~= "" then firstReply = t end
     end
     lines[#lines + 1] = "replyText = " .. firstReply
+    -- исключённые id водителей (v1.1.6): excludeIdN = <id>
+    for i = 1, #excludedIds do
+        lines[#lines + 1] = "excludeId" .. i .. " = " .. excludedIds[i]
+    end
     -- триггеры авто-ремонта: triggerN = <фраза>
     for i = 1, #repairTriggers do
         lines[#lines + 1] = "trigger" .. i .. " = " .. repairTriggers[i]
@@ -536,7 +593,8 @@ local function findNearRepairTarget(radiusM, cooldownMs)
                 local okD, driver = pcall(getDriverOfCar, veh)
                 if okD and driver and driver ~= 0 then
                     local okP, isP, pid = pcall(sampGetPlayerIdByCharHandle, driver)
-                    if okP and isP and pid and pid >= 1 then
+                    -- v1.1.6: водители с исключённым id не получают /repair
+                    if okP and isP and pid and pid >= 1 and not idExcluded(pid) then
                         cands[#cands + 1] = { veh = veh, pid = pid, d = dx * dx + dy * dy + dz * dz }
                     end
                 end
@@ -599,7 +657,8 @@ local function sendRepairByCursor()
         local okD, driver = pcall(getDriverOfCar, veh)
         if okD and driver and driver ~= 0 then
             local okP, isPlayer, pid = pcall(sampGetPlayerIdByCharHandle, driver)
-            if okP and isPlayer and pid and pid >= 1 then
+            -- v1.1.6: исключённые id водителей пропускаем — берём следующего
+            if okP and isPlayer and pid and pid >= 1 and not idExcluded(pid) then
                 state.lastRepair = nowMs()
                 pcall(sampSendChat, "/repair " .. pid)
                 return
@@ -1116,6 +1175,37 @@ function imgui.OnDrawFrame()
         imgui.EndChild()
 
         imgui.Separator()
+        imgui.Text(u8"Исключить id водителей (им не шлём /repair):")
+        if imgui.IsItemHovered() then
+            imgui.SetTooltip(u8"Игроки из списка не получают /repair ни в автоматическом режиме, ни по ПКМ, ни колесиком (курсором). Если ближайший водитель исключён — запрос уйдёт следующему по близости, чей id не исключён")
+        end
+        imgui.PushItemWidth(120 * fsc)
+        imgui.InputText(u8"   новый id##excId", excludeIdInput)
+        imgui.PopItemWidth()
+        imgui.SameLine(0, 10)
+        if imgui.Button(u8"Добавить", imgui.ImVec2(100 * fsc, 0)) then
+            local hint = addExcludedId(excludeIdInput.v)
+            excludeIdHint = hint or ""
+            if not hint then excludeIdInput.v = "" end
+        end
+        -- подсказка о неудачном добавлении
+        if excludeIdHint ~= "" then
+            imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"   " .. u8(excludeIdHint))
+        end
+        -- список текущих исключённых id с прокруткой (кнопка удаления)
+        imgui.BeginChild(u8"##excIdList", imgui.ImVec2(0, 120 * fsc))
+        for i = 1, #excludedIds do
+            imgui.PushID(200 + i)
+            imgui.Text("  - id " .. excludedIds[i])
+            imgui.SameLine(0, 20)
+            if imgui.SmallButton(u8"удалить") then
+                removeExcludedId(i)
+            end
+            imgui.PopID()
+        end
+        imgui.EndChild()
+
+        imgui.Separator()
         -- статус
         local status = u8"Миниигра не активна"
         if state.active then
@@ -1147,7 +1237,7 @@ function imgui.OnDrawFrame()
             if imgui.SliderInt(u8"   радиус, м", optNearRadiusM, 2, 20) then changed = true end
             if imgui.SliderInt(u8"   пауза, сек", optNearDelaySec, 5, 300) then changed = true end
             imgui.PopItemWidth()
-            imgui.TextWrapped(u8"Подъехавшая в радиус машина-игрок один раз получит /repair. В авто-режиме скрипт сам последовательно ремонтирует машины (пауза между отправками — N сек), в ручном — только по клику ПКМ, ближайшему свободному водителю.")
+            imgui.TextWrapped(u8"Подъехавшая в радиус машина-игрок один раз получит /repair. В авто-режиме скрипт сам последовательно ремонтирует машины (пауза между отправками — N сек), в ручном — только по клику ПКМ, ближайшему свободному водителю. Водители с исключённым id (список в блоке выше) пропускаются — запрос уходит следующему по близости.")
             imgui.Separator()
             if imgui.Button(u8"Сохранить", imgui.ImVec2(200 * fsc, 34 * fsc)) then
                 changed = true
