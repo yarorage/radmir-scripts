@@ -1,5 +1,11 @@
--- MechWorkByYaroRage v1.1.3
+-- MechWorkByYaroRage v1.1.4
 -- Автозавершение миниигры починки транспорта (Радмир CRMP).
+-- v1.1.4: в блоке «Авто-подбор подъехавших машин» добавлен ручной
+-- режим: /repair кидается не автоматически, а по клику правой
+-- кнопки мыши (ПКМ) ближайшему водителю в том же радиусе; после
+-- отправки водитель «замораживается» на паузу из GUI (optNearDelaySec)
+-- — следующий клик берёт следующего по близости, после паузы можно
+-- выбрать того же снова.
 -- v1.1.3: автоответ при начале ремонта снова работает: RPC 101 (чат)
 -- разбирался со сдвигом (id отправителя читался Int16 вместо BYTE),
 -- из-за чего длина/текст ломались и фраза не отправлялась; теперь
@@ -52,7 +58,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.1.3")
+script_version("1.1.4")
 
 require "moonloader"
 
@@ -126,6 +132,7 @@ local function loadSettings()
         nearRepair = false,
         nearRadiusM = 5,
         nearDelaySec = 30,
+        manualRmb = false, -- ручной запрос /repair по ПКМ (v1.1.4)
                 triggers = { "почини", "чини", "почин", "чин", "отремонтируй", "ремонт", "репа", "repair" } }
     local ok, f = pcall(io.open, iniFile, "r")
     if ok and f then
@@ -251,6 +258,8 @@ end
 local optNearRepair = imgui.ImBool(settings.nearRepair)    -- авто-ремонт заявок в радиусе
 local optNearRadiusM = imgui.ImInt(settings.nearRadiusM) -- радиус в метрах
 local optNearDelaySec = imgui.ImInt(settings.nearDelaySec) -- пауза между отправками, сек
+-- ручной режим подбора: /repair по клику правой кнопки мыши (v1.1.4)
+local optManualRmb = imgui.ImBool(settings.manualRmb)
 
 local showMenu = imgui.ImBool(false)
 
@@ -288,6 +297,7 @@ function saveSettings()
         "nearRepair = " .. (optNearRepair.v and "true" or "false"),
         "nearRadiusM = " .. optNearRadiusM.v,
         "nearDelaySec = " .. optNearDelaySec.v,
+        "manualRmb = " .. (optManualRmb.v and "true" or "false"),
     }
     -- триггеры авто-ремонта: triggerN = <фраза>
     for i = 1, #repairTriggers do
@@ -447,7 +457,10 @@ end
 -- ---------- v1.1.1: поиск ближайшей машины-игрока в радиусе метров ----------
 -- машины игроков в радиусе radiusM вокруг персонажа игрока.
 -- Возвращает veh, pid водителя (такой, которому ещё не слали /repair недавно).
-local function findNearRepairTarget(radiusM)
+local function findNearRepairTarget(radiusM, cooldownMs)
+    -- cooldownMs — на сколько «замораживается» водитель после /repair
+    -- (авто-режим: 300 сек; ручной по ПКМ: optNearDelaySec из GUI)
+    cooldownMs = cooldownMs or 300000
     local okC, pcx, pcy, pcz = pcall(getCharCoordinates, PLAYER_PED)
     if not okC or not pcx or not pcy or not pcz then return nil end
     local okAv, vehicles = pcall(getAllVehicles)
@@ -486,7 +499,7 @@ local function findNearRepairTarget(radiusM)
     table.sort(cands, function(a, b) return a.d < b.d end)
     for _, c in ipairs(cands) do
         local last = state.nearQueue[c.veh]
-        if not last or nowA - last >= 300000 then
+        if not last or nowA - last >= cooldownMs then
             state.nearQueue[c.veh] = nowA
             return c.veh, c.pid
         end
@@ -532,6 +545,22 @@ local function sendRepairByCursor()
                 return
             end
         end
+    end
+end
+
+-- ---------- v1.1.4: ручной запрос /repair ближайшему в радиусе (по ПКМ) ----------
+-- Клик правой кнопкой мыши шлёт /repair ближайшему водителю из машин-игроков
+-- в радиусе optNearRadiusM. Отправленный водитель «замораживается» на паузу
+-- optNearDelaySec (та же, что в GUI «Авто-подбор подъехавших машин»): пока
+-- пауза не прошла, следующий клик выберет следующего по близости водителя,
+-- а после паузы того же можно выбрать снова.
+local function sendNearRepairManual()
+    -- защита от сдвоенного клика
+    if nowMs() - state.lastRepair < 300 then return end
+    local vehId, pid = findNearRepairTarget(optNearRadiusM.v, optNearDelaySec.v * 1000)
+    if pid then
+        state.lastRepair = nowMs()
+        pcall(sampSendChat, "/repair " .. pid)
     end
 end
 
@@ -751,6 +780,8 @@ function main()
     local mbDown = false       -- кнопка сейчас зажата
     local mbDownAt = 0         -- время начала удержания (GetTickCount, мс)
     local mbProcessed = false  -- удержание уже обработано (показали/скрыли)
+    -- ---------- v1.1.4: фронт правой кнопки для ручного запроса /repair ----------
+    local rmbPrev = false      -- ПКМ была нажата на прошлом кадре
     while true do
         -- Меню: imgui берёт ввод (DisableInput=false), курсор виден.
         -- Курсор без меню: ввод отдаётся игре (DisableInput=true), камера вращается.
@@ -796,8 +827,28 @@ function main()
             end
         end
 
+-- ---------- v1.1.4: ручной запрос /repair ближайшему (по ПКМ) ----------
+        -- клик правой кнопкой (фронт нажатия) шлёт /repair ближайшему
+        -- свободному водителю в радиусе. Пропускается при открытом меню,
+        -- во время миниигры, при показанном курсоре выбора цели, при вводе
+        -- в чат/самп-диалог и когда кнопкой ПКМ занят режим выбора цели.
+        do
+            local rmbDown = isVkDown(0x02)
+            local rmbOk = optManualRmb.v and not showMenu.v and not state.active
+                      and not state.cursorVisible and not (optCursorPick.v and currentCursorVk() == 0x02)
+            if rmbDown and not rmbPrev and rmbOk then
+                local okChat = pcall(sampIsChatInputActive)
+                local okDlg = pcall(sampIsDialogActive)
+                if (not okChat or not sampIsChatInputActive()) and (not okDlg or not sampIsDialogActive()) then
+                    sendNearRepairManual()
+                end
+            end
+            rmbPrev = rmbDown
+        end
+
         -- ---------- v1.1.1: авто-ремонт подъехавших в радиус ----------
-        if optNearRepair.v and optEnabled.v and not state.active and not showMenu.v then
+        -- авто-режим отключается, если включён ручной режим по ПКМ (v1.1.4)
+        if optNearRepair.v and not optManualRmb.v and optEnabled.v and not state.active and not showMenu.v then
             local nowB = nowMs()
             if state.nearWaiting then
                 -- миниигра началась? фиксируем для детекта её окончания
@@ -975,12 +1026,19 @@ function imgui.OnDrawFrame()
         imgui.Separator()
         imgui.Text(u8"Авто-подбор подъехавших машин:")
         imgui.Separator()
-            if imgui.Checkbox(u8"   включить", optNearRepair) then changed = true end
+            if imgui.Checkbox(u8"   включить (автоматически)", optNearRepair) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Скрипт сам отправляет /repair каждой новой машине, подъехавшей в радиус. Не работает, пока включён ручной режим ниже")
+            end
+            if imgui.Checkbox(u8"   вручную: по правой кнопке (ПКМ)", optManualRmb) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Авто-кидание при этом отключается: /repair отправится ближайшему водителю в радиусе только по клику правой кнопкой мыши. Отправленный водитель замораживается на «паузу, сек» — следующий клик возьмёт следующего по близости, после паузы того же можно выбрать снова")
+            end
             imgui.PushItemWidth(150 * fsc)
             if imgui.SliderInt(u8"   радиус, м", optNearRadiusM, 2, 20) then changed = true end
             if imgui.SliderInt(u8"   пауза, сек", optNearDelaySec, 5, 300) then changed = true end
             imgui.PopItemWidth()
-            imgui.TextWrapped(u8"Новая машина, подъехавшая в радиус от игрока, один раз получит /repair. После этого скрипт ждёт, пока миниигра не завершится, и только потом шлёт следующему. Пауза между отправками — по одной машине каждые N секунд.")
+            imgui.TextWrapped(u8"Подъехавшая в радиус машина-игрок один раз получит /repair. В авто-режиме скрипт сам последовательно ремонтирует машины (пауза между отправками — N сек), в ручном — только по клику ПКМ, ближайшему свободному водителю.")
             imgui.Separator()
             if imgui.Button(u8"Сохранить", imgui.ImVec2(200 * fsc, 34 * fsc)) then
                 changed = true
