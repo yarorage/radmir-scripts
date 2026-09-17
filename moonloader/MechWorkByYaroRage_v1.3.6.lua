@@ -1,4 +1,8 @@
--- MechWorkByYaroRage v1.3.5
+-- MechWorkByYaroRage v1.3.6
+-- v1.3.6: GUI перегруппирован: фразы автоответа перенесены во вкладку
+-- «Фразы», блоки фраз свёрнуты в раскрывающиеся заголовки (галочка,
+-- исключения id и список фраз вместе), ползунки радиуса/паузы стоят
+-- под своим авто-подбором, а не под ESP; в «Статус» добавлены счётчики.
 -- v1.3.5: у каждого блока фраз своя галочка вкл/выкл и свой список
 -- исключённых id (этим игрокам фразы блока не отправляются).
 -- v1.3.4: диапазон задержки перед закрытием миниигры задаётся в секундах
@@ -134,7 +138,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.3.5")
+script_version("1.3.6")
 
 require "moonloader"
 
@@ -770,6 +774,36 @@ local function payloadMoneySenderId(bs)
     pcall(raknetBitStreamResetReadPointer, bs)
     if not okR or not raw or raw == "" then return nil end
     return idFromRawText(raw)
+end
+
+-- v1.3.6: единая отрисовка списка фраз блока (поля ввода, кнопка «х»,
+-- кнопка добавления). Возвращает true, если что-то изменилось.
+local function drawPhraseList(lines, count, maxCount, idBase, labelPrefix, addLabel)
+    local changedList = false
+    imgui.PushItemWidth(280 * fsc)
+    for i = 1, count.v do
+        imgui.PushID(idBase + i)
+        if imgui.InputText(u8("   " .. labelPrefix .. " " .. i .. "##phraseLine"), lines[i]) then changedList = true end
+        imgui.SameLine(0, 6)
+        if count.v > 1 then
+            if imgui.SmallButton(u8"х") then
+                for j = i, count.v - 1 do lines[j].v = lines[j + 1].v end
+                lines[count.v].v = ""
+                count.v = count.v - 1
+                changedList = true
+            end
+        end
+        imgui.PopID()
+    end
+    imgui.PopItemWidth()
+    if count.v < maxCount then
+        if imgui.Button(u8(addLabel), imgui.ImVec2(170 * fsc, 0)) then
+            count.v = count.v + 1
+            lines[count.v].v = ""
+            changedList = true
+        end
+    end
+    return changedList
 end
 
 function saveSettings()
@@ -2191,7 +2225,7 @@ function imgui.OnDrawFrame()
 
         elseif activeTab == 3 then
             -- ====== ВКЛАДКА «КУРСОР» ======
-            imgui.TextWrapped(u8"Ручной выбор цели курсором + автоответ")
+            imgui.TextWrapped(u8"Ручной выбор цели ремонта курсором: удерживайте кнопку — появится курсор, короткий клик по машине — /repair её водителю.")
             imgui.Separator()
 
             imgui.Text(u8"Выбор цели курсором:")
@@ -2205,268 +2239,141 @@ function imgui.OnDrawFrame()
             imgui.PopItemWidth()
 
             imgui.Separator()
-            imgui.Text(u8"Автоответ при ремонте:")
-            if imgui.Checkbox(u8"   отправлять фразу при старте ремонта", optAutoReply) then changed = true end
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Когда водитель принял ваш /repair, скрипт отправит в чат случайную фразу из списка. Фраза не повторяется дважды подряд")
-            end
-            imgui.TextWrapped(u8"Вставить сразу несколько фраз: каждая строка ниже станет отдельной фразой (до 30)")
-            imgui.PushItemWidth(280 * fsc)
-            imgui.InputTextMultiline(u8"   новые фразы##replyBlock", replyBlockInput, imgui.ImVec2(0, 70 * fsc), 0)
-            imgui.PopItemWidth()
-            imgui.SameLine(0, 6)
-            if imgui.Button(u8"Вставить блок", imgui.ImVec2(160 * fsc, 0)) then
-                if addReplyBlock() then changed = true end
-            end
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Каждая непустая строка поля добавится в список фраз до максимума 30. После вставки поле очищается")
-            end
-            imgui.PushItemWidth(280 * fsc)
-            for i = 1, replyCount.v do
-                imgui.PushID(100 + i)
-                if imgui.InputText(u8("   фраза " .. i .. "##replyLine"), optReplyLines[i]) then changed = true end
-                imgui.SameLine(0, 6)
-                if replyCount.v > 1 then
-                    if imgui.SmallButton(u8"х") then
-                        for j = i, replyCount.v - 1 do
-                            optReplyLines[j].v = optReplyLines[j + 1].v
-                        end
-                        optReplyLines[replyCount.v].v = ""
-                        replyCount.v = replyCount.v - 1
-                        changed = true
-                    end
-                end
-                imgui.PopID()
-            end
-            imgui.PopItemWidth()
-            if replyCount.v < 30 then
-                if imgui.Button(u8"Добавить фразу", imgui.ImVec2(170 * fsc, 0)) then
-                    replyCount.v = replyCount.v + 1
-                    optReplyLines[replyCount.v].v = ""
-                    changed = true
-                end
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip(u8"Добавить ещё одно поле для фразы (всего до 30)")
-                end
-            end
+            imgui.TextWrapped(u8"Фразы автоответа и ответы на переводы денег настраиваются во вкладке «Фразы».")
 
         elseif activeTab == 4 then
-            -- ====== ВКЛАДКА «АВТО-ПОДБОР» ======
-            imgui.TextWrapped(u8"Автоматический /repair для подъехавших машин в радиусе")
+            -- ====== ВКЛАДКА «ПОДБОР» ======
+            imgui.TextWrapped(u8"Как скрипт выбирает машину для /repair: автоматически в радиусе или вручную по правой кнопке.")
             imgui.Separator()
 
-            if imgui.Checkbox(u8"включить (автоматически)", optNearRepair) then changed = true end
+            imgui.Text(u8"Авто-подбор в радиусе:")
+            if imgui.Checkbox(u8"   включить (автоматически)", optNearRepair) then changed = true end
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"Скрипт сам отправляет /repair каждой новой машине, подъехавшей в радиус")
             end
-            if imgui.Checkbox(u8"вручную: по правой кнопке (ПКМ)", optManualRmb) then changed = true end
+            imgui.PushItemWidth(150 * fsc)
+            if imgui.SliderInt(u8"   радиус, м", optNearRadiusM, 2, 20) then changed = true end
+            if imgui.SliderInt(u8"   пауза, сек", optNearDelaySec, 5, 300) then changed = true end
+            imgui.PopItemWidth()
+
+            imgui.Spacing()
+            imgui.Text(u8"Ручной выбор:")
+            if imgui.Checkbox(u8"   по правой кнопке (ПКМ)", optManualRmb) then changed = true end
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"Авто-кидание отключается: /repair отправится ближайшему свободному водителю только по клику ПКМ")
             end
 
             imgui.Separator()
-            imgui.TextWrapped(u8"ESP-метка цели ремонта")
-            if imgui.Checkbox(u8"линия от центра экрана", optEspLine) then changed = true end
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Показывать линию от низа экрана к машине, которую в данный момент чиним")
+            if imgui.CollapsingHeader(u8"ESP-метка цели ремонта##espHead") then
+                imgui.TextWrapped(u8"Подсветка машины, которую чиним сейчас (текущая цель /repair).")
+                imgui.Spacing()
+                if imgui.Checkbox(u8"линия от низа экрана", optEspLine) then changed = true end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(u8"Показывать линию от низа экрана к целевой машине")
+                end
+                if imgui.Checkbox(u8"квадрат на капоте", optEspBox) then changed = true end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(u8"Показывать квадрат на капоте целевой машины")
+                end
+                if imgui.Checkbox(u8"плашка с данными", optEspPanel) then changed = true end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(u8"Плашка внизу экрана: id водителя, ник и модель машины")
+                end
             end
-            if imgui.Checkbox(u8"квадрат на капоте", optEspBox) then changed = true end
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Показывать квадрат на капоте целевой машины")
-            end
-            if imgui.Checkbox(u8"плашка с данными", optEspPanel) then changed = true end
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Плашка внизу экрана: id водителя, ник и модель машины")
-            end
-
-            imgui.PushItemWidth(150 * fsc)
-            if imgui.SliderInt(u8"   радиус, м", optNearRadiusM, 2, 20) then changed = true end
-            if imgui.SliderInt(u8"   пауза, сек", optNearDelaySec, 5, 300) then changed = true end
-            imgui.PopItemWidth()
 
             imgui.Separator()
             imgui.TextWrapped(u8"Подъехавшая в радиус машина-игрок один раз получит /repair. Приоритет — мотоциклам. Водители с исключённым id пропускаются.")
 
         elseif activeTab == 5 then
             -- ====== ВКЛАДКА «ФРАЗЫ» ======
-            imgui.TextWrapped(u8"Фразы по окончанию миниигры, ответы на перевод денег (формат «Ник передал Вам деньги 5000 руб») и на просьбу открыть капот")
+            imgui.TextWrapped(u8"Все фразы, которые скрипт пишет в чат: автоответ на старт ремонта, финиш миниигры, ответы на переводы денег и на просьбу открыть капот.")
             imgui.Separator()
 
-            imgui.Text(u8"Задержка каждого сообщения (секунды), от и до:")
+            if imgui.Checkbox(u8"Отправлять фразы в чат (общий выключатель)", optAutoReply) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Главный выключатель: пока галочка снята, ни один блок фраз не отправляется. Отдельные блоки включаются ниже")
+            end
+            imgui.Spacing()
+            imgui.Text(u8"Задержка перед каждым сообщением, сек (от и до):")
             imgui.PushItemWidth(150 * fsc)
-            if imgui.SliderInt(u8"   от", optReplyDelayMin, 0, 60) then changed = true end
-            if imgui.SliderInt(u8"   до", optReplyDelayMax, 0, 60) then changed = true end
+            if imgui.SliderInt(u8"   от##repDelayMin", optReplyDelayMin, 0, 60) then changed = true end
+            if imgui.SliderInt(u8"   до##repDelayMax", optReplyDelayMax, 0, 60) then changed = true end
             imgui.PopItemWidth()
-            imgui.TextWrapped(u8"Перед отправкой каждой фразы задержка выбирается случайно в этом диапазоне — сообщения всегда уходят по-разному.")
-
+            imgui.TextWrapped(u8"Перед отправкой каждой фразы задержка выбирается случайно в этом диапазоне — сообщения уходят по-разному.")
             imgui.Separator()
-            imgui.Text(u8"Блоки фраз — галочка вкл/выкл и исключения по id:")
-            imgui.TextWrapped(u8"Снимите галочку, чтобы блок не отправлялся. Игрокам из списка фразы этого блока не отправляются.")
+
             for bi = 1, #phraseBlocks.keys do
                 local key = phraseBlocks.keys[bi]
                 imgui.PushID(7300 + bi)
-                if imgui.Checkbox(u8(phraseBlocks.title[key]), phraseBlocks.on[key]) then changed = true end
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip(u8"Включить или полностью отключить этот блок фраз")
-                end
-                imgui.PushItemWidth(80 * fsc)
-                imgui.InputText(u8"   id##blockExcId", phraseBlocks.input[key])
-                imgui.PopItemWidth()
-                imgui.SameLine(0, 6)
-                if imgui.Button(u8"Добавить", imgui.ImVec2(80 * fsc, 0)) then
-                    local hint = phraseBlocks.addExcludedId(key, phraseBlocks.input[key].v)
-                    phraseBlocks.hint[key] = hint or ""
-                    if not hint then phraseBlocks.input[key].v = "" end
-                end
-                if phraseBlocks.hint[key] ~= "" then
-                    imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"   " .. u8(phraseBlocks.hint[key]))
-                end
-                if #phraseBlocks.excl[key] > 0 then
-                    imgui.SameLine(0, 20)
-                    if imgui.SmallButton(u8"очистить всё##blockExcClear") then
-                        for _ = 1, #phraseBlocks.excl[key] do table.remove(phraseBlocks.excl[key], 1) end
-                        saveSettings()
+                if imgui.CollapsingHeader(u8(phraseBlocks.title[key] .. (phraseBlocks.on[key].v and "" or "   [ОТКЛЮЧЕНО]") .. "##blk")) then
+                    if imgui.Checkbox(u8"   блок включён", phraseBlocks.on[key]) then changed = true end
+                    if imgui.IsItemHovered() then
+                        imgui.SetTooltip(u8"Снимите галочку — фразы этого блока не отправляются")
                     end
-                end
-                imgui.BeginChild(u8"##blockExcList", imgui.ImVec2(0, 60 * fsc), true)
-                for i = 1, #phraseBlocks.excl[key] do
-                    imgui.PushID(100 + i)
-                    imgui.Text("  id " .. phraseBlocks.excl[key][i])
-                    imgui.SameLine(0, 20)
-                    if imgui.SmallButton(u8"х") then
-                        table.remove(phraseBlocks.excl[key], i)
-                        saveSettings()
-                    end
-                    imgui.PopID()
-                end
-                imgui.EndChild()
-                imgui.Separator()
-                imgui.PopID()
-            end
+                    imgui.Spacing()
 
-            imgui.Text(u8"Фразы по окончанию миниигры (с задержкой из диапазона):")
-            imgui.PushItemWidth(280 * fsc)
-            for i = 1, finishCount.v do
-                imgui.PushID(300 + i)
-                if imgui.InputText(u8("   финиш " .. i .. "##finishLine"), optFinishLines[i]) then changed = true end
-                imgui.SameLine(0, 6)
-                if finishCount.v > 1 then
-                    if imgui.SmallButton(u8"х") then
-                        for j = i, finishCount.v - 1 do
-                            optFinishLines[j].v = optFinishLines[j + 1].v
+                    imgui.Text(u8"Исключить id (этим игрокам фразы блока не шлются):")
+                    imgui.PushItemWidth(90 * fsc)
+                    imgui.InputText(u8"   новый id##blockExcId", phraseBlocks.input[key])
+                    imgui.PopItemWidth()
+                    imgui.SameLine(0, 6)
+                    if imgui.Button(u8"Добавить", imgui.ImVec2(90 * fsc, 0)) then
+                        local hint = phraseBlocks.addExcludedId(key, phraseBlocks.input[key].v)
+                        phraseBlocks.hint[key] = hint or ""
+                        if not hint then phraseBlocks.input[key].v = "" end
+                    end
+                    if phraseBlocks.hint[key] ~= "" then
+                        imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"   " .. u8(phraseBlocks.hint[key]))
+                    end
+                    if #phraseBlocks.excl[key] > 0 then
+                        if imgui.SmallButton(u8"очистить всё##blockExcClear") then
+                            for _ = 1, #phraseBlocks.excl[key] do table.remove(phraseBlocks.excl[key], 1) end
+                            saveSettings()
                         end
-                        optFinishLines[finishCount.v].v = ""
-                        finishCount.v = finishCount.v - 1
-                        changed = true
-                    end
-                end
-                imgui.PopID()
-            end
-            imgui.PopItemWidth()
-            if finishCount.v < 5 then
-                if imgui.Button(u8"Добавить финиш", imgui.ImVec2(170 * fsc, 0)) then
-                    finishCount.v = finishCount.v + 1
-                    optFinishLines[finishCount.v].v = ""
-                    changed = true
-                end
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip(u8"Добавить ещё одно поле для фразы (всего до 5)")
-                end
-            end
-
-            imgui.Separator()
-            imgui.Text(u8"Фразы при переводе денег до 4000$:")
-            imgui.PushItemWidth(280 * fsc)
-            for i = 1, moneyLowCount.v do
-                imgui.PushID(400 + i)
-                if imgui.InputText(u8("   до 4000 " .. i .. "##moneyLowLine"), optMoneyLowLines[i]) then changed = true end
-                imgui.SameLine(0, 6)
-                if moneyLowCount.v > 1 then
-                    if imgui.SmallButton(u8"х") then
-                        for j = i, moneyLowCount.v - 1 do
-                            optMoneyLowLines[j].v = optMoneyLowLines[j + 1].v
+                        imgui.BeginChild(u8"##blockExcList", imgui.ImVec2(0, 54 * fsc), true)
+                        for i = 1, #phraseBlocks.excl[key] do
+                            imgui.PushID(20 + i)
+                            imgui.Text("  id " .. phraseBlocks.excl[key][i])
+                            imgui.SameLine(0, 20)
+                            if imgui.SmallButton(u8"х") then
+                                table.remove(phraseBlocks.excl[key], i)
+                                saveSettings()
+                            end
+                            imgui.PopID()
                         end
-                        optMoneyLowLines[moneyLowCount.v].v = ""
-                        moneyLowCount.v = moneyLowCount.v - 1
-                        changed = true
+                        imgui.EndChild()
                     end
-                end
-                imgui.PopID()
-            end
-            imgui.PopItemWidth()
-            if moneyLowCount.v < 5 then
-                if imgui.Button(u8"Добавить до 4000", imgui.ImVec2(170 * fsc, 0)) then
-                    moneyLowCount.v = moneyLowCount.v + 1
-                    optMoneyLowLines[moneyLowCount.v].v = ""
-                    changed = true
-                end
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip(u8"Добавить ещё одно поле для фразы (всего до 5)")
-                end
-            end
+                    imgui.Spacing()
 
-            imgui.Separator()
-            imgui.Text(u8"Фразы при переводе денег от 4001$:")
-            imgui.PushItemWidth(280 * fsc)
-            for i = 1, moneyHighCount.v do
-                imgui.PushID(500 + i)
-                if imgui.InputText(u8("   от 4001 " .. i .. "##moneyHighLine"), optMoneyHighLines[i]) then changed = true end
-                imgui.SameLine(0, 6)
-                if moneyHighCount.v > 1 then
-                    if imgui.SmallButton(u8"х") then
-                        for j = i, moneyHighCount.v - 1 do
-                            optMoneyHighLines[j].v = optMoneyHighLines[j + 1].v
+                    if key == "reply" then
+                        imgui.TextWrapped(u8"Вставить сразу несколько фраз: каждая непустая строка ниже станет отдельной фразой (до 30).")
+                        imgui.PushItemWidth(280 * fsc)
+                        imgui.InputTextMultiline(u8"   новые фразы##replyBlock", replyBlockInput, imgui.ImVec2(0, 60 * fsc), 0)
+                        imgui.PopItemWidth()
+                        imgui.SameLine(0, 6)
+                        if imgui.Button(u8"Вставить блок", imgui.ImVec2(150 * fsc, 0)) then
+                            if addReplyBlock() then changed = true end
                         end
-                        optMoneyHighLines[moneyHighCount.v].v = ""
-                        moneyHighCount.v = moneyHighCount.v - 1
-                        changed = true
-                    end
-                end
-                imgui.PopID()
-            end
-            imgui.PopItemWidth()
-            if moneyHighCount.v < 5 then
-                if imgui.Button(u8"Добавить от 4001", imgui.ImVec2(170 * fsc, 0)) then
-                    moneyHighCount.v = moneyHighCount.v + 1
-                    optMoneyHighLines[moneyHighCount.v].v = ""
-                    changed = true
-                end
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip(u8"Добавить ещё одно поле для фразы (всего до 5)")
-                end
-            end
-
-            imgui.Separator()
-            imgui.Text(u8"Фразы на сообщение «Капот транспорта должен быть открыт»:")
-            imgui.PushItemWidth(280 * fsc)
-            for i = 1, hoodCount.v do
-                imgui.PushID(600 + i)
-                if imgui.InputText(u8("   капот " .. i .. "##hoodLine"), optHoodLines[i]) then changed = true end
-                imgui.SameLine(0, 6)
-                if hoodCount.v > 1 then
-                    if imgui.SmallButton(u8"х") then
-                        for j = i, hoodCount.v - 1 do
-                            optHoodLines[j].v = optHoodLines[j + 1].v
+                        if imgui.IsItemHovered() then
+                            imgui.SetTooltip(u8"Каждая непустая строка поля добавится в список фраз до максимума 30. После вставки поле очищается")
                         end
-                        optHoodLines[hoodCount.v].v = ""
-                        hoodCount.v = hoodCount.v - 1
-                        changed = true
+                        if drawPhraseList(optReplyLines, replyCount, 30, 100, "фраза", "Добавить фразу") then changed = true end
+                    elseif key == "finish" then
+                        imgui.Text(u8"Фразы по окончанию миниигры:")
+                        if drawPhraseList(optFinishLines, finishCount, 5, 300, "финиш", "Добавить фразу") then changed = true end
+                    elseif key == "moneyLow" then
+                        imgui.Text(u8"Фразы при переводе денег до 4000 руб:")
+                        if drawPhraseList(optMoneyLowLines, moneyLowCount, 5, 400, "до 4000", "Добавить фразу") then changed = true end
+                    elseif key == "moneyHigh" then
+                        imgui.Text(u8"Фразы при переводе денег от 4001 руб:")
+                        if drawPhraseList(optMoneyHighLines, moneyHighCount, 5, 500, "от 4001", "Добавить фразу") then changed = true end
+                    elseif key == "hood" then
+                        imgui.Text(u8"Фразы на «Капот транспорта должен быть открыт»:")
+                        if drawPhraseList(optHoodLines, hoodCount, 5, 600, "капот", "Добавить фразу") then changed = true end
                     end
                 end
                 imgui.PopID()
             end
-            imgui.PopItemWidth()
-            if hoodCount.v < 5 then
-                if imgui.Button(u8"Добавить капот", imgui.ImVec2(170 * fsc, 0)) then
-                    hoodCount.v = hoodCount.v + 1
-                    optHoodLines[hoodCount.v].v = ""
-                    changed = true
-                end
-                if imgui.IsItemHovered() then
-                    imgui.SetTooltip(u8"Добавить ещё одно поле для фразы (всего до 5)")
-                end
-            end
-
         elseif activeTab == 6 then
             -- ====== ВКЛАДКА «СТАТУС» ======
             imgui.TextWrapped(u8"Текущее состояние скрипта")
@@ -2499,7 +2406,15 @@ function imgui.OnDrawFrame()
             end
 
             imgui.Separator()
-            imgui.TextWrapped(u8"Фразы: " .. replyCount.v .. u8" шт.  |  Триггеры: " .. #repairTriggers .. u8" шт.  |  Исключений: " .. #excludedIds .. u8" шт.")
+            local enabledBlocks = 0
+            for bi = 1, #phraseBlocks.keys do
+                if phraseBlocks.on[phraseBlocks.keys[bi]].v then enabledBlocks = enabledBlocks + 1 end
+            end
+            local totalPhrases = replyCount.v + finishCount.v + moneyLowCount.v + moneyHighCount.v + hoodCount.v
+            imgui.TextWrapped(u8"Фразы: " .. totalPhrases .. u8" шт., блоков включено " .. enabledBlocks .. u8" из " .. #phraseBlocks.keys .. u8"  |  Триггеры: " .. #repairTriggers .. u8" шт.  |  Исключено id: " .. #excludedIds .. u8" шт.")
+            if not optAutoReply.v then
+                imgui.TextColored(imgui.ImVec4(1, 0.5, 0.3, 1), u8"Фразы выключены общим выключателем (вкладка «Фразы»)")
+            end
         end
 
         imgui.EndChild() -- ##tabs
