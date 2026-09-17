@@ -1,4 +1,6 @@
--- MechWorkByYaroRage v1.3.4
+-- MechWorkByYaroRage v1.3.5
+-- v1.3.5: у каждого блока фраз своя галочка вкл/выкл и свой список
+-- исключённых id (этим игрокам фразы блока не отправляются).
 -- v1.3.4: диапазон задержки перед закрытием миниигры задаётся в секундах
 -- от 0 до 20 (ползунки «от/до»).
 -- v1.3.3: строгий цикл фраз без повторов до полного прохода списка; ESP не
@@ -132,7 +134,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.3.4")
+script_version("1.3.5")
 
 require "moonloader"
 
@@ -218,6 +220,11 @@ local function loadSettings()
         espLine = false, -- v1.2.9: ESP-линия от центра экрана к чинящейся машине
         espBox = false, -- v1.2.9: ESP-квадрат на капоте чинящейся машины
         espPanel = false, -- v1.2.9: ESP-плашка внизу экрана (id/ник/модель)
+        -- v1.3.5: блоки фраз - вкл/выкл (галочка) и исключённые id по блокам
+        blockOnReply = true, blockOnFinish = true, blockOnMoneyLow = true,
+        blockOnMoneyHigh = true, blockOnHood = true,
+        blockExclReply = {}, blockExclFinish = {}, blockExclMoneyLow = {},
+        blockExclMoneyHigh = {}, blockExclHood = {},
         excludedIds = {}, -- v1.1.6: исключённые id водителей (им не шлём /repair)
                 triggers = { "почини", "чини", "почин", "чин", "отремонтируй", "ремонт", "репа", "repair" } }
     local ok, f = pcall(io.open, iniFile, "r")
@@ -286,6 +293,19 @@ local function loadSettings()
             en = en + 1
         end
         if #ei > 0 then s.excludedIds = ei end
+        -- v1.3.5: исключённые id по блокам фраз (blockExcl<Блок>1..N)
+        for _, bn in ipairs({ "Reply", "Finish", "MoneyLow", "MoneyHigh", "Hood" }) do
+            local arr = {}
+            local idx = 1
+            while s["blockExcl" .. bn .. idx] do
+                local num = tonumber(s["blockExcl" .. bn .. idx])
+                if num and num >= 1 and num <= 1004 and num == math.floor(num) then
+                    arr[#arr + 1] = num
+                end
+                idx = idx + 1
+            end
+            if #arr > 0 then s["blockExcl" .. bn] = arr end
+        end
     end
     -- защита от повреждённых значений старых версий (в ini попали байты
     -- EF BF BD = символы замены U+FFFD вместо CP1251): тогда берём дефолт
@@ -634,6 +654,124 @@ local state = {
     espTarget = nil, -- v1.2.9: цель ESP {pid, veh, at} (линия/квадрат/плашка)
 }
 
+-- ========== v1.3.5: блоки фраз - вкл/выкл и исключения по id ==========
+-- Блоки фраз: автоответ на старт ремонта (reply), фразы по окончанию
+-- миниигры (finish), ответы на перевод до 4000 / от 4001 (moneyLow/
+-- moneyHigh) и ответ на просьбу открыть капот (hood). У каждого блока -
+-- своя галочка (вкл/выкл) и свой список id, которым фразы не шлются.
+-- Всё состояние блоков собрано в одну таблицу phraseBlocks, чтобы не
+-- превысить лимит upvalue (60) в большой функции отрисовки GUI.
+local phraseBlocks = {
+    keys = { "reply", "finish", "moneyLow", "moneyHigh", "hood" },
+    tag = { reply = "Reply", finish = "Finish", moneyLow = "MoneyLow", moneyHigh = "MoneyHigh", hood = "Hood" },
+    title = {
+        reply = "Автоответ на старт ремонта",
+        finish = "Фразы по окончанию миниигры",
+        moneyLow = "Ответ на перевод до 4000 руб",
+        moneyHigh = "Ответ на перевод от 4001 руб",
+        hood = "Ответ на просьбу открыть капот",
+    },
+    on = {},    -- ключ блока -> imgui.ImBool (галочка вкл/выкл)
+    excl = {},  -- ключ блока -> список исключённых id
+    input = {}, -- ключ блока -> поле ввода нового id (GUI)
+    hint = {},  -- ключ блока -> текст ошибки ввода (GUI)
+}
+for _, key in ipairs(phraseBlocks.keys) do
+    local tag = phraseBlocks.tag[key]
+    local onVal = settings["blockOn" .. tag]
+    if onVal == nil then onVal = true end
+    phraseBlocks.on[key] = imgui.ImBool(onVal and true or false)
+    local arr = {}
+    local sarr = settings["blockExcl" .. tag]
+    for i = 1, #(sarr or {}) do arr[#arr + 1] = sarr[i] end
+    phraseBlocks.excl[key] = arr
+    phraseBlocks.input[key] = imgui.ImBuffer(16)
+    phraseBlocks.hint[key] = ""
+end
+
+-- id входит в список исключений блока?
+local function blockExcluded(key, pid)
+    local list = phraseBlocks.excl[key]
+    if not list then return false end
+    for i = 1, #list do
+        if list[i] == pid then return true end
+    end
+    return false
+end
+
+-- можно ли отправлять фразы блока (галочка включена и игрок не исключён);
+-- pid может быть nil - тогда проверяется только галочка.
+local function blockAllowed(key, pid)
+    local on = phraseBlocks.on[key]
+    if on and not on.v then return false end
+    if pid and blockExcluded(key, pid) then return false end
+    return true
+end
+
+-- добавить id в список блока; nil при успехе либо строка-причина ошибки
+local function addBlockExcludedId(key, idText)
+    if not phraseBlocks.excl[key] then return "неизвестный блок" end
+    local num = tonumber(idText)
+    if not num or num ~= math.floor(num) or num < 1 or num > 1004 then
+        return "id должен быть целым числом от 1 до 1004"
+    end
+    if blockExcluded(key, num) then
+        return "такой id уже есть в списке"
+    end
+    phraseBlocks.excl[key][#phraseBlocks.excl[key] + 1] = num
+    saveSettings()
+    return nil
+end
+phraseBlocks.addExcludedId = addBlockExcludedId
+
+-- v1.3.5: id клиента, которому шлём фразы ремонта: последняя отправленная
+-- заявка /repair либо текущая ESP-цель. nil, если цель неизвестна.
+local function currentTargetPid()
+    local p = state.pendingRepair
+    if p and p.pid and nowMs() - (p.at or 0) <= 300000 then return p.pid end
+    local e = state.espTarget
+    if e and e.pid and nowMs() - (e.at or 0) <= 300000 then return e.pid end
+    return nil
+end
+
+-- v1.3.5: id игрока по тексту сообщения - ищем в тексте ник любого
+-- подключённого игрока (для исключений в блоках переводов денег).
+local function idFromRawText(raw)
+    if type(raw) ~= "string" or raw == "" then return nil end
+    if type(sampGetPlayerNickname) ~= "function" then return nil end
+    local maxId = 1004
+    if type(sampGetMaxPlayerId) == "function" then
+        local okM, m = pcall(sampGetMaxPlayerId)
+        if okM and tonumber(m) and tonumber(m) > 0 then maxId = tonumber(m) end
+    end
+    local hasConn = (type(sampIsPlayerConnected) == "function")
+    for id = 0, maxId do
+        local connected = true
+        if hasConn then
+            local okC, c = pcall(sampIsPlayerConnected, id)
+            connected = (okC and c) and true or false
+        end
+        if connected then
+            local okN, nick = pcall(sampGetPlayerNickname, id)
+            if okN and nick and nick ~= "" and raw:find(nick, 1, true) then
+                return id
+            end
+        end
+    end
+    return nil
+end
+
+-- v1.3.5: id отправителя перевода - читаем сырой текст пакета (93/101)
+local function payloadMoneySenderId(bs)
+    local okTotal, total = pcall(raknetBitStreamGetNumberOfBytesUsed, bs)
+    if not okTotal or not total or total <= 0 or total > 4096 then return nil end
+    pcall(raknetBitStreamResetReadPointer, bs)
+    local okR, raw = pcall(raknetBitStreamReadString, bs, total)
+    pcall(raknetBitStreamResetReadPointer, bs)
+    if not okR or not raw or raw == "" then return nil end
+    return idFromRawText(raw)
+end
+
 function saveSettings()
     local lines = {
         "enabled = " .. (optEnabled.v and "true" or "false"),
@@ -683,6 +821,15 @@ function saveSettings()
     -- v1.3.1: фразы на просьбу открыть капот (hoodLineN)
     for i = 1, hoodCount.v do
         lines[#lines + 1] = "hoodLine" .. i .. " = " .. toCp(optHoodLines[i].v or "")
+    end
+    -- v1.3.5: блоки фраз - галочка вкл/выкл и исключённые id
+    for _, key in ipairs(phraseBlocks.keys) do
+        local tag = phraseBlocks.tag[key]
+        lines[#lines + 1] = "blockOn" .. tag .. " = " .. (phraseBlocks.on[key].v and "true" or "false")
+        local list = phraseBlocks.excl[key]
+        for i = 1, #list do
+            lines[#lines + 1] = "blockExcl" .. tag .. i .. " = " .. list[i]
+        end
     end
     -- исключённые id водителей (v1.1.6): excludeIdN = <id>
     for i = 1, #excludedIds do
@@ -1321,7 +1468,8 @@ local function sendPhraseDelayed(text)
     end)
 end
 
-local function pickAutoReplyLine()
+local function pickAutoReplyLine(pid)
+    if not blockAllowed("reply", pid) then return end
     local list = collectPhrases(optReplyLines, replyCount.v)
     if #list == 0 then return end
     sendPhraseDelayed(pickCycleLine(list, state.replyCycle))
@@ -1330,10 +1478,11 @@ end
 -- v1.2.6: поток отправки фразы через 1 сек после закрытия окна миниигры.
 -- /cancel - это отмена выбранного /repair, окно миниигры при нём не
 -- закрывается, поэтому на неё этот поток никак не реагирует.
-local function sendFinishReplyThread()
+local function sendFinishReplyThread(pid)
     wait(randomPhraseDelayMs())
     if not optCheat.v or not optAutoReply.v then return end
     if state.active then return end -- уже началась новая миниигра
+    if not blockAllowed("finish", pid) then return end
     local list = collectPhrases(optFinishLines, finishCount.v)
     if #list == 0 then return end
     pcall(sampSendChat, pickCycleLine(list, state.finishCycle))
@@ -1363,6 +1512,7 @@ end
 -- v1.3.1: ответ на просьбу открыть капот (фразы по циклу, КД 3 сек)
 local function sendHoodReply()
     if not optCheat.v or not optAutoReply.v then return end
+    if not blockAllowed("hood", currentTargetPid()) then return end
     local list = collectPhrases(optHoodLines, hoodCount.v)
     if #list == 0 then return end
     if nowMs() - state.lastHood < 3000 then return end
@@ -1370,8 +1520,9 @@ local function sendHoodReply()
     sendPhraseDelayed(pickCycleLine(list, state.hoodCycle))
 end
 
-local function sendMoneyReply(sum)
+local function sendMoneyReply(sum, senderId)
     if not optCheat.v or not optAutoReply.v then return end
+    if not blockAllowed((sum <= 4000) and "moneyLow" or "moneyHigh", senderId) then return end
     local list, st, lastField
     if sum <= 4000 then
         list = collectPhrases(optMoneyLowLines, moneyLowCount.v)
@@ -1395,11 +1546,12 @@ function sendAutoReplyIfStarted(bs)
     if not payloadHasRepairStart(bs) then return false end
     -- v1.1.7: заявка принята - уведомление «Чиню <ник> (id) - <модель>»
     -- показываем всегда (независимо от включённого автоответа)
+    local replyPid = currentTargetPid()
     notifyRepairAccepted()
     if not optAutoReply.v then return true end
     if nowMs() - state.lastAutoReply < 5000 then return true end
     state.lastAutoReply = nowMs()
-    pickAutoReplyLine()
+    pickAutoReplyLine(replyPid)
     return true
 end
 
@@ -1412,7 +1564,7 @@ function onServerMessage(color, text)
         local sum = tonumber(text:match("[Пп]ередал[аи]?%s+[Вв]ам деньги%s+(%d+)"))
             or tonumber(text:match("[Вв]ам деньги%s+(%d+)"))
         if sum then
-            sendMoneyReply(sum)
+            sendMoneyReply(sum, idFromRawText(text))
             return nil
         end
         -- v1.3.1: сервер просит открыть капот
@@ -1428,10 +1580,11 @@ function onServerMessage(color, text)
         if text:find(repairStartPhrases[i], 1, true) then hit = true break end
     end
     if not hit then return nil end
+    local replyPid = currentTargetPid()
     notifyRepairAccepted()
     if nowMs() - state.lastAutoReply < 5000 then return nil end
     state.lastAutoReply = nowMs()
-    pickAutoReplyLine()
+    pickAutoReplyLine(replyPid)
     return nil
 end
 
@@ -1448,7 +1601,7 @@ function onReceiveRpc(id, bs)
         pcall(raknetBitStreamResetReadPointer, bs)
         -- v1.2.9: перевод денег (в том числе если onServerMessage не сработал)
         local msum = payloadMoneySum(bs)
-        if msum then sendMoneyReply(msum) end
+        if msum then sendMoneyReply(msum, payloadMoneySenderId(bs)) end
         pcall(raknetBitStreamResetReadPointer, bs)
         -- v1.3.1: сервер просит открыть капот
         if payloadHasHoodOpen(bs) then sendHoodReply() end
@@ -1521,7 +1674,8 @@ function onReceivePacket(id, bs)
     if txt:find("HelloweenBuild", 1, true) then
         -- v1.2.6: миниигра шла и закрылась - через 1 сек отправляем фразу
         if optCheat.v and state.active and optAutoReply.v then
-            lua_thread.create(sendFinishReplyThread)
+            local finishPid = currentTargetPid()
+            lua_thread.create(function() sendFinishReplyThread(finishPid) end)
         end
         state.active = false
         -- v1.2.9: миниигра закончилась - снимаем ESP-метку цели
@@ -2144,6 +2298,51 @@ function imgui.OnDrawFrame()
             if imgui.SliderInt(u8"   до", optReplyDelayMax, 0, 60) then changed = true end
             imgui.PopItemWidth()
             imgui.TextWrapped(u8"Перед отправкой каждой фразы задержка выбирается случайно в этом диапазоне — сообщения всегда уходят по-разному.")
+
+            imgui.Separator()
+            imgui.Text(u8"Блоки фраз — галочка вкл/выкл и исключения по id:")
+            imgui.TextWrapped(u8"Снимите галочку, чтобы блок не отправлялся. Игрокам из списка фразы этого блока не отправляются.")
+            for bi = 1, #phraseBlocks.keys do
+                local key = phraseBlocks.keys[bi]
+                imgui.PushID(7300 + bi)
+                if imgui.Checkbox(u8(phraseBlocks.title[key]), phraseBlocks.on[key]) then changed = true end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(u8"Включить или полностью отключить этот блок фраз")
+                end
+                imgui.PushItemWidth(80 * fsc)
+                imgui.InputText(u8"   id##blockExcId", phraseBlocks.input[key])
+                imgui.PopItemWidth()
+                imgui.SameLine(0, 6)
+                if imgui.Button(u8"Добавить", imgui.ImVec2(80 * fsc, 0)) then
+                    local hint = phraseBlocks.addExcludedId(key, phraseBlocks.input[key].v)
+                    phraseBlocks.hint[key] = hint or ""
+                    if not hint then phraseBlocks.input[key].v = "" end
+                end
+                if phraseBlocks.hint[key] ~= "" then
+                    imgui.TextColored(imgui.ImVec4(1, 0.3, 0.3, 1), u8"   " .. u8(phraseBlocks.hint[key]))
+                end
+                if #phraseBlocks.excl[key] > 0 then
+                    imgui.SameLine(0, 20)
+                    if imgui.SmallButton(u8"очистить всё##blockExcClear") then
+                        for _ = 1, #phraseBlocks.excl[key] do table.remove(phraseBlocks.excl[key], 1) end
+                        saveSettings()
+                    end
+                end
+                imgui.BeginChild(u8"##blockExcList", imgui.ImVec2(0, 60 * fsc), true)
+                for i = 1, #phraseBlocks.excl[key] do
+                    imgui.PushID(100 + i)
+                    imgui.Text("  id " .. phraseBlocks.excl[key][i])
+                    imgui.SameLine(0, 20)
+                    if imgui.SmallButton(u8"х") then
+                        table.remove(phraseBlocks.excl[key], i)
+                        saveSettings()
+                    end
+                    imgui.PopID()
+                end
+                imgui.EndChild()
+                imgui.Separator()
+                imgui.PopID()
+            end
 
             imgui.Text(u8"Фразы по окончанию миниигры (с задержкой из диапазона):")
             imgui.PushItemWidth(280 * fsc)
