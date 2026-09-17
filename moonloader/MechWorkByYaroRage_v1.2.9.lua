@@ -1606,7 +1606,9 @@ local function drawRepairEsp()
               imgui.GetColorU32Vec4(imgui.ImVec4(0.05, 0.05, 0.12, 0.75)), 4)
         pcall(dl.AddRect, dl, imgui.ImVec2(px, py), imgui.ImVec2(px + pw, py + ph),
               imgui.GetColorU32Vec4(imgui.ImVec4(0.25, 0.9, 1.0, 1.0)), 4, 0, 1)
-        pcall(dl.AddText, dl, imgui.ImVec2(resX / 2, py + ph / 2 - 10 * fsc),
+        local ts = imgui.CalcTextSize(line)
+        pcall(dl.AddText, dl,
+              imgui.ImVec2(resX / 2 - ts.x / 2, py + ph / 2 - ts.y / 2),
               imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, 1)), line)
     end
 end
