@@ -1207,7 +1207,7 @@ end
 --   checkpoint       -> driveCp (чекпоинт сервера, если есть)
 -- Каждый кадр зовём driveTick(). При свёрнутом окне (кадры почти не идут)
 -- ведение продолжает резервный тик из ev.onSendVehicleSync.
-local function driveThread()
+function driveThread()
     if st.dbg_no_thread then
         print("[MachinistByYaroRage] driveThread пропущен (dbg_no_thread=1)")
         drive.tickThread = nil
