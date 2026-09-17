@@ -4,7 +4,7 @@
 local M = {}
 
 M.script_name = "MachinistByYaroRage"
-M.version = "0.6.8"
+M.version = "0.9.6"
 
 -- getWorkingDirectory() возвращает путь БЕЗ завершающего разделителя
 -- (например, "...\moonloader"), поэтому добавляем "\\" явно — иначе пути
@@ -60,6 +60,7 @@ M.state = {
     last_dist = -1,
     last_dist_time = 0,
     speed_est = 0,            -- оценка скорости (м/с) по убыванию дистанции
+    speed_est_at = 0,         -- v0.9.6: WallClock последней оценки (мс), затухание 2.5 с
     use_game_speed = false,   -- НЕ используется (v0.5.7): нативный getCarSpeed
                               -- давал фриз ~1 сек на этом движке; скорость всегда
                               -- берётся из оценки по дистанции. Поле оставлено для
@@ -76,6 +77,7 @@ M.state = {
 
     info_timer = "",
     info_timer_sec = nil,     -- секунды из InformationTimer (для штрафа превышения)
+    info_timer_until = 0,     -- v0.9.6: unix-момент окончания info_timer (0 = нет)
     overspeed_fine = false,   -- сервер запустил таймер штрафа за превышение
     overspeed_timer = 0,      -- unix-момент окончания таймера штрафа (0 = нет)
     last_rx_text = "",
@@ -348,6 +350,7 @@ function M.reset()
     s.in_cab = false
     s.info_timer = ""
     s.info_timer_sec = nil
+    s.info_timer_until = 0
     s.overspeed_fine = false
     s.overspeed_timer = 0
     s.need_go = false
@@ -361,6 +364,7 @@ function M.reset()
     s.last_dist = -1
     s.last_dist_ms = 0
     s.speed_est = 0
+    s.speed_est_at = 0
 end
 
 return M

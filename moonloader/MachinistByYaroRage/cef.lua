@@ -181,12 +181,17 @@ function M.parse_state_text(txt)
         if n then fields.money = tonumber(n) end
     end
 
-    -- таймер-подсказка: InformationTimer["ќстановитесь на станции",25,0]
+    -- таймер-подсказка: InformationTimer ["ќстановитесь на станции",25,0]
     -- v0.7.6: таймер штрафа за превышение (Ђ”величьте скорость до штрафаї, N
     -- секунд) шлЄт и число Ч сохран€ем его в info_timer_sec дл€ режима
     -- Ђѕревышать скоростьї.
-    local info, info_sec = txt:match('InformationTimer%[?"([^"]+)"%s*,%s*(%-?%d+)')
-    if not info then info = txt:match('InformationTimer%[?"([^"]+)"') end
+    -- v0.9.6: –≈јЋ№Ќџ… формат пакета Ч ЂInformationTimer ["...",N,0]ї: между
+    -- именем и скобкой стоит ѕ–ќЅ≈Ћ, а строки пакета склеены переводом строки
+    -- (\n). —тарый паттерн требовал кавычку сразу после ЂInformationTimerї, не
+    -- находил таймер вообще (f.info_timer ¬—≈√ƒј nil) Ч поэтому ни штраф за
+    -- превышение, ни команда остановки на станции не работали.
+    local info, info_sec = txt:match('InformationTimer%s*%[%s*"([^"]+)"%s*,%s*(%-?%d+)')
+    if not info then info = txt:match('InformationTimer%s*%[%s*"([^"]+)"') end
     if info then
         fields.info_timer = info
         if info_sec then fields.info_timer_sec = tonumber(info_sec) end

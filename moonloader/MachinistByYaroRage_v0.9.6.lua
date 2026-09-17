@@ -1,20 +1,27 @@
--- MachinistByYaroRage v0.9.5
--- v0.9.5 Ч Ѕ≈«Ќј“»¬Ќџ… √≈…“ ѕќ≈«ƒј (фикс фризов в обычных машинах):
--- нативный isCharInAnyTrain из driveTick полностью убран (на MoonRage каждый нативный
--- game-вызов вешает поток SAMP на ~900-1000 мс, и даже 5 вызовов/с в любой машине
--- давали посто€нные фризы). √ейт автопилота Ч безнативный CEF-детект inCabNow() по
--- свежим RX-пакетам интерфейса 'Machinist'; в обычной машине пакетов нет Ч нативных
--- вызовов ноль, игра не фризит.
+-- MachinistByYaroRage v0.9.6
+-- v0.9.6 Ч ѕќЋЌќ—“№ё Ѕ≈«Ќј“»¬Ќџ…  јƒ–ќ¬џ… ѕ”“№ (фикс фризов ¬ ѕќ≈«ƒ≈) и рабоча€
+-- логика серверных таймеров:
+--   1) из driveTick убраны ¬—≈ нативные game-вызовы (storeCarCharIsInNoSave,
+--      getCarSpeed, getCharCoordinates, getDistanceBetweenCoords3d, setTrainSpeed) Ч
+--      на MoonRage каждый такой вызов вешает поток SAMP на ~900-1000 мс, поэтому
+--      Ђпри по€влении поезда всЄ безбожно лагалої. —корость считаетс€ по убыванию
+--      дистанции setStation (st.speed_est, пакет раз в секунду), дистанци€ Ч
+--      st.station_dist, газ/тормоз/keysData пишутс€ напр€мую (клавиши + пам€ть);
+--   2) починен парсер InformationTimer: реальный формат ЂInformationTimer ["...",N,0]ї
+--      содержит пробел и перевод строки, старый паттерн их не допускал и f.info_timer
+--      был всегда nil Ч таймеры штрафа/остановки не работали. “еперь храним дедлайн;
+--   3) станци€: всю дорогу едем Ђв полї (максимум вилки), у станции Ч позднее
+--      плавное торможение по физической кривой, без Ђползани€ї 1 км/ч за 50 м.
 -- јвтопилот машиниста метро (Radmir CRMP).
 -- ѕерсонаж уже сидит в поезде и Ќ≈ выходит: смены идут кругами
 -- (—оюзна€ <-> Ѕольнична€), автопилот только ведЄт состав.
--- ”правление идЄт Ќј“»¬Ќќ по полной логике рабочего mashinist.lua (порт всего
--- ведущего цикла): газ = setGameKeyState(16,255), тормоз = setGameKeyState(14,255)
--- + writeMemory(0xB73458+0x1C), точна€ остановка = setTrainSpeed(car, spd/1.1-1),
--- а направление считаетс€ по знаку реальной скорости (getCarSpeed) и пишетс€ в
+-- ”правление идЄт Ѕ≈«Ќј“»¬Ќќ по логике рабочего mashinist.lua: газ =
+-- setGameKeyState(16,255), тормоз = setGameKeyState(14,255) + writeMemory(0xB73458+0x1C),
+-- а направление считаетс€ по знаку оценЄнной скорости (st.speed_est) и пишетс€ в
 -- keysData исход€щего vehicle sync (0x08 accel вперЄд / 0x20 decel назад / 0 стоп).
--- √ейт всего блока Ч нативный isCharInAnyTrain(PLAYER_PED): вне поезда скрипт
--- Ќ≈ трогает ни клавиши, ни keysData (иначе в обычном авто не заводилс€ двигатель).
+-- √ейт всего блока Ч безнативный CEF-детект inCabNow(): вне поезда (в обычной машине)
+-- пакетов интерфейса 'Machinist' нет, скрипт не трогает ни клавиши, ни keysData, ни
+-- нативные вызовы (иначе в обычном авто не заводилс€ двигатель и были фризы).
 -- CEF-команда OnPlayerClientSideKey на Radmir не двигает поезд, поэтому не
 -- используетс€. –аботает при свЄрнутой игре (клавиши пишутс€ в пам€ть напр€мую).
 --
@@ -173,7 +180,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("0.9.5")
+script_version("0.9.6")
 script_author("YaroRage")
 
 require "moonloader"
@@ -785,6 +792,7 @@ function onReceivePacket(id, bs)
                 local est = (st.station_dist - f.station_dist) / dt
                 if est < 0 then est = 0 end
                 st.speed_est = est
+                st.speed_est_at = nowMs
                 st.last_dist_ms = nowMs
             end
         end
@@ -798,49 +806,46 @@ function onReceivePacket(id, bs)
     if f.money then
         st.money = f.money
     end
+    -- v0.9.6: “ј…ћ≈–џ. ѕарсер cef.lua теперь понимает реальный формат
+    -- ЂInformationTimer ["...",N,0]ї (пробел и перевод строки между именем и
+    -- скобками) Ч раньше паттерн требовал кавычку сразу после ЂInformationTimerї
+    -- и f.info_timer был ¬—≈√ƒј nil, поэтому таймеры не работали.
+    -- —ервер шлЄт текстовый таймер ќƒ»Ќ раз с полным остатком секунд, а следом
+    -- идут пустые InformationTimer: активность считаем по дедлайну
+    -- info_timer_until, а не по последнему пакету (иначе команда Ђтер€ласьї
+    -- через секунду и состав не останавливалс€ на станции).
     if f.info_timer then
         st.info_timer = f.info_timer
         st.info_timer_sec = f.info_timer_sec
+        -- ≈сли сервер не приложил число секунд Ч считаем 15 с, иначе команда
+        -- вообще не станет активной (дедлайн не выставитс€).
+        local sec = f.info_timer_sec
+        if not sec or sec <= 0 then sec = 15 end
+        st.info_timer_until = os.time() + sec
+    elseif st.info_timer ~= "" and st.info_timer_until and st.info_timer_until < os.time() then
+        -- дедлайн истЄк, пришЄл пустой InformationTimer Ч чистим подсказку
+        st.info_timer = ""
+        st.info_timer_sec = nil
+        st.info_timer_until = 0
     end
-    -- v0.8.1: таймеры штрафа делим на ƒ¬ј разных (оба содержат Ђштрафї):
-    --   Ђ—низьте скорость до штрафаї, N  Ч превышение вилки, нужно “ќ–ћќ«»“№;
-    --   Ђ”величьте скорость до штрафаї, N Ч поезд стоит/едет медленно, нужно
-    --     –ј«√ќЌя“№—я (серверный сигнал Ђпоехали!ї, чаще всего на станции:
-    --     после посадки сервер ждЄт, что состав уедет).
-    -- –аньше оба таймера шли при overspeed_fine, поэтому на Ђ”величьте скорость
-    -- до штрафаї автопилот ЂмЄртвої сто€л (нейтраль/тормоз), сервер повтор€л
-    -- таймер 15->1 и снимал состав с маршрута. “еперь Ђ”величьте скоростьї
-    -- выставл€ем как st.need_go (нужно –ј«√ќЌя“№—я), а штраф превышени€ Ч
-    -- только по Ђ—низьте скорость до штрафаї. ќба обрабатываем даже без режима
-    -- Ђѕревышать скоростьї (станции работают и без него).
-    -- “аймер Ђ—низьте скоростьї обновл€ем, только если пришЄл ѕ≈–¬џ…/меньший
-    -- остаток либо предыдущий таймер уже истЄк (защита от повтора одного числа).
+
+    -- Ђ”величьте скорость до штрафаї Ч сервер требует –ј«√ќЌя“№—я (таймер
+    -- снимаем: штраф превышени€ и требование разгона взаимоисключающие).
     st.need_go = false
-    if f.info_timer then
-        if f.info_timer:find("—низьте скорость", 1, true) then
-            -- v0.8.3: таймер штрафа признаЄм ¬—≈√ƒј Ч сервер штрафует за
-            -- физическое превышение вилки даже при обычной езде (уклон, спуск,
-            -- инерци€), а значит скрипт об€зан планово сбросить скорость,
-            -- а не игнорировать подсказку, пока включЄн только режим
-            -- Ђѕревышать скоростьї.
-            local sec = f.info_timer_sec or 15
-            local remaining = st.overspeed_timer > 0 and (st.overspeed_timer - os.time()) or 0
-            if st.overspeed_timer == 0 or st.overspeed_timer <= os.time() or sec < remaining then
-                st.overspeed_fine = true
-                st.overspeed_timer = os.time() + sec
-                print(string.format(
-                    '[MachinistByYaroRage] FINE: найдено Ђ—низьте скорость до штрафаї, остаток %d c',
-                    sec))
-            end
-        elseif f.info_timer:find("”величьте скорость", 1, true) then
-            -- сервер требует разгона: снимаем штраф превышени€ и включаем need_go
-            st.need_go = true
-            st.overspeed_fine = false
-            st.overspeed_timer = 0
-        else
-            st.overspeed_fine = false
-            st.overspeed_timer = 0
-        end
+    if f.info_timer and f.info_timer:find("”величьте скорость", 1, true) then
+        st.need_go = true
+        st.overspeed_fine = false
+        st.overspeed_timer = 0
+    end
+    -- Ђ—низьте скорость до штрафаї Ч плановый плавный сброс к вилке за остаток
+    -- таймера. ‘лаг Ќ≈ сбрасываем по любому другому таймеру (раньше else-ветка
+    -- гасила overspeed_fine между пакетами, и торможение не срабатывало).
+    if f.info_timer and f.info_timer:find("—низьте скорость", 1, true) then
+        local sec = f.info_timer_sec or 15
+        st.overspeed_fine = true
+        st.overspeed_timer = os.time() + sec
+        print(string.format(
+            '[MachinistByYaroRage] FINE: Ђ—низьте скорость до штрафаї, остаток %d c', sec))
     end
     -- v0.6.7: всегда-работающий мини-дамп Machinist-состо€ни€ (раз в 5 сек)
     do
@@ -898,17 +903,19 @@ local function inCabNow()
 end
 
 -- ---------- ¬едение поезда (порт из рабочего mashinist.lua) ----------
--- Ќа Radmir состав двигаетс€ “ќЋ№ ќ нативными средствами:
---   1) газ Ч setGameKeyState(16,255) на кадр, пока скорость ниже середины
---      вилки setSpeed (как в mashinist.lua: press_gas там не вызываетс€,
---      writeMemory на газ не нужен);
---   2) тормоз Ч setGameKeyState(14,255) + writeMemory(0xB73458+0x1C,1,255,false);
---   3) точна€ остановка Ч setTrainSpeed(car, max(0, spd/1.1-1));
+-- v0.9.6: кадровый путь ѕќЋЌќ—“№ё безнативный. Ќикаких storeCarCharIsInNoSave /
+-- getCarSpeed / getCharCoordinates / getDistanceBetweenCoords3d / setTrainSpeed Ч
+-- на MoonRage каждый нативный game-вызов вешает поток SAMP на ~900-1000 мс
+-- (это и давало Ђбезбожные лагиї в поезде). ƒл€ движени€ это и не нужно:
+--   1) газ Ч setGameKeyState(16,255) на кадр, пока скорость ниже цели;
+--   2) тормоз Ч setGameKeyState(14,255) + writeMemory(0xB73458+0x1C,1,lvl,false);
+--      отпускание тормоза Ч те же вызовы со значением 0;
+--   3) скорость Ч оценка st.speed_est (м/с) по убыванию серверной дистанции
+--      setStation (пакет раз в секунду), дистанци€ Ч st.station_dist;
 --   4) направление сервер читает из keysData исход€щего vehicle sync:
 --      бит 0x08 (accel) когда состав движетс€ вперЄд, 0x20 (decel) назад,
---      0 Ч стоит. key считаетс€ по «Ќј ” реальной скорости (getCarSpeed) Ч
---      это критично: поезд начинает ехать только когда в sync виден accel.
--- ¬есь автопилот гейтитс€ Ќј“»¬Ќќ… isCharInAnyTrain(PLAYER_PED): вне поезда
+--      0 Ч стоит. key считаетс€ по «Ќј ” оценЄнной скорости (st.speed_est).
+-- ¬есь автопилот гейтитс€ безнативным CEF-детектом inCabNow(): вне поезда
 -- скрипт Ќ≈ трогает ни клавиши, ни keysData Ч поэтому в обычном автомобиле
 -- двигатель заводитс€ нормально (в v0.6.5 releaseKeysNative() каждые 150 мс
 -- обнул€л W/S и блокировал запуск двигател€).
@@ -939,6 +946,21 @@ local function releaseKeysNative()
     pcall(writeMemory, 0xB73458 + 0x20, 1, 0, false)
     pcall(writeMemory, 0xB73458 + 0x1C, 1, 0, false)
     pcall(setGameKeyState, 16, 0)
+    pcall(setGameKeyState, 14, 0)
+end
+
+-- v0.9.6: тормоз с заданным уровнем (0..255) Ч игрова€ клавиша S + пр€ма€ запись
+-- в пам€ть (как press_brake в mashinist.lua, но с плавным уровнем).
+local function setBrakeLevel(level)
+    if level < 0 then level = 0 end
+    if level > 255 then level = 255 end
+    pcall(writeMemory, 0xB73458 + 0x1C, 1, level, false)
+    pcall(setGameKeyState, 14, level)
+end
+
+-- v0.9.6: полностью отпустить тормоз.
+local function releaseBrake()
+    pcall(writeMemory, 0xB73458 + 0x1C, 1, 0, false)
     pcall(setGameKeyState, 14, 0)
 end
 
@@ -989,546 +1011,213 @@ end
 
 -- ѕоток автопилота Ч порт цикла из mashinist.lua:
 --   bot.state        -> optEnabled.v (наше включение автопилота)
---   isCharInAnyTrain -> drive.in_train (нативный гейт)
+--   inCabNow()       -> drive.in_train (безнативный CEF-гейт кабины)
 --   bot.distance     -> st.station_dist (дистанци€ до станции из setStation)
 --   bot.speed.min/max-> st.speed_lo/st.speed_hi (вилка setSpeed, км/ч)
 --   checkpoint       -> driveCp (чекпоинт сервера, если есть)
 -- ÷икл идЄт  ј∆ƒџ… кадр (wait(0)), как в эталоне, а не по tap_interval Ч
 -- газ/тормоз должны держатьс€ посто€нно, а не раз в 150-450 мс.
 -- “»  ј¬“ќѕ»Ћќ“ј Ч ќƒ»Ќ ѕ–ќ’ќƒ ¬≈ƒ”ў≈√ќ ÷» Ћј (порт из mashinist.lua).
--- –аньше весь цикл жил в lua_thread на wait(0): свЄрнутое окно почти не
--- рисует кадры, поток просыпалс€ ~1 раз/сек, и состав Ђзасыпалї (газ/тормоз
--- не нажимались, keysData не обновл€лс€). “еперь тик Ч отдельна€ функци€:
--- еЄ зовЄт кадровый поток (driveThread) и, когда кадров давно не было
--- (свЄрнута€ игра/фриз), резервно ev.onSendVehicleSync Ч сетевые пакеты идут
--- всегда, поэтому ведение и keysData в свЄрнутой игре продолжаютс€.
+-- v0.9.6: полностью Ѕ≈«Ќј“»¬Ќџ… кадровый путь. –аньше каждый кадр звались
+-- storeCarCharIsInNoSave / getCarSpeed / getCharCoordinates /
+-- getDistanceBetweenCoords3d / setTrainSpeed; на движке MoonRage  ј∆ƒџ… такой
+-- вызов вешает поток SAMP на ~900-1000 мс Ч поэтому Ђпри по€влении поезда всЄ
+-- безбожно лагалої. “еперь все данные берутс€ из CEF-пакетов (скорость Ч
+-- st.speed_est по убыванию дистанции setStation, дистанци€ Ч st.station_dist,
+-- команды Ч таймеры InformationTimer), а газ/тормоз/keysData пишутс€ напр€мую.
 local function driveTick()
     if st.dbg_no_thread then return end
     drive._lastTickMs = wallClockMs()
-    local timer = os.clock()
-    local lastDistance = 0
-    -- ѕризнак Ђгаз нажат в этом тикеї (ставит pressGasNative): на отправлении
-    -- со станции состав ещЄ стоит (speed=0), но ведущему нужен accel-бит,
-    -- иначе сервер не начинает движение при редких синках (свЄрнутое окно).
     drive._gasPressed = false
-        -- √Ћј¬Ќќ≈: не трогаем ничего, когда игрок вне поезда. ¬етка Ђне в
-        -- поездеї Ќ≈ зовЄт releaseKeysNative()/writeMemory Ч иначе в обычном
-        -- автомобиле каждые 150 мс обнул€ютс€ W/S и двигатель не заводитс€.
-        local inTrain = inTrainNow()
-        drive.in_train = inTrain
-        if not inTrain then
-            if drive.phase == "DRIVE" or drive.phase == "STOP" then
-                drive.phase = "IDLE"
-            end
-            drive.keys = 0
-            drive.lastAction = u8"вне поезда"
-        else
-            drive.phase = "DRIVE"
-            drive.lastAction = u8"ведение"
-            -- –еальна€ скорость состава. Ќативные вызовы в эталоне работают
-            -- без фризов (mashinist.lua сам так ездит), поэтому переносим их
-            -- как есть: car это локомотив под игроком.
-            local ok, car = pcall(storeCarCharIsInNoSave, PLAYER_PED)
-            local speed = 0
-            if ok and type(car) == "number" and car > 0 then
-                local ok2, spd = pcall(getCarSpeed, car)
-                if ok2 and type(spd) == "number" then speed = spd * 3.67 end
-            end
-            -- v0.8.1: снимаем серверное требование Ђ”величьте скорость до штрафаї,
-            -- как только поезд реально поехал (скорость вошла в вилку).
-            if st.need_go and speed >= math.max(5, (st.speed_lo or 0) * 0.8) then
-                st.need_go = false
-            end
-            -- v0.8.1: снимаем флаги сто€нки при начале движени€, чтобы не
-            -- Ђзастр€тьї в зацикленном прибытии на станцию.
-            if speed >= 10 then
-                drive.station_arrived = false
-                drive.station_arrive_time = nil
-                drive.station_left = false
-            end
 
-            -- ƒистанци€ до цели: если сервер выставил чекпоинт Ч до него,
-            -- иначе остаток пути до станции из setStation (st.station_dist).
-            local x, y, z = 0, 0, 0
-            local ok3, cx, cy, cz = pcall(getCharCoordinates, PLAYER_PED)
-            if ok3 then x, y, z = cx, cy, cz end
-            local distance
-            if driveCpFinish or (driveCp.x ~= 0 or driveCp.y ~= 0 or driveCp.z ~= 0) then
-                local okd, d = pcall(getDistanceBetweenCoords3d, x, y, z, driveCp.x, driveCp.y, driveCp.z)
-                distance = okd and math.max(0, d - 1) or 99999
-            else
-                distance = st.station_dist and st.station_dist >= 0 and st.station_dist or 99999
-            end
-
-            -- v0.7.4: цель вне станции Ч ћј —»ћ”ћ вилки минус 1 км/ч; при
-            -- обнаружении станции, если скоростной режим не запрещает движение
-            -- (speed_code == 1 Ђгазї или код ещЄ не пришЄл), едем на —–≈ƒЌ≈…
-            -- скорости диапазона (lo + (hi-lo)/2) Ч как в MACH-диагностике.
-            -- Fallback: если вилка ещЄ не пришла (hi<=0) Ч берЄм lo, иначе 40.
-            local target = (st.speed_hi and st.speed_hi > 0) and (st.speed_hi - 1)
-                or ((st.speed_lo and st.speed_lo > 0) and st.speed_lo or 40)
-
-            -- «она станции: считаем торможение “ќЋ№ ќ когда станци€ близко.
-            -- v0.7.9: убрана хрупка€ эвристика (station_dist - distance в 0..35):
-            -- чекпоинт сервера стоит пр€мо на станции, поэтому разница всегда ~0,
-            -- nearStation было ¬—≈√ƒј true и режим превышени€ не работал вовсе.
-            -- “еперь: финиш-чекпоинт -> зона 500 м, чекпоинта нет (setStation)
-            -- -> зона 300 м, обычный чекпоинт на перегоне -> false (едем выше вилки).
-            local nearStation = false
-            if driveCpFinish then
-                nearStation = distance < 500
-            elseif driveCp.x == 0 and driveCp.y == 0 and driveCp.z == 0 then
-                nearStation = distance < 300
-            end
-
-            -- v0.7.4: при обнаружении станции держим допустимую скорость = среднюю
-            -- диапазона, если скоростной режим не запрещает (speed_code не Ђстопї
-            -- и не Ђтормозї). —редн€€ = lo + (hi-lo)/2 (как в MACH-диагностике).
-            -- v0.8.2: умный автопилот Ч физика торможени€ и таймеры сервера.
-            -- »з CEF-пакетов интерфейса 'Machinist' известна вс€ картина:
-            --   setSpeed("39-45",2) Ч вилка допустимой скорости и код;
-            --   setStation("Ѕольнична€",697,1) Ч станци€ и ƒ»—“јЌ÷»я до неЄ;
-            --   InformationTimer["ќжидайте отправлени€",15] и др. Ч таймеры.
-            -- —крипт по реальному замедлению состава считает тормозной путь
-            -- (за сколько метров какую скорость можно погасить), знает, успеет
-            -- ли остановитьс€ на станции, держит тормозную кривую и потому
-            -- маршрут проходитс€ максимально быстро и без штрафов.
-            -- v0.8.4: на станционной зоне цель Ќ≈ занижаем до середины вилки Ч
-            -- состав должен ехать на максимуме (hi-1), а плавность подъезда
-            -- к станции обеспечивает физическа€ крива€ vStop ниже. –аньше
-            -- целева€ была серединой диапазона (lo + (hi-lo)/2), из-за чего
-            -- при широких вилках (например 2..150) состав полз на ~76 км/ч
-            -- всю 800-метровую зону и Ђвообще не превышал скоростьї.
-            -- Ђ—танци€ впередиї: штатна€ зона (чекпоинт) Ћ»Ѕќ серверна€
-            -- дистанци€ setStation меньше 800 м. –аньше торможение начиналось
-            -- только в зоне 500/300 м Ч при 130 км/ч (путь ~326 м) и зоне 300 м
-            -- без чекпоинта состав не успевал. “еперь тормозим по кривой —–ј«”.
-            local stationAhead = nearStation
-                or (st.station_dist and st.station_dist >= 0 and st.station_dist < 800)
-            -- ‘изика: замедление состава a (м/с^2), запас пути brakeMargin (м).
-            local brakeA = (st.brake_decel and st.brake_decel > 0) and st.brake_decel or 2.0
-            local brakeMargin = (st.brake_margin and st.brake_margin >= 0) and st.brake_margin or 6
-            -- v0.8.5: ѕЋј¬Ќќ≈ торможение Ђкак у живого игрокаї.
-            -- –аньше крива€ строилась на максимальном замедлении (brake_flag
-            -- 2.0 м/с^2): состав до последнего нЄсс€ на целевой, потом резко
-            -- Ђвалилс€ї тормозом 180..255 Ч жЄстко и палевно. “еперь две кривые:
-            --   vLim  Ч  ќћ‘ќ–“Ќјя (aComf ~55% от реального замедлени€):
-            --           скорость, при которой состав плавно погасит к станции.
-            --           ќграничение Ђподкрадываетс€ї с ~600 м и скорость т€нетс€
-            --           к нулю у самой станции Ч как едет человек.
-            --   vHard Ч ∆®—“ јя (max замедление brakeA): насто€щий предел,
-            --           при превышении которого встать уже не успеем. Ёкстренный
-            --           тормоз примен€етс€ только здесь и при дедлайне сервера.
-            local stationKnown = st.station_dist and st.station_dist >= 0
-            -- v0.8.4: цель тормозной кривой Ч —“јЌ÷»я, а не чекпоинт-маркер.
-            -- —ервер ставит race checkpoint (маркер) ѕ≈–≈ƒ станцией (например
-            -- на входной стрелке), и если гасить скорость по дистанции до
-            -- маркера Ч состав останавливаетс€ за 300+ метров до станции.
-            -- ѕока серверна€ дистанци€ станции больше дистанции до маркера,
-            -- кривую строим от станции.
-            local brakeDist = stationKnown and math.max(distance, st.station_dist) or distance
-            local aComf = brakeA * 0.75
-            local vLimMs = math.sqrt(math.max(0, 2 * aComf
-                * math.max(0, (stationAhead and brakeDist or 99999) - brakeMargin)))
-            local vLim = vLimMs * 3.6
-            local vHardMs = math.sqrt(math.max(0, 2 * brakeA
-                * math.max(0, (stationAhead and brakeDist or 99999) - brakeMargin)))
-            local vHard = vHardMs * 3.6
-            -- v0.9.0: ”¬≈–≈ЌЌџ… подъезд к станции. ¬ последних 70 м перед
-            -- триггером держим минимум ~22 км/ч (раньше последние ~30 м состав
-            -- полз на 8 км/ч и еле доезжал до маркера). ѕоднимаем эффективный
-            -- предел кривой effLim: комфортна€ ветка тормозит не ниже effLim,
-            -- ветка разгона едет на effLim. ѕотолок Ч vHard: жЄстка€ крива€
-            -- по-прежнему гарантирует, что заглушитьс€ состав успеет.
-            local cruiseMin = 0
-            if stationKnown and st.station_dist > 5 and st.station_dist <= 70 then
-                cruiseMin = 22
-            end
-            local effLim = math.max(vLim, math.min(cruiseMin, vHard))
-            local speedMsNow = math.max(0, speed / 3.6)
-            local brakePathNow = (speedMsNow * speedMsNow) / (2 * brakeA) + brakeMargin
-            -- —ерверные таймеры: пока висит Ђќжидайте отправлени€ї или Ђ—адитесь
-            -- в поездї с остатком Ч стоим ровно столько, сколько требует сервер
-            -- (раньше Ч фиксированные 5 секунд station_dwell).
-            local timerText = st.info_timer or ""
-            local stayTimed = (timerText:find("ќжидайте отправлени€", 1, true)
-                or timerText:find("—адитесь в поезд", 1, true))
-                and st.info_timer_sec and st.info_timer_sec > 0
-            if stationAhead then
-                drive.stop_preview = brakeDist - brakePathNow
-                if timer < os.clock() then
-                    lastDistance = distance
-                    timer = os.clock() + 1
-                end
-                -- v0.8.6: ќ—“јЌј¬Ћ»¬ј≈ћ—я окончательно только по серверной команде
-                -- Ђќстановитесь на станцииї (либо состав уже стоит пр€мо в самом
-                -- триггере станции Ч запасной случай при глюке). –аньше прибытие
-                -- считалось по радиусу 15 м от станции/маркера, и состав вставал
-                -- за дес€ток метров до триггера Ч станци€ не защитывалась.
-                -- v0.9.3: команду Ђќстановитесь на станцииї признаЄм даже если
-                -- сервер не прислал число секунд (info_timer_sec равен 0 или
-                -- отсутствует) Ч иначе Ђне ловилс€ї триггер окончательной
-                -- остановки и состав без stopCmd долго болталс€ у станции.
-                local stopCmd = timerText:find("ќстановитесь на станции", 1, true)
-                -- v0.8.8: точка остановки смещена на ~20 м «ј маркер станции.
-                --  огда нос состава вошЄл в триггер (station_dist <= 5),
-                -- начинаем отсчЄт ѕ–ќ…ƒ≈ЌЌќ√ќ пути по координатам и встаЄм
-                -- только после 20 м за маркером (раньше состав останавливалс€
-                -- пр€мо на маркере). ѕоследние метры Ч на совсем малой
-                -- скорости, с плавным дотормаживанием.
-                local passLen = 0
-                if stationKnown and st.station_dist <= 5 then
-                    local curX, curY = x, y
-                    if drive._passMk then
-                        local dx = curX - (drive._passPx or curX)
-                        local dy = curY - (drive._passPy or curY)
-                        drive._passLen = (drive._passLen or 0) + math.sqrt(dx * dx + dy * dy)
-                        drive._passPx, drive._passPy = curX, curY
-                        passLen = drive._passLen
-                    else
-                        drive._passMk = true
-                        drive._passLen = 0
-                        drive._passPx, drive._passPy = curX, curY
-                    end
-                else
-                    drive._passMk = nil
-                    drive._passLen = 0
-                end
-                local atTrigger = (stationKnown and st.station_dist <= 8
-                    and passLen >= 20) or (not stationKnown and distance <= 3)
-                -- v0.8.7: штраф за превышение вилки обрабатываем и на станции.
-                -- –аньше станционна€ ветка Ђсъедалаї таймер Ђ—низьте скорость
-                -- до штрафаї: на подъезде состав держалс€ выше вилки (code=2),
-                -- и сервер штрафовал (получен реальный штраф).
-                local fineMsSt = (st.speed_hi and st.speed_hi > 1)
-                    and ((st.speed_hi - 1) / 3.6) or nil
-                local fineActiveSt = st.overspeed_fine
-                    and st.overspeed_timer > os.time()
-                local speedMsSt = math.max(0, speed / 3.6)
-                local fineLeftSt = fineActiveSt
-                    and math.max(0, st.overspeed_timer - os.time()) or 0
-                local vExcessSt = fineLeftSt > 0
-                    and math.max(0, speedMsSt - (fineMsSt or 9999)) or 0
-                local aNeededSt = vExcessSt > 0
-                    and ((vExcessSt / fineLeftSt) * 1.15) or 0
-                -- v0.9.0: —“–ј’ќ¬ ј от штрафа Ђ—низьте скоростьї. “ормозим
-                -- —–ј«” при любом превышении вилки под активным таймером
-                -- (раньше при малом aNeeded (<0.45) тик пропускалс€ Ч скорость
-                -- висела над вилкой до конца таймера и сервер штрафовал).
-                -- insHardSt Ч экстренный режим: когда за оставшиес€ секунды
-                -- даже максимальным тормозом не успеть в вилку либо до конца
-                -- таймера осталось пара секунд с превышением.
-                local fineBrakeSt = fineActiveSt and vExcessSt > 0.3
-                -- v0.9.3: как и в DRIVE-ветке Ч экстренный сброс раньше и
-                -- в последние минимум 2 секунды таймера.
-                local insHardSt = fineActiveSt and vExcessSt > 0.3 and (
-                    vExcessSt / math.max(0.01, fineLeftSt) >= brakeA * 0.7
-                    or (fineLeftSt <= math.max(2, (st.overspeed_guard or 1)) and vExcessSt >= 0.5))
-                if stopCmd and speed < 5 then
-                    --  оманда сервера висит, состав уже погасил скорость Ч сто€нка.
-                    if not drive.station_arrived then
-                        drive.station_arrived = true
-                        drive.station_arrive_time = os.time()
-                    end
-                    local dwellLeft
-                    if stopCmd then
-                        --  оманда Ђќстановитесь на станцииї ещЄ активна: стоим,
-                        -- пока сервер не сменит еЄ на Ђќжидайте отправлени€ї.
-                        dwellLeft = 60
-                    elseif stayTimed then
-                        dwellLeft = st.info_timer_sec
-                    else
-                        local dwell = st.station_dwell or 5
-                        dwellLeft = dwell - (os.time() - (drive.station_arrive_time or os.time()))
-                    end
-                    -- —траховка от Ђзастр€вшегої таймера сервера: после 45 секунд
-                    -- сто€нки отправл€емс€ сами (дл€ конечной станции Ч только по
-                    -- команде сервера need_go).
-                    dwellLeft = math.min(dwellLeft,
-                        45 - (os.time() - (drive.station_arrive_time or os.time())))
-                    -- ѕора трогатьс€: сервер требует скорость (need_go), либо
-                    -- таймер ожидани€ закончилс€/не задан (но не уезжаем сами
-                    -- с финишной станции круга).
-                    if st.need_go or (not driveCpFinish and not (dwellLeft > 0)) then
-                        -- ќтправление: тормоз 0, фаза DRIVE, газ до цели.
-                        drive.station_arrived = false
-                        drive.station_arrive_time = nil
-                        drive.phase = "DRIVE"
-                        pcall(writeMemory, 0xB73458 + 0x1C, 1, 0, false)
-                        pcall(setGameKeyState, 14, 0)
-                        local goTarget = (st.speed_hi and st.speed_hi > 0)
-                            and (st.speed_hi - 1)
-                            or ((st.speed_lo and st.speed_lo > 0) and st.speed_lo or 40)
-                        if speed < goTarget then pressGasNative() end
-                        drive.lastAction = st.need_go
-                            and u8"отправление (сервер требует скорость)"
-                            or u8"отправление после сто€нки"
-                    else
-                        -- —то€нка: лЄгкий тормоз удерживает состав; врем€ сто€нки Ч
-                        -- из таймера сервера (обновл€етс€ каждым пакетом) или из
-                        -- настроек station_dwell.
-                        drive.phase = "STOP"
-                        pcall(writeMemory, 0xB73458 + 0x1C, 1, 30, false)
-                        pcall(setGameKeyState, 14, 30)
-                        drive.lastAction = u8"сто€нка на станции (ост. " ..
-                            tostring(math.max(0, math.ceil(dwellLeft))) .. u8" с)"
-                    end
-                elseif not stopCmd and atTrigger and speed < 5 then
-                    -- ќказались пр€мо в триггере станции, а команда остановки так
-                    -- и не пришла (глюк сервера) Ч встаЄм и ждЄм отправлени€.
-                    if not drive.station_arrived then
-                        drive.station_arrived = true
-                        drive.station_arrive_time = os.time()
-                    end
-                    local dwellLeft = math.min(st.station_dwell or 5, 45)
-                    if st.need_go or (not driveCpFinish and not (dwellLeft > 0)) then
-                        drive.station_arrived = false
-                        drive.station_arrive_time = nil
-                        drive.phase = "DRIVE"
-                        pcall(writeMemory, 0xB73458 + 0x1C, 1, 0, false)
-                        pcall(setGameKeyState, 14, 0)
-                        local goTarget = (st.speed_hi and st.speed_hi > 0)
-                            and (st.speed_hi - 1)
-                            or ((st.speed_lo and st.speed_lo > 0) and st.speed_lo or 40)
-                        if speed < goTarget then pressGasNative() end
-                        drive.lastAction = u8"отправление после сто€нки"
-                    else
-                        drive.phase = "STOP"
-                        pcall(writeMemory, 0xB73458 + 0x1C, 1, 30, false)
-                        pcall(setGameKeyState, 14, 30)
-                        drive.lastAction = u8"сто€нка в триггере станции (ост. " ..
-                            tostring(math.max(0, math.ceil(dwellLeft))) .. u8" с)"
-                    end
-                elseif (stopCmd or atTrigger) and speed >= 4 then
-                    -- v0.8.8: точка остановки достигнута (проехали 20 м за
-                    -- маркер либо пришла команда сервера), а скорость ещЄ не
-                    -- нулева€ Ч ѕЋј¬Ќќ дотормаживаем слабым тормозом: без
-                    -- резкого рывка и без палевного звука торможени€.
-                    local softBrake = speed >= 60 and 150 or 40
-                    pcall(writeMemory, 0xB73458 + 0x1C, 1, softBrake, false)
-                    pcall(setGameKeyState, 14, softBrake)
-                    drive.lastAction = u8"м€гкое дотормаживание на станции"
-                elseif fineBrakeSt then
-                    -- ѕлавный сброс к вилке (штраф Ђ—низьте скоростьї): уровень
-                    -- тормоза растЄт от Ђигрок долго держит Sї (110) до 255 по
-                    -- требующемус€ замедлению; страховка/конец таймера Ч 255.
-                    local bLevel
-                    if insHardSt or aNeededSt >= 1.8 then
-                        bLevel = 255
-                    else
-                        bLevel = math.floor(130 + math.max(0, math.min(1, (aNeededSt - 0.2) / 2.4)) * 125)
-                    end
-                    pcall(writeMemory, 0xB73458 + 0x1C, 1, bLevel, false)
-                    pcall(setGameKeyState, 14, bLevel)
-                    drive.lastAction = insHardSt
-                        and u8"страховка: экстренный сброс к вилке на станции"
-                        or u8"плавный сброс к вилке на станции (штраф)"
-                elseif speed > vHard + 1 or (stopCmd and speed >= 60) then
-                    -- Ќе успеваем встать даже при максимальном замедлении, либо
-                    -- сервер уже командует Ђќстановитесь на станцииї, а скорость
-                    -- ещЄ далека от нул€ Ч экстренный тормоз (максимальный/200).
-                    local hardStop = stopCmd
-                        and st.info_timer_sec and st.info_timer_sec <= 15
-                    local brakeLevel = hardStop and 255 or 200
-                    pcall(writeMemory, 0xB73458 + 0x1C, 1, brakeLevel, false)
-                    pcall(setGameKeyState, 14, brakeLevel)
-                    if ok and type(car) == "number" and car > 0 then
-                        local vDesired = math.min(speedMsNow, vHardMs)
-                            * (brakeDist / math.max(1, brakePathNow))
-                        if speedMsNow > vDesired + 0.5 then
-                            pcall(setTrainSpeed, car, math.max(0, vDesired - 0.2))
-                        end
-                    end
-                    drive.lastAction = u8"экстренное торможение до станции"
-                elseif speed > effLim + 1 then
-                    -- ѕлавное замедление по комфортной кривой: тормоз м€гко
-                    -- растЄт от 60 к 150 с глубиной превышени€ над effLim Ч как
-                    -- игрок, заранее сбрасывающий скорость на станции. 255 не
-                    -- используем, setTrainSpeed-резерв тоже (слишком резкий).
-                    -- effLim = max(vLim, cruiseMin): у самого триггера не
-                    -- т€немс€ к нулю, а держим уверенный подъезд.
-                    local frac = math.max(0, math.min(1,
-                        (speed - effLim) / math.max(1, vHard - effLim)))
-                    local brakeLevel = math.floor(90 + 110 * frac)
-                    -- v0.8.8: на малой скорости (35 км/ч и ниже) тормоз м€гкий Ч
-                    -- состав плавно дотормаживаетс€ без резкого рывка и без
-                    -- палевного звука тормоза.
-                    if speed < 35 then brakeLevel = math.min(brakeLevel, 60) end
-                    pcall(writeMemory, 0xB73458 + 0x1C, 1, brakeLevel, false)
-                    pcall(setGameKeyState, 14, brakeLevel)
-                    drive.lastAction = u8"плавное торможение до станции"
-                else
-                    -- v0.9.0: ”¬≈–≈ЌЌџ… подъезд к станции. ѕока нет команды
-                    -- Ђќстановитесь на станцииї Ч едем быстро и уверенно: цель
-                    -- effLim (max(vLim, cruiseMin)), поэтому у самого триггера
-                    -- Ќ≈ ползЄм на 8 км/ч, а проходим маркер на ~22 км/ч,
-                    -- ловим серверную команду и плавно доостанавливаемс€.
-                    -- vHard сверху не даЄт разогнатьс€ быстрее, чем реально
-                    -- получитс€ заглушитьс€ у станции.
-                    local allowed = math.min(target, effLim)
-                    -- v0.9.3: ƒќ¬ќƒ ƒќ “–»√√≈–ј. ≈сли команда остановки так и
-                    -- не пришла, а скорость уже упала почти до нул€ до того,
-                    -- как пройдены +20 м за маркер (atTrigger=false) Ч старый
-                    -- код замирал навсегда: allowed стремилс€ к нулю, триггер
-                    -- не защитывалс€, станци€ Ђне ловиласьї. ѕолзЄм вперЄд на
-                    -- 8 км/ч (setTrainSpeed), пока нос не войдЄт в точку
-                    -- останова, и уже там встаЄм на сто€нку.
-                    if not stopCmd and not atTrigger and speed < 1
-                        and stationKnown and st.station_dist and st.station_dist <= 30 then
-                        -- v0.9.4: setTrainSpeed форсит физику поезда в игре -
-                        -- зовЄм не чаще раза в 250 мс, иначе Ђподползаниеї на
-                        -- станции каждый кадр грузило кадровый поток (FPS падал).
-                        local crawlMs = wallClockMs()
-                        if ok and type(car) == "number" and car > 0
-                            and crawlMs - (drive._crawlMs or 0) >= 250 then
-                            drive._crawlMs = crawlMs
-                            pcall(setTrainSpeed, car, 2.2)
-                        end
-                        drive.lastAction = u8"подползание к триггеру станции (20 м)"
-                    elseif speed < allowed then
-                        pressGasNative()
-                        drive.lastAction = (cruiseMin > 0)
-                            and u8"уверенный подъезд к станции"
-                            or u8"разгон"
-                    else
-                        drive.lastAction = u8"выжим/нейтраль на станции"
-                    end
-                    drive._useTarget = allowed
-                end
-            else
-                -- ¬не зоны станции: разгон до обычной цели или режим превышени€.
-                -- v0.8.3: ѕЋјЌќ¬ќ≈ торможение по таймеру штрафа (Ђ—низьте
-                -- скорость до штрафаї). –аньше скрипт ставил цель = вилке и
-                -- ждал последней секунды таймера Ч на 150+ км/ч за 1 секунду
-                -- сбросить физически невозможно, поэтому сервер штрафовал.
-                -- “еперь каждый кадр считаетс€ Ќ≈ќЅ’ќƒ»ћќ≈ замедление: сколько
-                -- м/с^2 нужно, чтобы к моменту окончани€ таймера плавно войти
-                -- в вилку (с запасом x1.15 на неточность физики состава), и
-                -- тормозим ¬≈—№ период штрафного таймера, а не в последний
-                -- момент. ѕлюс ограничен потолок разгона в режиме превышени€:
-                -- выше скорости, которую успеем плавно сбросить обратно в
-                -- вилку за типовое окно таймера (12 сек), не разгон€емс€.
-                drive.stop_preview = 0
-                local useTarget = target
-                -- v0.8.3: предел вилки и активный штраф определ€ем ¬—≈√ƒј,
-                -- независимо от режима Ђѕревышать скоростьї: при физическом
-                -- превышении (уклон/инерци€) таймер штрафа обрабатываетс€
-                -- в любом режиме, иначе штраф сервера гарантирован.
-                local fineMs = (st.speed_hi and st.speed_hi > 1)
-                    and ((st.speed_hi - 1) / 3.6) or nil
-                local activeFine = st.overspeed_fine
-                    and st.overspeed_timer > os.time()
-                local speedMs = math.max(0, speed / 3.6)
-                local needGo = st.need_go
-                if needGo then
-                    st.overspeed_fine = false
-                    st.overspeed_timer = 0
-                    activeFine = false
-                end
-                -- ќстаток таймера штрафа и насколько ещЄ превышаем вилку.
-                local fineLeft = activeFine and math.max(0, st.overspeed_timer - os.time()) or 0
-                local vExcess = fineLeft > 0 and math.max(0, speedMs - (fineMs or 9999)) or 0
-                -- Ќеобходимое замедление: превышение / оставшиес€ секунды (x1.15).
-                local aNeeded = vExcess > 0 and ((vExcess / fineLeft) * 1.15) or 0
-                -- v0.9.3: ѕј”«ј ѕќ—Ћ≈ Ў“–ј‘ј.  ак только таймер Ђ—низьте скоростьї
-                -- истЄк, старый код немедленно снова разгон€лс€ выше вилки, а
-                -- сервер сразу вешал новый таймер Ч штрафы шли пачками. “еперь
-                -- после окончани€ штрафа ещЄ несколько секунд держим вилку.
-                local finePause = (not activeFine) and st.overspeed_timer > 0
-                    and os.time() - st.overspeed_timer < math.max(4, (st.overspeed_guard or 1) + 3)
-                -- v0.9.0: —“–ј’ќ¬ ј от штрафа Ђ—низьте скоростьї. “ормозим
-                -- —–ј«” при любом превышении вилки под активным таймером
-                -- (раньше при малом aNeeded (<0.45) тик пропускалс€ Ч скорость
-                -- висела над вилкой и сервер успевал штрафовать). insHard Ч
-                -- экстренный режим: за оставшиес€ секунды даже максимальным
-                -- тормозом не успеть в вилку либо таймер на исходе.
-                local fineBrake = activeFine and vExcess > 0.3
-                -- v0.9.3: экстренный сброс включаем раньше (0.7 вместо 0.9 от
-                -- max замедлени€) и в последние минимум 2 секунды таймера Ч
-                -- раньше на коротких таймерах тормоз не успевал погасить
-                -- превышение и сервер штрафовал.
-                local insHard = activeFine and vExcess > 0.3 and (
-                    vExcess / math.max(0.01, fineLeft) >= brakeA * 0.7
-                    or (fineLeft <= math.max(2, (st.overspeed_guard or 1)) and vExcess >= 0.5))
-                if st.overspeed and fineMs then
-                    if activeFine or finePause then
-                        useTarget = fineMs * 3.6
-                    else
-                        local overspeedTarget = fineMs * 3.6 + (st.overspeed_extra or 8)
-                        -- ѕотолок превышени€: не выше скорости, которую реально
-                        -- успеем сбросить в вилку за 12 c (окно типового таймера
-                        -- штрафа) при подтверждЄнном замедлении состава brakeA.
-                        local vCeil = fineMs * 3.6 + brakeA * 0.8 * 12 * 3.6
-                        useTarget = math.max(target + 1, math.min(overspeedTarget, vCeil))
-                    end
-                end
-                if needGo then
-                    -- сервер требует движени€: газ до обычной цели
-                    if speed < target then
-                        pressGasNative()
-                        drive.lastAction = u8"разгон (сервер требует скорость)"
-                    else
-                        drive.lastAction = u8"набор/нейтраль"
-                    end
-                elseif fineBrake then
-                    -- ѕлавный сброс к вилке: уровень растЄт от Ђигрок долго
-                    -- держит Sї (110) до 255 по требующемус€ замедлению;
-                    -- страховка / конец таймера Ч экстренный 255.
-                    local bLevel
-                    if insHard or aNeeded >= 1.8 then
-                        bLevel = 255
-                    else
-                        bLevel = math.floor(130 + math.max(0, math.min(1, (aNeeded - 0.2) / 2.4)) * 125)
-                    end
-                    pcall(writeMemory, 0xB73458 + 0x1C, 1, bLevel, false)
-                    pcall(setGameKeyState, 14, bLevel)
-                    drive.lastAction = insHard
-                        and u8"страховка: экстренный сброс скорости к вилке"
-                        or u8"плавный сброс скорости к вилке (штраф)"
-                elseif speed < useTarget then
-                    pressGasNative()
-                    drive.lastAction = u8"разгон"
-                else
-                    drive.lastAction = u8"набор/нейтраль"
-                end
-                drive._useTarget = useTarget
-            end
-
-            -- v0.8.5: диагностика подъезда к станции (раз в 5 сек) Ч чтобы по
-            -- логу видеть, куда едет состав: дистанци€ от станции, до маркера,
-            -- значени€ кривых и признак прибыти€. „исла, кириллица не мешает.
-            do
-                local nowDiag = wallClockMs()
-                if not drive._lastDriveDiag then drive._lastDriveDiag = 0 end
-                if nowDiag - drive._lastDriveDiag >= 5000 then
-                    drive._lastDriveDiag = nowDiag
-                    print(string.format(
-                        '[MachinistByYaroRage] DRIVE: spd=%d tgt=%s distCp=%d stDist=%s brDist=%s vLim=%s vHard=%s ahead=%s arr=%s needGo=%s ovr=%s',
-                        math.floor(speed * 10) / 10, tostring(drive._useTarget or target),
-                        math.floor(distance), tostring(st.station_dist),
-                        tostring(stationAhead and math.floor(brakeDist) or '-'),
-                        tostring(stationAhead and math.floor(vLim) or '-'),
-                        tostring(stationAhead and math.floor(vHard) or '-'),
-                        tostring(stationAhead), tostring(drive.station_arrived),
-                        tostring(st.need_go), tostring(st.overspeed)))
-                end
-            end
-
-            -- keysData: как в mashinist.lua Ч знак реальной скорости.
-            --   0x08 (accel) = вперЄд, 0x20 (decel) = назад, 0 = стоит.
-            if speed > 0 then
-                drive.keys = 8
-            elseif speed < 0 then
-                drive.keys = 32
-            else
-                drive.keys = drive._gasPressed and 8 or 0
-            end
+    -- ¬не поезда не трогаем ничего (кабина Ч только по свежим CEF-пакетам).
+    local inTrain = inTrainNow()
+    drive.in_train = inTrain
+    if not inTrain then
+        if drive.phase == "DRIVE" or drive.phase == "STOP" then
+            drive.phase = "IDLE"
         end
+        drive.keys = 0
+        drive._useTarget = 0
+        drive.lastAction = u8"вне поезда"
+        return
+    end
+    drive.phase = "DRIVE"
+    drive.lastAction = u8"ведение"
+
+    -- ---------- “елеметри€ из CEF (ноль нативных вызовов) ----------
+    -- ќценка скорости приходит раз в секунду (setStation), держим еЄ 2.5 с:
+    -- если пакеты пропали (выход из сети/кабины) Ч считаем, что состав стоит.
+    local nowMs = wallClockMs()
+    local speed = 0
+    if st.speed_est and st.speed_est > 0 and st.speed_est_at
+        and (nowMs - st.speed_est_at) <= 2500 then
+        speed = st.speed_est * 3.6
+    end
+    -- —ерверное Ђ”величьте скоростьї снимаем, как только состав реально поехал.
+    if st.need_go and speed >= math.max(5, (st.speed_lo or 0) * 0.8) then
+        st.need_go = false
+    end
+    -- Ќачало движени€ сбрасывает флаги сто€нки (защита от Ђзацикливани€ї).
+    if speed >= 10 then
+        drive.station_arrived = false
+        drive.station_arrive_time = nil
+        drive.station_left = false
+    end
+    local stationKnown = st.station_dist and st.station_dist >= 0
+    local distance = stationKnown and st.station_dist or 99999
+    local speedMs = math.max(0, speed / 3.6)
+
+    -- ---------- ¬илка сервера и обычна€ цель ----------
+    -- ÷ель вне спецрежимов Ч максимум вилки минус 1 км/ч (Ђтоптать в полї).
+    local vLo = (st.speed_lo and st.speed_lo > 0) and st.speed_lo or 0
+    local vHi = (st.speed_hi and st.speed_hi > 0) and st.speed_hi
+        or (vLo > 0 and vLo or 40)
+    local target = (vHi > 1) and (vHi - 1) or vHi
+
+    -- ---------- јктивные серверные таймеры ----------
+    -- јктивность считаем по дедлайну info_timer_until: сервер шлЄт текст ќƒ»Ќ
+    -- раз, а следом идут пустые InformationTimer, которые его вытесн€ли.
+    local nowSec = os.time()
+    local timerActive = st.info_timer and st.info_timer ~= ""
+        and st.info_timer_until and st.info_timer_until >= nowSec
+    local timerText = timerActive and st.info_timer or ""
+    local stopCmd = timerText ~= "" and timerText:find("ќстановитесь", 1, true) ~= nil
+    local stayCmd = timerText ~= "" and (timerText:find("ќжидайте отправлени€", 1, true) ~= nil
+        or timerText:find("—адитесь в поезд", 1, true) ~= nil)
+    local goCmd = timerText ~= "" and timerText:find("”величьте скорость", 1, true) ~= nil
+    local fineActive = st.overspeed_fine and st.overspeed_timer
+        and st.overspeed_timer > nowSec
+
+    -- ---------- ‘изика торможени€ ----------
+    local brakeA = (st.brake_decel and st.brake_decel > 0) and st.brake_decel or 2.0
+    local aComf = math.max(0.6, brakeA * 0.8)
+    local brakeMargin = (st.brake_margin and st.brake_margin >= 0) and st.brake_margin or 6
+
+    local allowed = target
+    local finePause = (not fineActive) and st.overspeed_timer and st.overspeed_timer > 0
+        and (nowSec - st.overspeed_timer) < math.max(4, (st.overspeed_guard or 1) + 3)
+    -- –ежим Ђѕревышать скоростьї: топим выше вилки, но не выше скорости, которую
+    -- успеем плавно сбросить обратно за типовое окно таймера штрафа (12 с).
+    if st.overspeed and not fineActive and not finePause then
+        local vCeil = vHi + brakeA * 0.8 * 12 * 3.6
+        allowed = math.max(target, math.min(vHi + (st.overspeed_extra or 25), vCeil))
+    end
+    if finePause then
+        -- после сброса штрафа ещЄ несколько секунд держим вилку
+        allowed = math.min(allowed, target)
+    end
+    -- Ўтраф Ђ—низьте скорость до штрафаї: плавный возврат в вилку к концу
+    -- таймера. –азрешЄнна€ скорость падает линейно (vHi + aComf * остаток), но
+    -- не ниже самой вилки Ч состав тормозит ровно столько, сколько успевает,
+    -- вместо резкого удара тормозом в последнюю секунду.
+    if fineActive then
+        local left = math.max(0, st.overspeed_timer - nowSec)
+        allowed = math.min(allowed, vHi + aComf * left * 3.6)
+        if allowed < target then allowed = target end
+        drive.lastAction = u8"плавный сброс к вилке (штраф)"
+    end
+    -- —танци€ впереди: физическа€ крива€ ѕќ«ƒЌ≈√ќ плавного торможени€ (без
+    -- Ђползани€ї 1 км/ч за 50 м) Ч скорость сама т€нетс€ к нулю у стоп-точки.
+    if stationKnown then
+        local d = distance - brakeMargin
+        if d < 0 then d = 0 end
+        allowed = math.min(allowed, math.sqrt(2 * aComf * d) * 3.6)
+    end
+    local stopping = false
+    --  оманда сервера Ђќстановитесь на станцииї: цель Ч полный стоп.
+    if stopCmd then
+        local d = distance - 3
+        if d < 0 then d = 0 end
+        allowed = math.min(allowed, math.sqrt(2 * aComf * d) * 3.6)
+        stopping = true
+        drive.lastAction = u8"плавное торможение на станции"
+    end
+    drive._useTarget = allowed
+    drive.stop_preview = stationKnown and math.max(0, distance - brakeMargin) or 0
+
+    -- ---------- —то€нка на станции ----------
+    -- ¬стали окончательно, если сервер скомандовал Ђќстановитесь на станцииї,
+    -- пришло Ђќжидайте отправлени€ї/Ђ—адитесь в поездї либо состав уже у самой
+    -- стоп-точки станции (distance <= 3 м).
+    local atStopPoint = stationKnown and distance <= 3
+    if speed < 3 and (stopCmd or stayCmd or atStopPoint) then
+        if not drive.station_arrived then
+            drive.station_arrived = true
+            drive.station_arrive_time = os.time()
+        end
+        -- ќтправление: сервер требует разгон (Ђ”величьте скоростьї), либо
+        -- сто€нка выдержана и нет активных команд (кроме финиша круга).
+        local dwell = st.station_dwell or 5
+        local stayed = drive.station_arrive_time
+            and (os.time() - drive.station_arrive_time) >= dwell
+        local canGo = goCmd
+            or (not stopCmd and not stayCmd and not driveCpFinish and stayed)
+        if canGo then
+            drive.station_arrived = false
+            drive.station_arrive_time = nil
+            drive.phase = "DRIVE"
+            releaseBrake()
+            if speed < target then pressGasNative() end
+            drive.lastAction = goCmd and u8"отправление (сервер требует скорость)"
+                or u8"отправление после сто€нки"
+        else
+            drive.phase = "STOP"
+            setBrakeLevel(30)
+            drive.lastAction = u8"сто€нка на станции"
+        end
+        drive.keys = drive._gasPressed and 8 or 0
+        return
+    end
+
+    -- ---------- ”правление газом/тормозом ----------
+    if goCmd then
+        releaseBrake()
+        if speed < target then
+            pressGasNative()
+            drive.lastAction = u8"разгон (сервер требует скорость)"
+        else
+            drive.lastAction = u8"набор/нейтраль"
+        end
+    elseif speed > allowed + 1.5 then
+        -- “ормозим: уровень растЄт с глубиной превышени€ Ч м€гко, как игрок.
+        local over = speed - allowed
+        local span = math.max(10, allowed * 0.35)
+        local lvl = math.floor(80 + math.min(1, over / span) * 150)
+        -- Ёкстренно: оставшегос€ пути не хватит даже на максимальное замедление.
+        local hard = stationKnown and distance < 250
+            and speedMs * speedMs > 2 * brakeA * math.max(1, distance - brakeMargin)
+        if hard or (fineActive and over > 25) then lvl = 255 end
+        setBrakeLevel(lvl)
+        if not stopping then drive.lastAction = u8"торможение" end
+    elseif speed < allowed - 1.5 then
+        releaseBrake()
+        pressGasNative()
+        if fineActive then
+            drive.lastAction = u8"набор после сброса к вилке"
+        elseif stationKnown and distance < 300 then
+            drive.lastAction = u8"разгон до станции"
+        else
+            drive.lastAction = u8"разгон"
+        end
+    else
+        releaseBrake()
+    end
+
+    -- ---------- keysData: направление дл€ сервера ----------
+    --   0x08 (accel) = вперЄд, 0x20 (decel) = назад, 0 = стоит.
+    if speed > 0.5 then
+        drive.keys = 8
+    elseif speed < -0.5 then
+        drive.keys = 32
+    else
+        drive.keys = drive._gasPressed and 8 or 0
+    end
 end
 
 -- ѕоток автопилота Ч  јƒ–ќ¬џ… источник тиков (порт цикла из mashinist.lua):
 --   bot.state        -> optEnabled.v (наше включение автопилота)
---   isCharInAnyTrain -> drive.in_train (нативный гейт)
+--   inCabNow()       -> drive.in_train (безнативный CEF-гейт кабины)
 --   bot.distance     -> st.station_dist (дистанци€ до станции из setStation)
 --   bot.speed.min/max-> st.speed_lo/st.speed_hi (вилка setSpeed, км/ч)
 --   checkpoint       -> driveCp (чекпоинт сервера, если есть)
@@ -1762,7 +1451,7 @@ function main()
     inpChat.v = st.tg_chat_id
 
     local okSv, sv = pcall(script_version)
-    if not okSv or type(sv) ~= "string" or #sv == 0 then sv = "0.9.5" end
+    if not okSv or type(sv) ~= "string" or #sv == 0 then sv = "0.9.6" end
     print(string.format("[MachinistByYaroRage] v%s флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
         tostring(sv), st.dbg_no_thread and 1 or 0, st.dbg_no_events and 1 or 0,
         st.dbg_no_gui and 1 or 0, st.dbg_no_chat and 1 or 0, st.tg_poll_enable and 1 or 0,
@@ -2019,7 +1708,7 @@ local renderUi = function()
 
         -- ---------- ¬едение ----------
         elseif menuTab.v == 2 then
-            imgui.TextWrapped(u8"¬едение: порт mashinist.lua. —корость реальна€ (getCarSpeed), цель Ч чекпоинт сервера или дистанци€ до станции из setStation. ќстановка по формуле stop_distance.")
+            imgui.TextWrapped(u8"¬едение: порт mashinist.lua, безнативные вызовы (ноль нативных game-функций). —корость Ч оценка по дистанции setStation, цель Ч максимум вилки, у станции плавное торможение по физической кривой, стоп по команде сервера Ђќстановитесь на станцииї.")
             imgui.TextWrapped(u8"ћин/макс скорость: " .. st.speed_range .. u8" км/ч (код " .. st.speed_code .. u8")")
             imgui.Checkbox(u8"ѕревышать скорость", optOverspeed)
             if imgui.IsItemHovered() then
