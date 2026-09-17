@@ -1,4 +1,17 @@
--- MachinistByYaroRage v0.9.7
+-- MachinistByYaroRage v0.9.8
+-- v0.9.8 Ч —“ќяЌ ј “ќЋ№ ќ ƒќ  ќћјЌƒџ —≈–¬≈–ј (фикс Ђуезжает мимо станцииї):
+--   1) раньше состав отправл€лс€ сам через dwell (5 с) Ч то есть ”≈«∆јЋ со
+--      станции ƒќ команды, и следующий таймер Ђќстановитесь на станцииї уже
+--      не мог его вернуть (дистанци€ переключалась на следующую станцию, и
+--      торможение по ней не работало). “еперь едем с места только по
+--      Ђ”величьте скоростьї (goCmd); автоотправление Ч лишь аварийное, через
+--      st.station_release_delay (30 с) и только когда команд нет вообще;
+--   2) докрутка больше Ќ≈ сдвигает уже сто€щий состав: без серверной команды
+--      она начинаетс€ только если состав ещЄ катитс€ (speed > 3), поэтому
+--      Ђнабрал 10 км/ч, поехал вперЄд и уехалї больше не повтор€етс€;
+--   3) если пришЄл Ђќстановитесь на станцииї, а дистанци€ setStation уже
+--      переключилась на следующую станцию (проехали), тормозим сразу в пол Ч
+--      не проезжаем станцию из-за Ђдальнейї дистанции.
 -- v0.9.7 Ч ƒќ –”“ ј «ј —“ќѕ-“ќ„ ” —“јЌ÷»»: состав больше не встаЄт ѕ≈–≈ƒ
 -- серверным триггером станции.  огда он замедлилс€ у станции (команда
 -- Ђќстановитесь на станцииї / Ђќжидайте отправлени€ї либо серверна€ дистанци€
@@ -186,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("0.9.7")
+script_version("0.9.8")
 script_author("YaroRage")
 
 require "moonloader"
@@ -845,6 +858,15 @@ function onReceivePacket(id, bs)
         st.overspeed_fine = false
         st.overspeed_timer = 0
     end
+    -- v0.9.8: новый таймер Ђќстановитесь на станцииї разрешает докрутку заново
+    -- (на каждую станцию ровно одна докрутка 50 м), но “ќЋ№ ќ если состав ещЄ
+    -- едет: у сто€щего поезда сбрасывать нельз€ Ч иначе он снова трогалс€.
+    if f.info_timer and f.info_timer:find("ќстановитесь", 1, true) then
+        if (st.speed_est or 0) * 3.6 > 3 then
+            drive.crawl_start = nil
+            drive.crawl_done = false
+        end
+    end
     -- Ђ—низьте скорость до штрафаї Ч плановый плавный сброс к вилке за остаток
     -- таймера. ‘лаг Ќ≈ сбрасываем по любому другому таймеру (раньше else-ветка
     -- гасила overspeed_fine между пакетами, и торможение не срабатывало).
@@ -1134,12 +1156,28 @@ local function driveTick()
     end
     local stopping = false
     --  оманда сервера Ђќстановитесь на станцииї: цель Ч полный стоп.
+    local stopHard = false
     if stopCmd then
-        local d = distance - 3
-        if d < 0 then d = 0 end
-        allowed = math.min(allowed, math.sqrt(2 * aComf * d) * 3.6)
+        if distance > 200 then
+            -- v0.9.8: дистанци€ setStation уже переключилась на —Ћ≈ƒ”ёў”ё
+            -- станцию (значит текущую проехали), но сервер требует сто€ть Ч
+            -- тормозим сразу и здесь, иначе Ђдальн€€ї дистанци€ не тормозит
+            -- и состав уезжает мимо станции.
+            allowed = 0
+            stopHard = true
+        else
+            local d = distance - 3
+            if d < 0 then d = 0 end
+            allowed = math.min(allowed, math.sqrt(2 * aComf * d) * 3.6)
+        end
         stopping = true
         drive.lastAction = u8"плавное торможение на станции"
+    end
+    -- v0.9.8: при ЂжЄсткомї стопе докрутка не нужна Ч состав уже проехал
+    -- станцию, докрутка завершена принудительно, чтобы сработала сто€нка.
+    if stopHard then
+        drive.crawl_start = nil
+        drive.crawl_done = true
     end
     -- v0.9.7: ƒќ –”“ ј «ј —“ќѕ-“ќ„ ”. —ерверный триггер станции часто стоит чуть
     -- ƒјЋ№Ў≈ точки, где дистанци€ setStation дошла до нул€, поэтому состав
@@ -1150,8 +1188,17 @@ local function driveTick()
     local crawl = (st.stop_crawl and st.stop_crawl > 0) and st.stop_crawl or 10
     local crawlSec = math.max(1, math.floor(overshoot / (crawl / 3.6)))
     local nearStation = stationKnown and distance <= brakeMargin + 2
-    if (stopCmd or stayCmd or nearStation) and not drive.crawl_done then
-        if not drive.crawl_start and speed <= crawl + 4 then
+    -- v0.9.8: без серверной команды докрутка допустима только дл€  ј“яў≈√ќ—я
+    -- состава (speed > 3) Ч иначе мы сами сдвигали уже сто€щий у станции поезд
+    -- (Ђнабрал 10 км/ч, проехал вперЄд, уехалї). ѕри stopHard (дистанци€ уже
+    -- на следующей станции) докрутка запрещена совсем.
+    local crawlAllowed = (stopCmd or stayCmd or (nearStation and speed > 3))
+        and not stopHard
+    if crawlAllowed and not drive.crawl_done then
+        -- ƒокрутку Ќј„»Ќј≈ћ только у ƒ¬»∆”ў≈√ќ—я состава (speed > 1): если поезд
+        -- уже встал, с места не трогаем Ч иначе получалось Ђвстал, потом снова
+        -- набрал 10 км/ч и поехал вперЄдї.
+        if not drive.crawl_start and speed > 1 and speed <= crawl + 4 then
             drive.crawl_start = os.time()
         end
         if drive.crawl_start then
@@ -1177,22 +1224,28 @@ local function driveTick()
     -- пришло Ђќжидайте отправлени€ї/Ђ—адитесь в поездї либо состав уже прошЄл
     -- докрутку и стоит у самой стоп-точки станции (distance <= 3 м).
     local crawling = (drive.crawl_start ~= nil) and not drive.crawl_done
-    local atStopPoint = stationKnown and (distance <= 3 or drive.crawl_done)
+    local atStopPoint = stationKnown and (distance <= 3 or drive.crawl_done or stopHard)
     if speed < 3 and (stopCmd or stayCmd or atStopPoint) and not crawling then
         if not drive.station_arrived then
             drive.station_arrived = true
             drive.station_arrive_time = os.time()
         end
-        -- ќтправление: сервер требует разгон (Ђ”величьте скоростьї), либо
-        -- сто€нка выдержана и нет активных команд (кроме финиша круга).
-        local dwell = st.station_dwell or 5
-        local stayed = drive.station_arrive_time
-            and (os.time() - drive.station_arrive_time) >= dwell
-        local canGo = goCmd
-            or (not stopCmd and not stayCmd and not driveCpFinish and stayed)
+        -- v0.9.8: отправление “ќЋ№ ќ по серверной команде разгона. –аньше
+        -- автоотправление по dwell (5 с) увозило состав до команды, и новый
+        -- таймер Ђќстановитесь на станцииї не мог его вернуть. јварийна€
+        -- страховка Ч st.station_release_delay секунд без единой команды.
+        local releaseDelay = (st.station_release_delay and st.station_release_delay > 0)
+            and st.station_release_delay or 30
+        local waited = drive.station_arrive_time
+            and (os.time() - drive.station_arrive_time) >= releaseDelay
+        local canGo = goCmd or st.need_go
+            or (not stopCmd and not stayCmd and not timerActive
+                and not driveCpFinish and waited)
         if canGo then
             drive.station_arrived = false
             drive.station_arrive_time = nil
+            drive.crawl_start = nil
+            drive.crawl_done = false
             drive.phase = "DRIVE"
             releaseBrake()
             if speed < target then pressGasNative() end
