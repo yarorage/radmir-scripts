@@ -1,4 +1,10 @@
--- MachinistByYaroRage v0.9.6
+-- MachinistByYaroRage v0.9.7
+-- v0.9.7 — ДОКРУТКА ЗА СТОП-ТОЧКУ СТАНЦИИ: состав больше не встаёт ПЕРЕД
+-- серверным триггером станции. Когда он замедлился у станции (команда
+-- «Остановитесь на станции» / «Ожидайте отправления» либо серверная дистанция
+-- подошла к нулю), он проезжает ещё stop_overshoot метров (по умолчанию 50)
+-- на скорости stop_crawl км/ч (по умолчанию 10) — ровно настолько, чтобы
+-- пересечь триггер и станция засчиталась, — и только потом встаёт.
 -- v0.9.6 — ПОЛНОСТЬЮ БЕЗНАТИВНЫЙ КАДРОВЫЙ ПУТЬ (фикс фризов В ПОЕЗДЕ) и рабочая
 -- логика серверных таймеров:
 --   1) из driveTick убраны ВСЕ нативные game-вызовы (storeCarCharIsInNoSave,
@@ -180,7 +186,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("0.9.6")
+script_version("0.9.7")
 script_author("YaroRage")
 
 require "moonloader"
@@ -347,6 +353,8 @@ local drive = {
     in_train = false,
     keys = 0,
     stop_preview = 0,
+    crawl_start = nil,            -- v0.9.7: момент старта докрутки за стоп-точку
+    crawl_done = false,           -- v0.9.7: докрутка до триггера завершена
 }
 
 -- Диагностика времени БД-записи конфига (мс, символ "s" в строке лога).
@@ -1133,15 +1141,44 @@ local function driveTick()
         stopping = true
         drive.lastAction = u8"плавное торможение на станции"
     end
+    -- v0.9.7: ДОКРУТКА ЗА СТОП-ТОЧКУ. Серверный триггер станции часто стоит чуть
+    -- ДАЛЬШЕ точки, где дистанция setStation дошла до нуля, поэтому состав
+    -- вставал ПЕРЕД триггером и станция не засчитывалась. Теперь, как только
+    -- состав замедлился у станции, едем ещё stop_overshoot метров на скорости
+    -- stop_crawl км/ч (по умолчанию 50 м / 10 км/ч) и только потом встаём.
+    local overshoot = (st.stop_overshoot and st.stop_overshoot >= 0) and st.stop_overshoot or 50
+    local crawl = (st.stop_crawl and st.stop_crawl > 0) and st.stop_crawl or 10
+    local crawlSec = math.max(1, math.floor(overshoot / (crawl / 3.6)))
+    local nearStation = stationKnown and distance <= brakeMargin + 2
+    if (stopCmd or stayCmd or nearStation) and not drive.crawl_done then
+        if not drive.crawl_start and speed <= crawl + 4 then
+            drive.crawl_start = os.time()
+        end
+        if drive.crawl_start then
+            if (os.time() - drive.crawl_start) < crawlSec then
+                allowed = math.max(allowed, crawl)
+                if not stopping then
+                    drive.lastAction = u8"докрутка до триггера станции"
+                end
+            else
+                drive.crawl_done = true
+            end
+        end
+    end
+    if speed >= 30 then
+        drive.crawl_start = nil
+        drive.crawl_done = false
+    end
     drive._useTarget = allowed
     drive.stop_preview = stationKnown and math.max(0, distance - brakeMargin) or 0
 
     -- ---------- Стоянка на станции ----------
     -- Встали окончательно, если сервер скомандовал «Остановитесь на станции»,
-    -- пришло «Ожидайте отправления»/«Садитесь в поезд» либо состав уже у самой
-    -- стоп-точки станции (distance <= 3 м).
-    local atStopPoint = stationKnown and distance <= 3
-    if speed < 3 and (stopCmd or stayCmd or atStopPoint) then
+    -- пришло «Ожидайте отправления»/«Садитесь в поезд» либо состав уже прошёл
+    -- докрутку и стоит у самой стоп-точки станции (distance <= 3 м).
+    local crawling = (drive.crawl_start ~= nil) and not drive.crawl_done
+    local atStopPoint = stationKnown and (distance <= 3 or drive.crawl_done)
+    if speed < 3 and (stopCmd or stayCmd or atStopPoint) and not crawling then
         if not drive.station_arrived then
             drive.station_arrived = true
             drive.station_arrive_time = os.time()

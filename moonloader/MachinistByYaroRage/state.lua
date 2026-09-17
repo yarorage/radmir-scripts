@@ -43,6 +43,9 @@ M.state = {
     station_dwell = 5,        -- v0.8.1: секунды стоянки перед отправлением
     brake_decel = 2.0,          -- v0.8.2: замедление состава при торможении (м/с^2)
     brake_margin = 6,           -- v0.8.2: запас к тормозному пути (метры)
+    stop_overshoot = 50,        -- v0.9.7: сколько МЕТРОВ проехать ЗА стоп-точкой
+                                --        станции (докрутка до серверного триггера)
+    stop_crawl = 10,            -- v0.9.7: скорость докрутки за стоп-точку (км/ч)
     need_go = false,          -- v0.8.1: сервер требует движения («Увеличьте скорость»)
 
     phase = "IDLE",
@@ -143,6 +146,8 @@ local function save_config()
         f:write("overspeed=" .. (s.overspeed and "1" or "0") .. "\n")
         f:write("overspeed_extra=" .. tostring(s.overspeed_extra) .. "\n")
         f:write("overspeed_guard=" .. tostring(s.overspeed_guard) .. "\n")
+        f:write("stop_overshoot=" .. tostring(s.stop_overshoot) .. "\n")
+        f:write("stop_crawl=" .. tostring(s.stop_crawl) .. "\n")
         f:write("dbg_no_thread=" .. (s.dbg_no_thread and "1" or "0") .. "\n")
         f:write("dbg_no_events=" .. (s.dbg_no_events and "1" or "0") .. "\n")
         f:write("dbg_no_gui=" .. (s.dbg_no_gui and "1" or "0") .. "\n")
@@ -185,6 +190,8 @@ local function load_config()
                 elseif k:find("^tg_chat_id") then s.tg_chat_id = v
                 elseif k:find("^tap_interval") then s.tap_interval = tonumber(v) or 0.45
                 elseif k:find("^stop_dist") then s.stop_dist = tonumber(v) or 25
+                elseif k:find("^stop_overshoot") then s.stop_overshoot = tonumber(v) or 50
+                elseif k:find("^stop_crawl") then s.stop_crawl = tonumber(v) or 10
                 elseif k:find("^keep_speed") then s.keep_speed = v == "1"
                 elseif k:find("^use_game_speed") then s.use_game_speed = v == "1"
                 elseif k:find("^humanize") then s.humanize = v == "1"
