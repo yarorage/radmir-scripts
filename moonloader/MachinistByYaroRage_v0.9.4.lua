@@ -167,7 +167,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("0.9.3")
+script_version("0.9.4")
 script_author("YaroRage")
 
 require "moonloader"
@@ -937,9 +937,21 @@ local function releaseKeysNative()
 end
 
 -- Ќативно ли игрок в поезде (гейт всего автопилота).
+-- v0.9.4: кэш кабины на 200 мс. Ќативный game-вызов isCharInAnyTrain из
+-- wait(0)-потока в обычной машине вызывалс€ каждый кадр (60 раз/с) Ч по
+-- замерам v0.5.7/v0.5.9 на движке MoonRage по-кадровые нативные вызовы
+-- вешают поток SAMP и превращают игру в слайд-шоу (isCharInAnyCar валила
+-- до ~1 кадра/с). “еперь нативный опрос не чаще 5 раз/с; задержка
+-- распознавани€ входа/выхода из поезда Ч до 200 мс (незаметно). ѕри
+-- свЄрнутом окне кадров нет, кэш протухает, и опрос идЄт из резервного
+-- ev.onSendVehicleSync вместе с сетевыми пакетами Ч как и раньше.
 local function inTrainNow()
+    local nowMs = wallClockMs()
+    local c = drive._inTrainCache
+    if c and nowMs - c.t < 200 then return c.v end
     local ok, res = pcall(isCharInAnyTrain, PLAYER_PED)
-    return ok and res == true
+    drive._inTrainCache = { v = ok and res == true, t = nowMs }
+    return drive._inTrainCache.v
 end
 
 -- ’ук исход€щего vehicle sync: подкладываем keysData (как в mashinist.lua).
@@ -1362,7 +1374,13 @@ local function driveTick()
                     -- останова, и уже там встаЄм на сто€нку.
                     if not stopCmd and not atTrigger and speed < 1
                         and stationKnown and st.station_dist and st.station_dist <= 30 then
-                        if ok and type(car) == "number" and car > 0 then
+                        -- v0.9.4: setTrainSpeed форсит физику поезда в игре -
+                        -- зовЄм не чаще раза в 250 мс, иначе Ђподползаниеї на
+                        -- станции каждый кадр грузило кадровый поток (FPS падал).
+                        local crawlMs = wallClockMs()
+                        if ok and type(car) == "number" and car > 0
+                            and crawlMs - (drive._crawlMs or 0) >= 250 then
+                            drive._crawlMs = crawlMs
                             pcall(setTrainSpeed, car, 2.2)
                         end
                         drive.lastAction = u8"подползание к триггеру станции (20 м)"
@@ -1742,8 +1760,9 @@ function main()
     inpToken.v = st.tg_bot_token
     inpChat.v = st.tg_chat_id
 
-    print(string.format("[MachinistByYaroRage] v0.9.1 флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
-        st.dbg_no_thread and 1 or 0, st.dbg_no_events and 1 or 0,
+    local sv = select(2, pcall(script_version)) or ""
+    print(string.format("[MachinistByYaroRage] v%s флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
+        tostring(sv), st.dbg_no_thread and 1 or 0, st.dbg_no_events and 1 or 0,
         st.dbg_no_gui and 1 or 0, st.dbg_no_chat and 1 or 0, st.tg_poll_enable and 1 or 0,
         st.dbg_log and 1 or 0, st.force_cab and 1 or 0))
 
