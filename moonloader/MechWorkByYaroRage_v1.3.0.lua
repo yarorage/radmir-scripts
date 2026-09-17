@@ -1,4 +1,8 @@
--- MechWorkByYaroRage v1.2.9
+-- MechWorkByYaroRage v1.3.0
+-- v1.3.0: ESP-метка рисуется через SAMPFUNCS render* (в MoonImGui нет
+-- GetBackgroundDrawList); исправлен блок исключённых id (кнопки «Добавить»
+-- и «очистить всё» больше не конфликтуют по ID); перевод денег ловится
+-- прямо в сырых байтах RPC id=93/101, а не только в onServerMessage.
 -- Автозавершение миниигры починки транспорта (Радмир CRMP).
 -- v1.1.4: в блоке «Авто-подбор подъехавших машин» добавлен ручной
 -- режим: /repair кидается не автоматически, а по клику правой
@@ -119,7 +123,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.2.9")
+script_version("1.3.0")
 
 require "moonloader"
 
@@ -1159,6 +1163,25 @@ local function payloadHasRepairStart(bs)
     return false
 end
 
+-- v1.2.9: сумму перевода денег ищем прямо в сырых байтах пакета (id=93/101),
+-- чтобы не зависеть от точного формата полей и от того, вызывался ли
+-- стандартный onServerMessage. Формат: «<Ник> передал Вам деньги 4444 руб».
+local function payloadMoneySum(bs)
+    local okTotal, total = pcall(raknetBitStreamGetNumberOfBytesUsed, bs)
+    if not okTotal or not total or total <= 0 or total > 4096 then return nil end
+    pcall(raknetBitStreamResetReadPointer, bs)
+    local okR, raw = pcall(raknetBitStreamReadString, bs, total)
+    pcall(raknetBitStreamResetReadPointer, bs)
+    if not okR or not raw or raw == "" then return nil end
+    local sum = raw:match("[Пп]ередал[аи]?%s+[Вв]ам деньги%s+(%d+)")
+        or raw:match("[Вв]ам деньги%s+(%d+)")
+        or raw:match("деньги%s+(%d+)%s*руб")
+    if not sum then return nil end
+    local n = tonumber(sum)
+    if not n then return nil end
+    return n
+end
+
 -- v1.2.2/1.2.6: циклический пул: фразы списка перемешиваются (Фишер-Йетса),
 -- затем воспроизводятся в этом случайном порядке без повторов; когда пул
 -- исчерпан - тасуются заново. При изменении количества фраз пул пересоздаётся.
@@ -1258,7 +1281,8 @@ function onServerMessage(color, text)
     if not optCheat.v then return nil end
     -- v1.2.8: перевод денег: реальный формат «<Ник> передал Вам деньги 4444 руб»
     if text and text ~= "" then
-        local sum = tonumber(text:match("[Пп]ередал[а]? [Вв]ам деньги (%d+)"))
+        local sum = tonumber(text:match("[Пп]ередал[аи]?%s+[Вв]ам деньги%s+(%d+)"))
+            or tonumber(text:match("[Вв]ам деньги%s+(%d+)"))
         if sum then
             sendMoneyReply(sum)
             return nil
@@ -1288,6 +1312,10 @@ function onReceiveRpc(id, bs)
             pcall(raknetBitStreamResetReadPointer, bs)
             return
         end
+        pcall(raknetBitStreamResetReadPointer, bs)
+        -- v1.2.9: перевод денег (в том числе если onServerMessage не сработал)
+        local msum = payloadMoneySum(bs)
+        if msum then sendMoneyReply(msum) end
         pcall(raknetBitStreamResetReadPointer, bs)
     end
     if id ~= 101 then return end
@@ -1371,6 +1399,10 @@ local function toggleMenu()
 end
 
 -- ---------- Основной цикл ----------
+-- v1.2.9: ESP-метка цели ремонта. Функция объявляется заранее (локально),
+-- а сам рендер вызывается каждый кадр в главном цикле ниже.
+local drawRepairEsp
+
 function main()
     -- v1.2.3: сразу гасим курсор, чтобы он не появлялся при загрузке/
     -- перезагрузке/переподключении (модуль imgui стартует с ShowCursor=true)
@@ -1538,6 +1570,9 @@ function main()
             end
         end
 
+        -- v1.2.9: ESP-метка цели ремонта (рисуем поверх игры каждый кадр)
+        if drawRepairEsp then pcall(drawRepairEsp) end
+
         wait(0)
     end
 end
@@ -1545,8 +1580,24 @@ end
 -- ---------- v1.2.9: ESP-метка цели ремонта (линия/квадрат/плашка) ----------
 -- Рисует маркер поверх экрана по state.espTarget: машина, которую скрипт
 -- в данный момент чинит (отправка /repair, миниигра). Ведёт до закрытия
--- миниигры или таймаута 5 минут. Все вызовы imgui оборачиваем в pcall.
-local function drawRepairEsp()
+-- миниигры или таймаута 5 минут.
+-- ВАЖНО: MoonImGui не имеет списков фоновой/передней отрисовки
+-- (GetBackgroundDrawList/GetForegroundDrawList отсутствуют), поэтому рисуем
+-- средствами SAMPFUNCS render* - так же, как это делает LesByYaroRage.
+local espFont = nil
+
+local function ensureEspFont(scale)
+    if espFont then return true end
+    if type(renderCreateFont) ~= "function" then return false end
+    local size = math.floor(9 * (scale or 1) + 0.5)
+    if size < 6 then size = 6 end
+    if size > 22 then size = 22 end
+    local ok, f = pcall(renderCreateFont, "Arial", size, 13)
+    if ok and f then espFont = f return true end
+    return false
+end
+
+drawRepairEsp = function()
     if not optCheat.v or not (optEspLine.v or optEspBox.v or optEspPanel.v) then return end
     local et = state.espTarget
     if not et or not et.pid then return end
@@ -1557,6 +1608,9 @@ local function drawRepairEsp()
         local okE, exists = pcall(doesVehicleExist, et.veh)
         if not okE or not exists then state.espTarget = nil return end
     end
+    local sc = fsc or 1
+    local okR, resX, resY = pcall(getScreenResolution)
+    if not okR or not resX or not resY then resX, resY = 1920, 1080 end
     local okV, vx, vy, vz
     if et.veh then okV, vx, vy, vz = pcall(getVehiclePos, et.veh) end
     local okScr = false
@@ -1567,26 +1621,14 @@ local function drawRepairEsp()
             sx, sy, okScr = X, Y, true
         end
     end
-    local okR, resX, resY = pcall(getScreenResolution)
-    if not okR or not resX or not resY then resX, resY = 1920, 1080 end
-    local okDraw, dl = pcall(imgui.GetBackgroundDrawList)
-    if not okDraw or type(dl) ~= "table" then
-        local okFg, dlFg = pcall(imgui.GetForegroundDrawList)
-        if not okFg or type(dlFg) ~= "table" then return end
-        dl = dlFg
-    end
     -- линия от низа экрана к машине
-    if optEspLine.v and okScr then
-        local a = imgui.ImVec2(resX / 2, resY)
-        local x2 = imgui.ImVec2(sx, sy)
-        pcall(dl.AddLine, dl, a, x2, imgui.GetColorU32Vec4(imgui.ImVec4(0.25, 0.9, 1.0, 1.0)), 2 * fsc)
+    if optEspLine.v and okScr and type(renderDrawLine) == "function" then
+        pcall(renderDrawLine, resX / 2, resY, sx, sy, 2.0 * sc, 0xFF3FF0FF)
     end
     -- квадрат на капоте
-    if optEspBox.v and okScr then
-        local hs = 26 * fsc
-        local mins = imgui.ImVec2(sx - hs, sy - hs)
-        local maxs = imgui.ImVec2(sx + hs, sy + hs)
-        pcall(dl.AddRect, dl, mins, maxs, imgui.GetColorU32Vec4(imgui.ImVec4(0.25, 0.9, 1.0, 1.0)), 0, 0, 2 * fsc)
+    if optEspBox.v and okScr and type(renderDrawBoxWithBorder) == "function" then
+        local hs = 26 * sc
+        pcall(renderDrawBoxWithBorder, sx - hs, sy - hs, hs * 2, hs * 2, nil, 2, 0xFF3FF0FF)
     end
     -- плашка внизу экрана с данными водителя
     if optEspPanel.v then
@@ -1597,19 +1639,29 @@ local function drawRepairEsp()
         end
         local model = ""
         if et.veh then model = vehicleDisplayName(et.veh) end
-        local line = u8("id " .. et.pid .. (nick and (" | " .. nick) or "") .. (model ~= "" and (" | " .. model) or ""))
-        local pw = math.min(resX - 20, 420 * fsc)
-        local ph = 26 * fsc
+        local line = "id " .. et.pid .. (nick and (" | " .. nick) or "") .. (model ~= "" and (" | " .. model) or "")
+        local pw = math.min(resX - 20, 420 * sc)
+        local ph = 26 * sc
         local px = resX / 2 - pw / 2
-        local py = resY - ph - 12 * fsc
-        pcall(dl.AddRectFilled, dl, imgui.ImVec2(px, py), imgui.ImVec2(px + pw, py + ph),
-              imgui.GetColorU32Vec4(imgui.ImVec4(0.05, 0.05, 0.12, 0.75)), 4)
-        pcall(dl.AddRect, dl, imgui.ImVec2(px, py), imgui.ImVec2(px + pw, py + ph),
-              imgui.GetColorU32Vec4(imgui.ImVec4(0.25, 0.9, 1.0, 1.0)), 4, 0, 1)
-        local ts = imgui.CalcTextSize(line)
-        pcall(dl.AddText, dl,
-              imgui.ImVec2(resX / 2 - ts.x / 2, py + ph / 2 - ts.y / 2),
-              imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, 1)), line)
+        local py = resY - ph - 12 * sc
+        if type(renderDrawBox) == "function" then
+            pcall(renderDrawBox, px, py, pw, ph, 0xC00D0D1F)
+        end
+        if type(renderDrawBoxWithBorder) == "function" then
+            pcall(renderDrawBoxWithBorder, px, py, pw, ph, nil, 1, 0xFF3FF0FF)
+        end
+        if ensureEspFont(sc) and type(renderFontDrawText) == "function" then
+            local tx, ty = px + 8 * sc, py + ph / 2 - 6 * sc
+            if type(renderGetFontDrawTextLength) == "function" and type(renderGetFontDrawHeight) == "function" then
+                local okL, tl = pcall(renderGetFontDrawTextLength, espFont, line)
+                local okH, th = pcall(renderGetFontDrawHeight, espFont)
+                if okL and okH and type(tl) == "number" and type(th) == "number" then
+                    tx = px + (pw - tl) / 2
+                    ty = py + (ph - th) / 2
+                end
+            end
+            pcall(renderFontDrawText, espFont, line, tx, ty, 0xFFFFFFFF)
+        end
     end
 end
 
@@ -1738,7 +1790,8 @@ function imgui.OnDrawFrame()
             imgui.PopItemWidth()
 
             imgui.Separator()
-            -- триггеры
+            -- триггеры (свой ID-контекст, иначе кнопки конфликтуют с блоком исключений)
+            imgui.PushID(9001)
             imgui.Text(u8"Триггеры авто-ремонта:")
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"Если кто-то напишет в чат фразу из списка (целиком или её часть), скрипт отправит этому игроку /repair по его id")
@@ -1776,9 +1829,11 @@ function imgui.OnDrawFrame()
                 imgui.PopID()
             end
             imgui.EndChild()
+            imgui.PopID()
 
             imgui.Separator()
             -- исключённые id
+            imgui.PushID(9002)
             imgui.Text(u8"Исключить id водителей (им не шлём /repair):")
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"Игроки из списка не получают /repair ни в авто-режиме, ни по ПКМ, ни колесиком. Запрос уйдёт следующему по близости")
@@ -1817,6 +1872,7 @@ function imgui.OnDrawFrame()
                 imgui.PopID()
             end
             imgui.EndChild()
+            imgui.PopID()
 
         elseif activeTab == 3 then
             -- ====== ВКЛАДКА «КУРСОР» ======
@@ -2071,6 +2127,4 @@ function imgui.OnDrawFrame()
         imgui.End()
     end
 
-    -- v1.2.9: ESP-метка цели ремонта рисуется поверх экрана всегда
-    if optCheat.v then pcall(drawRepairEsp) end
 end
