@@ -939,6 +939,15 @@ function onReceivePacket(id, bs)
        drive.phase == "IDLE" then
         drive.phase = "DRIVE"
         drive.lastAction = u8"старт ведения"
+
+    -- Проверка и запуск двигателя поезда
+    if drive.state then
+        local car = storeCarCharIsInNoSave(PLAYER_PED)
+        if car ~= 0 and not isTrainEngineRunning(car) then
+            setTrainEngineRunning(car, true)
+            drive.lastAction = u8"Запуск двигателя поезда"
+            print("[Machinist] Двигатель поезда запущен")
+        end
     end
 end
 
@@ -1210,7 +1219,8 @@ local function driveTick()
         if allowed < target then allowed = target end
         drive.lastAction = u8"Торможение штрафа (штраф)"
     end
-    end  -- конец driveTick
+    end
+end  -- конец driveTick
 
 
 stopBot = function()
