@@ -1,4 +1,4 @@
--- MechWorkByYaroRage v1.2.8
+-- MechWorkByYaroRage v1.2.9
 -- Автозавершение миниигры починки транспорта (Радмир CRMP).
 -- v1.1.4: в блоке «Авто-подбор подъехавших машин» добавлен ручной
 -- режим: /repair кидается не автоматически, а по клику правой
@@ -119,7 +119,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.2.8")
+script_version("1.2.9")
 
 require "moonloader"
 
@@ -200,6 +200,9 @@ local function loadSettings()
         nearRadiusM = 5,
         nearDelaySec = 30,
         manualRmb = false, -- ручной запрос /repair по ПКМ (v1.1.4)
+        espLine = false, -- v1.2.9: ESP-линия от центра экрана к чинящейся машине
+        espBox = false, -- v1.2.9: ESP-квадрат на капоте чинящейся машины
+        espPanel = false, -- v1.2.9: ESP-плашка внизу экрана (id/ник/модель)
         excludedIds = {}, -- v1.1.6: исключённые id водителей (им не шлём /repair)
                 triggers = { "почини", "чини", "почин", "чин", "отремонтируй", "ремонт", "репа", "repair" } }
     local ok, f = pcall(io.open, iniFile, "r")
@@ -509,6 +512,10 @@ local optNearRadiusM = imgui.ImInt(settings.nearRadiusM) -- радиус в метрах
 local optNearDelaySec = imgui.ImInt(settings.nearDelaySec) -- пауза между отправками, сек
 -- ручной режим подбора: /repair по клику правой кнопки мыши (v1.1.4)
 local optManualRmb = imgui.ImBool(settings.manualRmb)
+-- v1.2.9: ESP-метки цели ремонта (линия/квадрат/плашка)
+local optEspLine = imgui.ImBool(settings.espLine)
+local optEspBox = imgui.ImBool(settings.espBox)
+local optEspPanel = imgui.ImBool(settings.espPanel)
 
 -- ---------- v1.1.6: исключённые id водителей ----------
 -- Им не шлём /repair ни в авто-режиме, ни по ПКМ, ни колесиком (курсором):
@@ -573,6 +580,7 @@ local state = {
     nearLockUntil = 0,   -- не отправлять раньше этого времени (GetTickCount)
     nearSentAt = 0,      -- время последней отправки /repair в ближнем режиме (GetTickCount)
     pendingRepair = nil, -- v1.1.7: последняя отправленная заявка /repair (для уведомления)
+    espTarget = nil, -- v1.2.9: цель ESP {pid, veh, at} (линия/квадрат/плашка)
 }
 
 function saveSettings()
@@ -594,6 +602,9 @@ function saveSettings()
         "nearRadiusM = " .. optNearRadiusM.v,
         "nearDelaySec = " .. optNearDelaySec.v,
         "manualRmb = " .. (optManualRmb.v and "true" or "false"),
+        "espLine = " .. (optEspLine.v and "true" or "false"),
+        "espBox = " .. (optEspBox.v and "true" or "false"),
+        "espPanel = " .. (optEspPanel.v and "true" or "false"),
     }
     -- фразы автоответа (v1.1.5): replyLineN = <фраза>; replyText = первая
     -- непустая фраза (её ещё читают старые версии скрипта как одиночный ответ)
@@ -640,6 +651,7 @@ function setCheatMaster(v)
         state.busy = false
         state.autoStarting = false
         state.pendingRepair = nil
+        state.espTarget = nil
         state.nearWaiting = false
         state.nearSawActive = false
     end
@@ -1037,6 +1049,7 @@ local function sendRepairByCursor()
                 state.lastRepair = nowMs()
                 -- v1.1.7: запоминаем заявку для уведомления «Чиню ...»
                 state.pendingRepair = { pid = pid, veh = veh, at = nowMs() }
+                state.espTarget = { pid = pid, veh = veh, at = nowMs() }
                 pcall(sampSendChat, "/repair " .. pid)
                 return
             end
@@ -1058,6 +1071,7 @@ local function sendNearRepairManual()
         state.lastRepair = nowMs()
         -- v1.1.7: запоминаем заявку для уведомления «Чиню ...»
         state.pendingRepair = { pid = pid, veh = vehId, at = nowMs() }
+        state.espTarget = { pid = pid, veh = vehId, at = nowMs() }
         pcall(sampSendChat, "/repair " .. pid)
     end
 end
@@ -1301,6 +1315,7 @@ function onReceiveRpc(id, bs)
                 -- v1.1.7: запоминаем заявку (машину здесь не определяем -
                 -- уведомление покажет только ник и id)
                 state.pendingRepair = { pid = playerId, at = nowMs() }
+                state.espTarget = { pid = playerId, at = nowMs() }
                 pcall(sampSendChat, "/repair " .. playerId)
             end
             break
@@ -1345,6 +1360,8 @@ function onReceivePacket(id, bs)
             lua_thread.create(sendFinishReplyThread)
         end
         state.active = false
+        -- v1.2.9: миниигра закончилась - снимаем ESP-метку цели
+        state.espTarget = nil
     end
 end
 
@@ -1515,12 +1532,82 @@ function main()
                     state.nearSentAt = nowB
                     -- v1.1.7: запоминаем заявку для уведомления «Чиню ...»
                     state.pendingRepair = { pid = pid, veh = vehId, at = nowB }
+                    state.espTarget = { pid = pid, veh = vehId, at = nowB }
                     pcall(sampSendChat, "/repair " .. pid)
                 end
             end
         end
 
         wait(0)
+    end
+end
+
+-- ---------- v1.2.9: ESP-метка цели ремонта (линия/квадрат/плашка) ----------
+-- Рисует маркер поверх экрана по state.espTarget: машина, которую скрипт
+-- в данный момент чинит (отправка /repair, миниигра). Ведёт до закрытия
+-- миниигры или таймаута 5 минут. Все вызовы imgui оборачиваем в pcall.
+local function drawRepairEsp()
+    if not optCheat.v or not (optEspLine.v or optEspBox.v or optEspPanel.v) then return end
+    local et = state.espTarget
+    if not et or not et.pid then return end
+    -- таймаут цели: заявка старше 5 минут и не принята - забываем
+    if nowMs() - et.at > 300000 then state.espTarget = nil return end
+    -- если машина исчезла (уехала/разрушена) - снимаем метку
+    if et.veh then
+        local okE, exists = pcall(doesVehicleExist, et.veh)
+        if not okE or not exists then state.espTarget = nil return end
+    end
+    local okV, vx, vy, vz
+    if et.veh then okV, vx, vy, vz = pcall(getVehiclePos, et.veh) end
+    local okScr = false
+    local sx, sy = 0, 0
+    if et.veh and okV and vx and vy and vz then
+        local okS, X, Y = pcall(convert3DCoordsToScreen, vx, vy, vz)
+        if okS and X and Y and X == X and Y == Y and X > -100 and X < 9000 and Y > -100 and Y < 8000 then
+            sx, sy, okScr = X, Y, true
+        end
+    end
+    local okR, resX, resY = pcall(getScreenResolution)
+    if not okR or not resX or not resY then resX, resY = 1920, 1080 end
+    local okDraw, dl = pcall(imgui.GetBackgroundDrawList)
+    if not okDraw or type(dl) ~= "table" then
+        local okFg, dlFg = pcall(imgui.GetForegroundDrawList)
+        if not okFg or type(dlFg) ~= "table" then return end
+        dl = dlFg
+    end
+    -- линия от низа экрана к машине
+    if optEspLine.v and okScr then
+        local a = imgui.ImVec2(resX / 2, resY)
+        local x2 = imgui.ImVec2(sx, sy)
+        pcall(dl.AddLine, dl, a, x2, imgui.GetColorU32Vec4(imgui.ImVec4(0.25, 0.9, 1.0, 1.0)), 2 * fsc)
+    end
+    -- квадрат на капоте
+    if optEspBox.v and okScr then
+        local hs = 26 * fsc
+        local mins = imgui.ImVec2(sx - hs, sy - hs)
+        local maxs = imgui.ImVec2(sx + hs, sy + hs)
+        pcall(dl.AddRect, dl, mins, maxs, imgui.GetColorU32Vec4(imgui.ImVec4(0.25, 0.9, 1.0, 1.0)), 0, 0, 2 * fsc)
+    end
+    -- плашка внизу экрана с данными водителя
+    if optEspPanel.v then
+        local nick = nil
+        if type(sampGetPlayerNickname) == "function" then
+            local okN, n = pcall(sampGetPlayerNickname, et.pid)
+            if okN and n and n ~= "" then nick = n end
+        end
+        local model = ""
+        if et.veh then model = vehicleDisplayName(et.veh) end
+        local line = u8("id " .. et.pid .. (nick and (" | " .. nick) or "") .. (model ~= "" and (" | " .. model) or ""))
+        local pw = math.min(resX - 20, 420 * fsc)
+        local ph = 26 * fsc
+        local px = resX / 2 - pw / 2
+        local py = resY - ph - 12 * fsc
+        pcall(dl.AddRectFilled, dl, imgui.ImVec2(px, py), imgui.ImVec2(px + pw, py + ph),
+              imgui.GetColorU32Vec4(imgui.ImVec4(0.05, 0.05, 0.12, 0.75)), 4)
+        pcall(dl.AddRect, dl, imgui.ImVec2(px, py), imgui.ImVec2(px + pw, py + ph),
+              imgui.GetColorU32Vec4(imgui.ImVec4(0.25, 0.9, 1.0, 1.0)), 4, 0, 1)
+        pcall(dl.AddText, dl, imgui.ImVec2(resX / 2, py + ph / 2 - 10 * fsc),
+              imgui.GetColorU32Vec4(imgui.ImVec4(1, 1, 1, 1)), line)
     end
 end
 
@@ -1804,6 +1891,21 @@ function imgui.OnDrawFrame()
                 imgui.SetTooltip(u8"Авто-кидание отключается: /repair отправится ближайшему свободному водителю только по клику ПКМ")
             end
 
+            imgui.Separator()
+            imgui.TextWrapped(u8"ESP-метка цели ремонта")
+            if imgui.Checkbox(u8"линия от центра экрана", optEspLine) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Показывать линию от низа экрана к машине, которую в данный момент чиним")
+            end
+            if imgui.Checkbox(u8"квадрат на капоте", optEspBox) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Показывать квадрат на капоте целевой машины")
+            end
+            if imgui.Checkbox(u8"плашка с данными", optEspPanel) then changed = true end
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Плашка внизу экрана: id водителя, ник и модель машины")
+            end
+
             imgui.PushItemWidth(150 * fsc)
             if imgui.SliderInt(u8"   радиус, м", optNearRadiusM, 2, 20) then changed = true end
             if imgui.SliderInt(u8"   пауза, сек", optNearDelaySec, 5, 300) then changed = true end
@@ -1966,4 +2068,7 @@ function imgui.OnDrawFrame()
 
         imgui.End()
     end
+
+    -- v1.2.9: ESP-метка цели ремонта рисуется поверх экрана всегда
+    if optCheat.v then pcall(drawRepairEsp) end
 end
