@@ -1,4 +1,6 @@
--- MechWorkByYaroRage v1.3.2
+-- MechWorkByYaroRage v1.3.3
+-- v1.3.3: строгий цикл фраз без повторов до полного прохода списка; ESP не
+-- зеркалится за спиной (метка рисуется только перед активной камерой).
 -- v1.3.2: задержка каждой фразы выбирается случайно в диапазоне «от/до»
 -- (два ползунка в GUI) — сообщения всегда уходят по-разному.
 -- v1.3.1: все фразы уходят с задержкой 1 сек; ESP берёт машину цели
@@ -128,7 +130,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.3.2")
+script_version("1.3.3")
 
 require "moonloader"
 
@@ -1230,30 +1232,55 @@ local function payloadMoneySum(bs)
     return n
 end
 
--- v1.2.2/1.2.6: циклический пул: фразы списка перемешиваются (Фишер-Йетса),
--- затем воспроизводятся в этом случайном порядке без повторов; когда пул
--- исчерпан - тасуются заново. При изменении количества фраз пул пересоздаётся.
+-- v1.3.3: строгий цикл фраз без повторов.
+-- Список перемешивается своим генератором (LCG) - сторонние math.randomseed()
+-- в других частях скрипта больше не сбивают порядок. Пул воспроизводится до
+-- конца БЕЗ повторов: каждая фраза списка выдаётся ровно один раз, и только
+-- когда все выданы - пул тасуется заново. Первая фраза нового пула не
+-- совпадает с последней фразой предыдущего (нет повтора на стыке циклов).
 -- st = { pool = {}, idx = 1 } - передаётся по ссылке (state.replyCycle и т.п.)
+local cycleRngState = 0
+local function cycleRandom(n)
+    if n <= 1 then return 1 end
+    cycleRngState = (1103515245 * cycleRngState + 12345) % 2147483648
+    return (cycleRngState % n) + 1
+end
+
+local function shuffleCycle(pool, avoidFirst)
+    for i = #pool, 2, -1 do
+        local j = cycleRandom(i)
+        pool[i], pool[j] = pool[j], pool[i]
+    end
+    if avoidFirst and #pool > 1 and pool[1] == avoidFirst then
+        local j = cycleRandom(#pool - 1) + 1
+        pool[1], pool[j] = pool[j], pool[1]
+    end
+end
+
 local function pickCycleLine(list, st)
-    if #list == 0 then return "" end
-    if #st.pool ~= #list then
+    local n = #list
+    if n == 0 then return "" end
+    if cycleRngState == 0 then
+        cycleRngState = (math.floor(nowMs()) % 2147483647) + 1
+    end
+    -- пул пересоздаётся только если изменился состав списка (а не просто
+    -- число), иначе текущий цикл продолжается и фразы не повторяются
+    local sig = table.concat(list, "\n")
+    if #st.pool ~= n or st.sig ~= sig then
         st.pool = {}
-        for i = 1, #list do st.pool[i] = i end
-        for i = #st.pool, 2, -1 do
-            local j = math.random(i)
-            st.pool[i], st.pool[j] = st.pool[j], st.pool[i]
-        end
+        for i = 1, n do st.pool[i] = i end
+        shuffleCycle(st.pool, nil)
         st.idx = 1
+        st.sig = sig
+        st.lastIdx = nil
     end
     if st.idx > #st.pool then
-        for i = #st.pool, 2, -1 do
-            local j = math.random(i)
-            st.pool[i], st.pool[j] = st.pool[j], st.pool[i]
-        end
+        shuffleCycle(st.pool, st.lastIdx)
         st.idx = 1
     end
     local idx = st.pool[st.idx]
     st.idx = st.idx + 1
+    st.lastIdx = idx
     return list[idx]
 end
 
@@ -1732,10 +1759,24 @@ drawRepairEsp = function()
     local okScr = false
     local sx, sy = 0, 0
     if veh and okV and vx and vy and vz then
-        -- +0.9 м: метка ложится на корпус машины, а не на уровень земли
-        local okS, X, Y = pcall(convert3DCoordsToScreen, vx, vy, vz + 0.9)
-        if okS and X and Y and X == X and Y == Y and X > -100 and X < 9000 and Y > -100 and Y < 8000 then
-            sx, sy, okScr = X, Y, true
+        -- v1.3.3: convert3DCoordsToScreen отдаёт ЗЕРКАЛЬНЫЕ координаты, если
+        -- машина за спиной. Поэтому метку рисуем только когда цель перед
+        -- активной камерой (скалярное произведение направления камеры > 0).
+        local inFront = true
+        if type(getActiveCameraCoordinates) == "function" and type(getActiveCameraPointAt) == "function" then
+            local okC, camX, camY, camZ = pcall(getActiveCameraCoordinates)
+            local okP, lookX, lookY, lookZ = pcall(getActiveCameraPointAt)
+            if okC and okP and camX and lookX then
+                local dirX, dirY, dirZ = lookX - camX, lookY - camY, lookZ - camZ
+                inFront = (vx - camX) * dirX + (vy - camY) * dirY + (vz - camZ) * dirZ > 0
+            end
+        end
+        if inFront then
+            -- +0.9 м: метка ложится на корпус машины, а не на уровень земли
+            local okS, X, Y = pcall(convert3DCoordsToScreen, vx, vy, vz + 0.9)
+            if okS and X and Y and X == X and Y == Y and X > -100 and X < 9000 and Y > -100 and Y < 8000 then
+                sx, sy, okScr = X, Y, true
+            end
         end
     end
     -- линия от низа экрана к машине
