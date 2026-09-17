@@ -1,4 +1,10 @@
--- MachinistByYaroRage v0.8.0
+-- MachinistByYaroRage v0.9.5
+-- v0.9.5 Ч Ѕ≈«Ќј“»¬Ќџ… √≈…“ ѕќ≈«ƒј (фикс фризов в обычных машинах):
+-- нативный isCharInAnyTrain из driveTick полностью убран (на MoonRage каждый нативный
+-- game-вызов вешает поток SAMP на ~900-1000 мс, и даже 5 вызовов/с в любой машине
+-- давали посто€нные фризы). √ейт автопилота Ч безнативный CEF-детект inCabNow() по
+-- свежим RX-пакетам интерфейса 'Machinist'; в обычной машине пакетов нет Ч нативных
+-- вызовов ноль, игра не фризит.
 -- јвтопилот машиниста метро (Radmir CRMP).
 -- ѕерсонаж уже сидит в поезде и Ќ≈ выходит: смены идут кругами
 -- (—оюзна€ <-> Ѕольнична€), автопилот только ведЄт состав.
@@ -167,7 +173,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("0.9.4")
+script_version("0.9.5")
 script_author("YaroRage")
 
 require "moonloader"
@@ -937,21 +943,16 @@ local function releaseKeysNative()
 end
 
 -- Ќативно ли игрок в поезде (гейт всего автопилота).
--- v0.9.4: кэш кабины на 200 мс. Ќативный game-вызов isCharInAnyTrain из
--- wait(0)-потока в обычной машине вызывалс€ каждый кадр (60 раз/с) Ч по
--- замерам v0.5.7/v0.5.9 на движке MoonRage по-кадровые нативные вызовы
--- вешают поток SAMP и превращают игру в слайд-шоу (isCharInAnyCar валила
--- до ~1 кадра/с). “еперь нативный опрос не чаще 5 раз/с; задержка
--- распознавани€ входа/выхода из поезда Ч до 200 мс (незаметно). ѕри
--- свЄрнутом окне кадров нет, кэш протухает, и опрос идЄт из резервного
--- ev.onSendVehicleSync вместе с сетевыми пакетами Ч как и раньше.
+-- v0.9.5: Ќј“»¬Ќџ… isCharInAnyTrain ”Ѕ–јЌ ѕќЋЌќ—“№ё. Ќа движке MoonRage
+-- каждый нативный game-вызов вешает поток SAMP на ~900-1000 мс (замер
+-- v0.5.7), и даже опрос 5 раз/с (кэш v0.9.4) в обычной машине давал
+-- посто€нные фризы Ч поэтому v0.9.4 Ђне помогї. “еперь Ђв поездеї =
+-- безнативный CEF-детект inCabNow(): кабина активна, пока приход€т свежие
+-- RX-пакеты интерфейса 'Machinist' (каждые 1-2 с, cab_timeout). ¬ обычной
+-- машине интерфейса нет Ч пакетов нет Ч гейт мгновенно false, скрипт не
+-- вызывает ни клавиш, ни keysData, ни нативных game-вызовов. Ќоль фризов.
 local function inTrainNow()
-    local nowMs = wallClockMs()
-    local c = drive._inTrainCache
-    if c and nowMs - c.t < 200 then return c.v end
-    local ok, res = pcall(isCharInAnyTrain, PLAYER_PED)
-    drive._inTrainCache = { v = ok and res == true, t = nowMs }
-    return drive._inTrainCache.v
+    return inCabNow()
 end
 
 -- ’ук исход€щего vehicle sync: подкладываем keysData (как в mashinist.lua).
@@ -1760,7 +1761,8 @@ function main()
     inpToken.v = st.tg_bot_token
     inpChat.v = st.tg_chat_id
 
-    local sv = select(2, pcall(script_version)) or ""
+    local okSv, sv = pcall(script_version)
+    if not okSv or type(sv) ~= "string" or #sv == 0 then sv = "0.9.5" end
     print(string.format("[MachinistByYaroRage] v%s флаги: no_thread=%d no_events=%d no_gui=%d no_chat=%d tg_poll=%d dbg_log=%d force_cab=%d",
         tostring(sv), st.dbg_no_thread and 1 or 0, st.dbg_no_events and 1 or 0,
         st.dbg_no_gui and 1 or 0, st.dbg_no_chat and 1 or 0, st.tg_poll_enable and 1 or 0,
