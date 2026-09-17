@@ -1,4 +1,6 @@
--- MechWorkByYaroRage v1.3.1
+-- MechWorkByYaroRage v1.3.2
+-- v1.3.2: задержка каждой фразы выбирается случайно в диапазоне «от/до»
+-- (два ползунка в GUI) — сообщения всегда уходят по-разному.
 -- v1.3.1: все фразы уходят с задержкой 1 сек; ESP берёт машину цели
 -- динамически и поднимает метку на корпус; добавлен блок фраз (2) на
 -- серверное сообщение «Капот транспорта должен быть открыт».
@@ -126,7 +128,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.3.1")
+script_version("1.3.2")
 
 require "moonloader"
 
@@ -196,6 +198,7 @@ local function loadSettings()
     local s = { enabled = true, cheatEnabled = true, delayMs = 3000, autoStart = true, startDelayMs = 300,
                 autoRepair = true, repairCooldown = 4000,
                 autoReply = true,
+               replyDelayMinSec = 1, replyDelayMaxSec = 2, -- v1.3.2: диапазон задержки фраз в чат (сек)
                 replyLines = {}, -- список фраз автоответа (до 30, v1.1.5)
                 finishLines = {}, -- v1.2.6: фразы по окончанию миниигры (до 5)
                 moneyLowLines = {}, -- v1.2.6: фразы при переводе до 4000 (до 5)
@@ -380,6 +383,14 @@ local function loadSettings()
     if s.delayMaxMs < 0 then s.delayMaxMs = 0 end
     if s.delayMaxMs > 10000 then s.delayMaxMs = 10000 end
     if s.delayMinMs > s.delayMaxMs then s.delayMinMs = s.delayMaxMs end
+    -- v1.3.2: диапазон задержки фраз в чат (секунды, 0..600)
+    s.replyDelayMinSec = tonumber(s.replyDelayMinSec) or 1
+    s.replyDelayMaxSec = tonumber(s.replyDelayMaxSec) or 2
+    if s.replyDelayMinSec < 0 then s.replyDelayMinSec = 0 end
+    if s.replyDelayMinSec > 600 then s.replyDelayMinSec = 600 end
+    if s.replyDelayMaxSec < 0 then s.replyDelayMaxSec = 0 end
+    if s.replyDelayMaxSec > 600 then s.replyDelayMaxSec = 600 end
+    if s.replyDelayMinSec > s.replyDelayMaxSec then s.replyDelayMinSec = s.replyDelayMaxSec end
     return s
 end
 local settings = loadSettings()
@@ -546,6 +557,9 @@ local optManualRmb = imgui.ImBool(settings.manualRmb)
 local optEspLine = imgui.ImBool(settings.espLine)
 local optEspBox = imgui.ImBool(settings.espBox)
 local optEspPanel = imgui.ImBool(settings.espPanel)
+-- v1.3.2: диапазон задержки перед отправкой фраз в чат (секунды)
+local optReplyDelayMin = imgui.ImInt(settings.replyDelayMinSec or 1)
+local optReplyDelayMax = imgui.ImInt(settings.replyDelayMaxSec or 2)
 
 -- ---------- v1.1.6: исключённые id водителей ----------
 -- Им не шлём /repair ни в авто-режиме, ни по ПКМ, ни колесиком (курсором):
@@ -627,6 +641,8 @@ function saveSettings()
         "autoRepair = " .. (optAutoRepair.v and "true" or "false"),
         "repairCooldown = " .. optRepairCooldown.v,
         "autoReply = " .. (optAutoReply.v and "true" or "false"),
+        "replyDelayMinSec = " .. optReplyDelayMin.v,
+        "replyDelayMaxSec = " .. optReplyDelayMax.v,
         "cursorPick = " .. (optCursorPick.v and "true" or "false"),
         "cursorButton = " .. currentCursorVk(),
         "cursorDelayMs = " .. math.floor((optCursorDelaySec.v or 1.0) * 1000 + 0.5),
@@ -1252,11 +1268,24 @@ local function collectPhrases(buffers, count)
 end
 
 -- выбор случайной фразы автоответа и отправка её в чат (CP1251)
--- v1.3.1: все фразы уходят в чат с задержкой 1 секунда
+-- v1.3.2: задержка каждой фразы выбирается случайно в диапазоне
+-- «от/до» (секунды) из GUI - поэтому сообщения уходят всегда по-разному.
+local function randomPhraseDelayMs()
+    local lo = tonumber(optReplyDelayMin.v) or 1
+    local hi = tonumber(optReplyDelayMax.v) or lo
+    if hi < lo then lo, hi = hi, lo end
+    if lo < 0 then lo = 0 end
+    if hi > 600 then hi = 600 end
+    if hi < lo then hi = lo end
+    if hi == lo then return lo * 1000 end
+    return (lo + math.random(0, hi - lo)) * 1000
+end
+
 local function sendPhraseDelayed(text)
     if not text or text == "" then return end
+    local delayMs = randomPhraseDelayMs()
     lua_thread.create(function()
-        wait(1000)
+        wait(delayMs)
         if not optCheat.v then return end
         pcall(sampSendChat, text)
     end)
@@ -1272,7 +1301,7 @@ end
 -- /cancel - это отмена выбранного /repair, окно миниигры при нём не
 -- закрывается, поэтому на неё этот поток никак не реагирует.
 local function sendFinishReplyThread()
-    wait(1000)
+    wait(randomPhraseDelayMs())
     if not optCheat.v or not optAutoReply.v then return end
     if state.active then return end -- уже началась новая миниигра
     local list = collectPhrases(optFinishLines, finishCount.v)
@@ -2065,7 +2094,14 @@ function imgui.OnDrawFrame()
             imgui.TextWrapped(u8"Фразы по окончанию миниигры, ответы на перевод денег (формат «Ник передал Вам деньги 5000 руб») и на просьбу открыть капот")
             imgui.Separator()
 
-            imgui.Text(u8"Фразы по окончанию миниигры (через 1 сек после закрытия):")
+            imgui.Text(u8"Задержка каждого сообщения (секунды), от и до:")
+            imgui.PushItemWidth(150 * fsc)
+            if imgui.SliderInt(u8"   от", optReplyDelayMin, 0, 60) then changed = true end
+            if imgui.SliderInt(u8"   до", optReplyDelayMax, 0, 60) then changed = true end
+            imgui.PopItemWidth()
+            imgui.TextWrapped(u8"Перед отправкой каждой фразы задержка выбирается случайно в этом диапазоне — сообщения всегда уходят по-разному.")
+
+            imgui.Text(u8"Фразы по окончанию миниигры (с задержкой из диапазона):")
             imgui.PushItemWidth(280 * fsc)
             for i = 1, finishCount.v do
                 imgui.PushID(300 + i)
