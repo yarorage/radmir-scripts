@@ -1,5 +1,5 @@
--- MachinistByYaroRage v0.9.8
--- v0.9.8 — СТОЯНКА ТОЛЬКО ДО КОМАНДЫ СЕРВЕРА (фикс «уезжает мимо станции»):
+-- MachinistByYaroRage v1.0.2
+-- v1.0.2 — СТОЯНКА ТОЛЬКО ДО КОМАНДЫ СЕРВЕРА (фикс «уезжает мимо станции»):
 --   1) раньше состав отправлялся сам через dwell (5 с) — то есть УЕЗЖАЛ со
 --      станции ДО команды, и следующий таймер «Остановитесь на станции» уже
 --      не мог его вернуть (дистанция переключалась на следующую станцию, и
@@ -354,10 +354,9 @@ inpChat.v = st.tg_chat_id
 local menuTab = imgui.ImInt(1)
 
 -- ---------- Рабочее состояние автопилота ----------
--- ---------- Р°СѓС‚РѕРїРёР»РѕС‚: СЃРѕСЃС‚РѕСЏРЅРёРµ ----------
 local drive = {
     tickThread = nil,
-    lastAction = "РќРµС‚",
+    lastAction = "Нет",
     phase = "IDLE",
     stopped = false,
     station_arrived = false,
@@ -369,12 +368,12 @@ local drive = {
     stop_preview = 0,
     crawl_start = nil,
     crawl_done = false,
-    -- Overspeed (РїСЂРµРІС‹С€РµРЅРёРµ СЃРєРѕСЂРѕСЃС‚Рё)
+    -- Overspeed (превышение скорости)
     overspeed_active = false,
     overspeed_until = 0,
     overspeed_target_speed = 0,
     overspeed_brake_started = false,
-    -- Station stop timer (РѕСЃС‚Р°РЅРѕРІРєР° РЅР° СЃС‚Р°РЅС†РёРё N СЃРµРє)
+    -- Station stop timer (остановка на станции N сек)
     station_stop_active = false,
     station_stop_until = 0,
     station_stop_duration = 0,
@@ -462,15 +461,12 @@ local function processChatText(label, text, authorNick, skipDiag)
     -- выполнять полный детект и слать уведомление, а не печататься в лог.
     if not skipDiag and os.time() < chatDiagUntil then
         chatDiagCount = chatDiagCount + 1
-        -- Debug: только при dbg_log=1
-        if st.dbg_log then
-            print("[MachinistByYaroRage] чат-diag#" .. tostring(chatDiagCount) ..
-                " [" .. label .. " '" .. text .. "']" ..
-                (authorNick and #authorNick > 0 and (" автор=" .. authorNick) or " автор=?" ) ..
-                " notify=" .. tostring(optNotify.v) ..
-                " tg=" .. tostring(st.tg_bot_token ~= "" and st.tg_chat_id ~= "") ..
-                " events=" .. tostring(not st.dbg_no_events))
-        end
+        print("[MachinistByYaroRage] чат-diag#" .. tostring(chatDiagCount) ..
+            " [" .. label .. " '" .. text .. "']" ..
+            (authorNick and #authorNick > 0 and (" автор=" .. authorNick) or " автор=?" ) ..
+            " notify=" .. tostring(optNotify.v) ..
+            " tg=" .. tostring(st.tg_bot_token ~= "" and st.tg_chat_id ~= "") ..
+            " events=" .. tostring(not st.dbg_no_events))
         return
     end
     if not optNotify.v then return end
@@ -533,9 +529,7 @@ local function adminScanTick(nowWall)
                     adminIdByCurrentId[id] = who
                     if not found then
                         found = true
-                        if st.dbg_log then
-                            print("[MachinistByYaroRage] scan-id: [" .. tostring(id) .. "] " .. name)
-                        end
+                        print("[MachinistByYaroRage] scan-id: [" .. tostring(id) .. "] " .. name)
                     end
                 end
             end
@@ -553,9 +547,7 @@ local function adminScanTick(nowWall)
             local myWho = admin.has_known_admin(myNick)
             if myWho then
                 adminIdByCurrentId[myId] = myWho
-                if st.dbg_log then
-                    print("[MachinistByYaroRage] scan-self: [" .. tostring(myId) .. "] " .. myNick)
-                end
+                print("[MachinistByYaroRage] scan-self: [" .. tostring(myId) .. "] " .. myNick)
             end
         end
     end
@@ -845,22 +837,23 @@ function onReceivePacket(id, bs)
     if f.money then
         st.money = f.money
     end
-    -- РћР±СЂР°Р±РѕС‚РєР° InformationTimer (РІ С‚РѕРј С‡РёСЃР»Рµ РѕСЃС‚Р°РЅРѕРІРёС‚СЊСЃСЏ РЅР° СЃС‚Р°РЅС†РёРё)
+    -- Обработка InformationTimer (в том числе "Остановитесь на станции")
     if f.info_timer then
         st.info_timer = f.info_timer
         if f.info_timer_sec then
             st.info_timer_sec = f.info_timer_sec
             st.info_timer_until = os.time() + f.info_timer_sec
         end
-        -- РџСЂРѕРІРµСЂРєР° РЅР° С‚Р°Р№РјРµСЂ РѕСЃС‚Р°РЅРѕРІРёС‚Рµ СЃ РЅР° СЃС‚Р°РЅС†РёРё
-        if f.info_timer:find("РћСЃС‚Р°РЅРѕРІРёС‚СЊСЃСЏ РЅР° СЃС‚Р°РЅС†РёРё", 1, true) then
+        -- Проверка на таймер "Остановитесь на станции"
+        if f.info_timer:find("Остановитесь на станции", 1, true) then
             drive.station_stop_active = true
             drive.station_stop_duration = f.info_timer_sec or 24
             drive.station_stop_until = os.time() + (f.info_timer_sec or 24)
             drive.station_stop_force_brake = false
-            print(string.format("[Machinist] STATION STOP TIMER: %d СЃРµРє", f.info_timer_sec or 24))
+            print(string.format("[Machinist] STATION STOP TIMER: %d сек", f.info_timer_sec or 24))
         end
     elseif st.info_timer and st.info_timer_until and st.info_timer_until < os.time() then
+        -- Таймер истёк
         st.info_timer = ""
         st.info_timer_sec = nil
         st.info_timer_until = 0
@@ -870,6 +863,7 @@ function onReceivePacket(id, bs)
             print("[Machinist] STATION STOP TIMER END")
         end
     end
+
     -- v0.9.6:
     -- v0.9.6: ТАЙМЕРЫ. Парсер cef.lua теперь понимает реальный формат
     -- «InformationTimer ["...",N,0]» (пробел и перевод строки между именем и
@@ -925,7 +919,7 @@ function onReceivePacket(id, bs)
     do
         local nowDiag = wallClockMs()
         if not st._lastMachDiag then st._lastMachDiag = 0 end
-        if nowDiag - st._lastMachDiag >= 5000 and st.dbg_log then
+        if nowDiag - st._lastMachDiag >= 5000 then
             local mid = st.speed_lo + ((st.speed_hi - st.speed_lo) / 2)
             if mid <= 0 then mid = 40 end
             local txT = ''
@@ -946,15 +940,6 @@ function onReceivePacket(id, bs)
        drive.phase == "IDLE" then
         drive.phase = "DRIVE"
         drive.lastAction = u8"старт ведения"
-
-    -- Проверка и запуск двигателя поезда
-    if drive.state then
-        local car = storeCarCharIsInNoSave(PLAYER_PED)
-        if car ~= 0 and not isTrainEngineRunning(car) then
-            setTrainEngineRunning(car, true)
-            drive.lastAction = u8"Запуск двигателя поезда"
-            print("[Machinist] Двигатель поезда запущен")
-        end
     end
 end
 
@@ -1157,7 +1142,7 @@ local function driveTick()
     local vHi = (st.speed_hi and st.speed_hi > 0) and st.speed_hi
         or (vLo > 0 and vLo or 40)
     local target = (vHi > 1) and (vHi - 1) or vHi
-    -- Р¤РёРєСЃ: С†РµР»РµРІР°СЏ СЃРєРѕСЂРѕСЃС‚СЊ = РјР°РєСЃ. РІРёР»РєР° - 1 РєРј/С…
+    -- Фикс: целевая скорость = макс. вилка - 1 км/ч
     target = (st.speed_hi and st.speed_hi > 0) and (st.speed_hi - 1) or target
 
     -- ---------- Активные серверные таймеры ----------
@@ -1174,27 +1159,7 @@ local function driveTick()
     local fineActive = st.overspeed_fine and st.overspeed_timer
         and st.overspeed_timer > nowSec
 
-    -- 
-    -- ===== STATION STOP TIMER LOGIC =====
-    local need_force_brake_station = false
-    if drive.station_stop_active then
-        local now = os.time()
-        local time_left = drive.station_stop_until - now
-        if speed > 0.5 and time_left <= 5 then
-            need_force_brake_station = true
-            drive.station_stop_force_brake = true
-            drive.lastAction = string.format("ПРИНУДИТЕЛЬНАЯ ОСТАНОВКА НА СТАНЦИИ: %.0f сек", time_left)
-        elseif speed <= 0.5 then
-            drive.station_stop_force_brake = false
-        end
-        if time_left <= 0 then
-            drive.station_stop_active = false
-            drive.station_stop_force_brake = false
-            print("[Machinist] STATION STOP TIMER END")
-        end
-    end
-
----------- Физика торможения ----------
+    -- ---------- Физика торможения ----------
     local brakeA = (st.brake_decel and st.brake_decel > 0) and st.brake_decel or 2.0
     local aComf = math.max(0.6, brakeA * 0.8)
     local brakeMargin = (st.brake_margin and st.brake_margin >= 0) and st.brake_margin or 6
@@ -1205,30 +1170,235 @@ local function driveTick()
     -- Режим «Превышать скорость»: топим выше вилки, но не выше скорости, которую
     -- успеем плавно сбросить обратно за типовое окно таймера штрафа (12 с).
     if st.overspeed and not fineActive and not finePause then
+    target = math.max(target, target_speed)
         local vCeil = vHi + brakeA * 0.8 * 12 * 3.6
         allowed = math.max(target, math.min(vHi + (st.overspeed_extra or 25), vCeil))
     end
-        -- Приоритеты торможения:
-    -- 1. Принудительная остановка на станции (station stop timer)
-    -- 2. Overspeed таймер
-    -- 3. Обычное торможение
-    if need_force_brake_station then
-        setGameKeyState(14, 255)
-        pressBrakeNative()
-        drive.lastAction = string.format("ПРИНУДИТЕЛЬНАЯ ОСТАНОВКА НА СТАНЦИИ: %.0f сек", drive.station_stop_until - os.time())
-    elseif need_brake_for_timer then
-        setGameKeyState(14, 255)
-        pressBrakeNative()
-        if not stopping then drive.lastAction = u8"Торможение под таймер" end
-    elseif fineActive then    elseif fineActive then
+    if finePause then
+        -- после сброса штрафа ещё несколько секунд держим вилку
+        allowed = math.min(allowed, target)
+    end
+    -- Штраф «Снизьте скорость до штрафа»: плавный возврат в вилку к концу
+    -- таймера. Разрешённая скорость падает линейно (vHi + aComf * остаток), но
+    -- не ниже самой вилки — состав тормозит ровно столько, сколько успевает,
+    -- вместо резкого удара тормозом в последнюю секунду.
+    if fineActive then
         local left = math.max(0, st.overspeed_timer - nowSec)
-        allowed = math.min(allowed, drive.overspeed_target_speed + 5)
+        allowed = math.min(allowed, vHi + aComf * left * 3.6)
         if allowed < target then allowed = target end
-        drive.lastAction = u8"Торможение штрафа (штраф)"
+        drive.lastAction = u8"плавный сброс к вилке (штраф)"
     end
+    -- Станция впереди: физическая кривая ПОЗДНЕГО плавного торможения (без
+    -- «ползания» 1 км/ч за 50 м) — скорость сама тянется к нулю у стоп-точки.
+    if stationKnown then
+        local d = distance - brakeMargin
+        if d < 0 then d = 0 end
+        allowed = math.min(allowed, math.sqrt(2 * aComf * d) * 3.6)
     end
-end  -- конец driveTick
+    local stopping = false
+    -- Команда сервера «Остановитесь на станции»: цель — полный стоп.
+    local stopHard = false
+    if stopCmd then
+        if distance > 200 then
+            -- v0.9.8: дистанция setStation уже переключилась на СЛЕДУЮЩУЮ
+            -- станцию (значит текущую проехали), но сервер требует стоять —
+            -- тормозим сразу и здесь, иначе «дальняя» дистанция не тормозит
+            -- и состав уезжает мимо станции.
+            allowed = 0
+            stopHard = true
+        else
+            local d = distance - 3
+            if d < 0 then d = 0 end
+            allowed = math.min(allowed, math.sqrt(2 * aComf * d) * 3.6)
+        end
+        stopping = true
+        drive.lastAction = u8"плавное торможение на станции"
+    end
+    -- v0.9.8: при «жёстком» стопе докрутка не нужна — состав уже проехал
+    -- станцию, докрутка завершена принудительно, чтобы сработала стоянка.
+    if stopHard then
+        drive.crawl_start = nil
+        drive.crawl_done = true
+    end
+    -- v0.9.7: ДОКРУТКА ЗА СТОП-ТОЧКУ. Серверный триггер станции часто стоит чуть
+    -- ДАЛЬШЕ точки, где дистанция setStation дошла до нуля, поэтому состав
+    -- вставал ПЕРЕД триггером и станция не засчитывалась. Теперь, как только
+    -- состав замедлился у станции, едем ещё stop_overshoot метров на скорости
+    -- stop_crawl км/ч (по умолчанию 50 м / 10 км/ч) и только потом встаём.
+    local overshoot = (st.stop_overshoot and st.stop_overshoot >= 0) and st.stop_overshoot or 50
+    local crawl = (st.stop_crawl and st.stop_crawl > 0) and st.stop_crawl or 10
+    local crawlSec = math.max(1, math.floor(overshoot / (crawl / 3.6)))
+    local nearStation = stationKnown and distance <= brakeMargin + 2
+    -- v0.9.8: без серверной команды докрутка допустима только для КАТЯЩЕГОСЯ
+    -- состава (speed > 3) — иначе мы сами сдвигали уже стоящий у станции поезд
+    -- («набрал 10 км/ч, проехал вперёд, уехал»). При stopHard (дистанция уже
+    -- на следующей станции) докрутка запрещена совсем.
+    local crawlAllowed = (stopCmd or stayCmd or (nearStation and speed > 3))
+        and not stopHard
+    if crawlAllowed and not drive.crawl_done then
+        -- Докрутку НАЧИНАЕМ только у ДВИЖУЩЕГОСЯ состава (speed > 1): если поезд
+        -- уже встал, с места не трогаем — иначе получалось «встал, потом снова
+        -- набрал 10 км/ч и поехал вперёд».
+        if not drive.crawl_start and speed > 1 and speed <= crawl + 4 then
+            drive.crawl_start = os.time()
+        end
+        if drive.crawl_start then
+            if (os.time() - drive.crawl_start) < crawlSec then
+                allowed = math.max(allowed, crawl)
+                if not stopping then
+                    drive.lastAction = u8"докрутка до триггера станции"
+                end
+            else
+                drive.crawl_done = true
+            end
+        end
+    end
+    if speed >= 30 then
+        drive.crawl_start = nil
+        drive.crawl_done = false
+    end
+    drive._useTarget = allowed
+    drive.stop_preview = stationKnown and math.max(0, distance - brakeMargin) or 0
 
+    -- ---------- Стоянка на станции ----------
+    -- Встали окончательно, если сервер скомандовал «Остановитесь на станции»,
+    -- пришло «Ожидайте отправления»/«Садитесь в поезд» либо состав уже прошёл
+    -- докрутку и стоит у самой стоп-точки станции (distance <= 3 м).
+    local crawling = (drive.crawl_start ~= nil) and not drive.crawl_done
+    local atStopPoint = stationKnown and (distance <= 3 or drive.crawl_done or stopHard)
+    if speed < 3 and (stopCmd or stayCmd or atStopPoint) and not crawling then
+        if not drive.station_arrived then
+            drive.station_arrived = true
+            drive.station_arrive_time = os.time()
+        end
+        -- v0.9.8: отправление ТОЛЬКО по серверной команде разгона. Раньше
+        -- автоотправление по dwell (5 с) увозило состав до команды, и новый
+        -- таймер «Остановитесь на станции» не мог его вернуть. Аварийная
+        -- страховка — st.station_release_delay секунд без единой команды.
+        local releaseDelay = (st.station_release_delay and st.station_release_delay > 0)
+            and st.station_release_delay or 30
+        local waited = drive.station_arrive_time
+            and (os.time() - drive.station_arrive_time) >= releaseDelay
+        local canGo = goCmd or st.need_go
+            or (not stopCmd and not stayCmd and not timerActive
+                and not driveCpFinish and waited)
+        if canGo then
+            drive.station_arrived = false
+            drive.station_arrive_time = nil
+            drive.crawl_start = nil
+            drive.crawl_done = false
+            drive.phase = "DRIVE"
+            releaseBrake()
+            if speed < target then pressGasNative() end
+            drive.lastAction = goCmd and u8"отправление (сервер требует скорость)"
+                or u8"отправление после стоянки"
+        else
+            drive.phase = "STOP"
+            setBrakeLevel(30)
+            drive.lastAction = u8"стоянка на станции"
+        end
+        drive.keys = drive._gasPressed and 8 or 0
+        return
+    end
+
+    -- ---------- Управление газом/тормозом ----------
+    if goCmd then
+        releaseBrake()
+        if speed < target then
+            pressGasNative()
+            drive.lastAction = u8"разгон (сервер требует скорость)"
+        else
+            drive.lastAction = u8"набор/нейтраль"
+        end
+    elseif speed > target_speed + 1.5 then
+        -- Тормозим: уровень растёт с глубиной превышения — мягко, как игрок.
+        local over = speed - allowed
+        local span = math.max(10, allowed * 0.35)
+        local lvl = math.floor(80 + math.min(1, over / span) * 150)
+        -- Экстренно: оставшегося пути не хватит даже на максимальное замедление.
+        local hard = stationKnown and distance < 250
+            and speedMs * speedMs > 2 * brakeA * math.max(1, distance - brakeMargin)
+        if hard or (fineActive and over > 25) then lvl = 255 end
+        setBrakeLevel(lvl)
+        if not stopping then drive.lastAction = u8"торможение" end
+    elseif speed < target_speed - 1.5 then
+        releaseBrake()
+        pressGasNative()
+        if fineActive then
+            drive.lastAction = u8"набор после сброса к вилке"
+        elseif stationKnown and distance < 300 then
+            drive.lastAction = u8"разгон до станции"
+        else
+            drive.lastAction = u8"разгон"
+        end
+    else
+        releaseBrake()
+    end
+
+    -- ---------- keysData: направление для сервера ----------
+    --   0x08 (accel) = вперёд, 0x20 (decel) = назад, 0 = стоит.
+    if speed > 0.5 then
+        drive.keys = 8
+    elseif speed < -0.5 then
+        drive.keys = 32
+    else
+        drive.keys = drive._gasPressed and 8 or 0
+    end
+end
+
+-- Поток автопилота — КАДРОВЫЙ источник тиков (порт цикла из mashinist.lua):
+--   bot.state        -> optEnabled.v (наше включение автопилота)
+--   inCabNow()       -> drive.in_train (безнативный CEF-гейт кабины)
+--   bot.distance     -> st.station_dist (дистанция до станции из setStation)
+--   bot.speed.min/max-> st.speed_lo/st.speed_hi (вилка setSpeed, км/ч)
+--   checkpoint       -> driveCp (чекпоинт сервера, если есть)
+-- Каждый кадр зовём driveTick(). При свёрнутом окне (кадры почти не идут)
+-- ведение продолжает резервный тик из ev.onSendVehicleSync.
+local function driveThread()
+    if st.dbg_no_thread then
+        print("[MachinistByYaroRage] driveThread пропущен (dbg_no_thread=1)")
+        drive.tickThread = nil
+        return
+    end
+    while optEnabled.v do
+        wait(0)
+        driveTick()
+    end
+    drive.tickThread = nil
+end
+
+-- ---------- Команды ----------
+local function toggleMenu()
+    if st.dbg_no_gui then
+        pcall(sampAddChatMessage, u8:decode(u8"Machinist: GUI отключён (dbg_no_gui=1)"), 0xAAAAFF)
+        return
+    end
+    showMenu.v = not showMenu.v
+    if showMenu.v then
+        -- подхватываем хук отрисовки только ПОКА меню открыто
+        local cur = imgui.OnDrawFrame
+        if cur ~= uiWrapper then prevOnDraw = cur end
+        imgui.OnDrawFrame = uiWrapper
+    else
+        -- меню закрыли: возвращаем хук тому, кто был до нас
+        if imgui.OnDrawFrame == uiWrapper then
+            imgui.OnDrawFrame = prevOnDraw
+        end
+        prevOnDraw = nil
+    end
+end
+
+startBot = function()
+    -- v0.9.1: «Включить автопилот» включает ТОЛЬКО автопилот. Остальные
+    -- функции (кабина, уведомления об админе, превышение, опрос Telegram)
+    -- не трогаем: они продолжают работать, как были настроены.
+    optEnabled.v = true
+    saveAll()
+    if optEnabled.v and not drive.tickThread and not st.dbg_no_thread then
+        drive.tickThread = lua_thread.create(driveThread)
+    end
+    pcall(sampAddChatMessage, u8:decode(u8"Machinist: автопилот включён"), 0xAAFFAA)
+end
 
 stopBot = function()
     -- v0.9.1: «Выключить автопилот» / /mqstop останавливают ТОЛЬКО
