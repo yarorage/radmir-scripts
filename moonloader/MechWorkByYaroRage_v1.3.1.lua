@@ -1,4 +1,7 @@
--- MechWorkByYaroRage v1.3.0
+-- MechWorkByYaroRage v1.3.1
+-- v1.3.1: все фразы уходят с задержкой 1 сек; ESP берёт машину цели
+-- динамически и поднимает метку на корпус; добавлен блок фраз (2) на
+-- серверное сообщение «Капот транспорта должен быть открыт».
 -- v1.3.0: ESP-метка рисуется через SAMPFUNCS render* (в MoonImGui нет
 -- GetBackgroundDrawList); исправлен блок исключённых id (кнопки «Добавить»
 -- и «очистить всё» больше не конфликтуют по ID); перевод денег ловится
@@ -123,7 +126,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.3.0")
+script_version("1.3.1")
 
 require "moonloader"
 
@@ -197,6 +200,7 @@ local function loadSettings()
                 finishLines = {}, -- v1.2.6: фразы по окончанию миниигры (до 5)
                 moneyLowLines = {}, -- v1.2.6: фразы при переводе до 4000 (до 5)
                 moneyHighLines = {}, -- v1.2.6: фразы при переводе от 4001 (до 5)
+                hoodLines = {}, -- v1.3.1: фразы на сообщение «Капот транспорта должен быть открыт»
                 cursorPick = false,
                 cursorButton = 0x04,
                 cursorDelayMs = 1000,
@@ -257,6 +261,13 @@ local function loadSettings()
             if v and v ~= "" then mhl[#mhl + 1] = v end
         end
         if #mhl > 0 then s.moneyHighLines = mhl end
+        -- v1.3.1: фразы на сообщение сервера «Капот транспорта должен быть открыт»
+        local hl = {}
+        for ln = 1, 5 do
+            local v = s["hoodLine" .. ln]
+            if v and v ~= "" then hl[#hl + 1] = v end
+        end
+        if #hl > 0 then s.hoodLines = hl end
         -- v1.1.6: исключённые id водителей (ключи excludeId1..N)
         local ei = {}
         local en = 1
@@ -317,6 +328,7 @@ local function loadSettings()
     s.finishLines = cleanNewList(s.finishLines)
     s.moneyLowLines = cleanNewList(s.moneyLowLines)
     s.moneyHighLines = cleanNewList(s.moneyHighLines)
+    s.hoodLines = cleanNewList(s.hoodLines)
     if #s.finishLines == 0 then
         s.finishLines = {
             "Готово!",
@@ -342,6 +354,13 @@ local function loadSettings()
             "Ценю вашу щедрость, спасибо!",
             "Спасибо за отличную оплату!",
             "Приятно с вами работать, спасибо!",
+        }
+    end
+    -- v1.3.1: фразы на просьбу сервера открыть капот (по умолчанию 2)
+    if #s.hoodLines == 0 then
+        s.hoodLines = {
+            "Капот открываю, секунду!",
+            "Уже открываю капот, начинаю ремонт!",
         }
     end
     -- v1.1.8: диапазон случайной задержки перед закрытием миниигры.
@@ -500,6 +519,13 @@ local moneyHighCount = imgui.ImInt(math.max(1, math.min(#(settings.moneyHighLine
 for i = 1, moneyHighCount.v do
     optMoneyHighLines[i].v = u8(settings.moneyHighLines[i] or "")
 end
+-- v1.3.1: фразы на сообщение «Капот транспорта должен быть открыт» (до 5)
+local optHoodLines = {}
+for i = 1, 5 do optHoodLines[i] = imgui.ImBuffer(168) end
+local hoodCount = imgui.ImInt(math.max(1, math.min(#(settings.hoodLines or {}), 5)))
+for i = 1, hoodCount.v do
+    optHoodLines[i].v = u8(settings.hoodLines[i] or "")
+end
 -- режим выбора цели курсором: удержание колесика 1 сек -> показать/скрыть курсор,
 -- короткий клик по машине -> /repair её водителю
 local optCursorPick = imgui.ImBool(settings.cursorPick)
@@ -576,6 +602,8 @@ local state = {
     moneyHighCycle = { pool = {}, idx = 1 }, -- v1.2.6: пул фраз за деньги от 4001
     lastMoneyLow = 0,  -- v1.2.6: время последнего ответа за деньги до 4000 (GetTickCount)
     lastMoneyHigh = 0, -- v1.2.6: время последнего ответа за деньги от 4001 (GetTickCount)
+    hoodCycle = { pool = {}, idx = 1 }, -- v1.3.1: пул фраз на просьбу открыть капот
+    lastHood = 0, -- v1.3.1: время последнего ответа на просьбу открыть капот (GetTickCount)
     cursorVisible = false, -- курсор выбора цели показан (по удержанию колесика)
     -- ---------- v1.1.1: авто-ремонт подъехавших в радиус ----------
     nearQueue = {},      -- таблица прошлых /repair: veh -> nowMs
@@ -630,6 +658,10 @@ function saveSettings()
     -- v1.2.6: фразы при переводе денег от 4001 (moneyHighLineN)
     for i = 1, moneyHighCount.v do
         lines[#lines + 1] = "moneyHighLine" .. i .. " = " .. toCp(optMoneyHighLines[i].v or "")
+    end
+    -- v1.3.1: фразы на просьбу открыть капот (hoodLineN)
+    for i = 1, hoodCount.v do
+        lines[#lines + 1] = "hoodLine" .. i .. " = " .. toCp(optHoodLines[i].v or "")
     end
     -- исключённые id водителей (v1.1.6): excludeIdN = <id>
     for i = 1, #excludedIds do
@@ -1220,10 +1252,20 @@ local function collectPhrases(buffers, count)
 end
 
 -- выбор случайной фразы автоответа и отправка её в чат (CP1251)
+-- v1.3.1: все фразы уходят в чат с задержкой 1 секунда
+local function sendPhraseDelayed(text)
+    if not text or text == "" then return end
+    lua_thread.create(function()
+        wait(1000)
+        if not optCheat.v then return end
+        pcall(sampSendChat, text)
+    end)
+end
+
 local function pickAutoReplyLine()
     local list = collectPhrases(optReplyLines, replyCount.v)
     if #list == 0 then return end
-    pcall(sampSendChat, pickCycleLine(list, state.replyCycle))
+    sendPhraseDelayed(pickCycleLine(list, state.replyCycle))
 end
 
 -- v1.2.6: поток отправки фразы через 1 сек после закрытия окна миниигры.
@@ -1242,6 +1284,33 @@ end
 -- v1.2.6:
 -- Если сумма до 4000 - свой пул фраз, от 4001 - свой. КД 10 сек на каждую
 -- группу суммы: пока КД активен, повторные переводы не спамят чат.
+-- v1.3.1: сервер просит открыть капот. Текст ищем в сырых байтах пакета
+-- (id=93/101), как и фразу начала ремонта - так не зависим от формата полей.
+local hoodTriggerPhrases = { "апот транспорта должен быть открыт" }
+
+local function payloadHasHoodOpen(bs)
+    local okTotal, total = pcall(raknetBitStreamGetNumberOfBytesUsed, bs)
+    if not okTotal or not total or total <= 0 or total > 4096 then return false end
+    pcall(raknetBitStreamResetReadPointer, bs)
+    local okR, raw = pcall(raknetBitStreamReadString, bs, total)
+    pcall(raknetBitStreamResetReadPointer, bs)
+    if not okR or not raw or raw == "" then return false end
+    for i = 1, #hoodTriggerPhrases do
+        if raw:find(hoodTriggerPhrases[i], 1, true) then return true end
+    end
+    return false
+end
+
+-- v1.3.1: ответ на просьбу открыть капот (фразы по циклу, КД 3 сек)
+local function sendHoodReply()
+    if not optCheat.v or not optAutoReply.v then return end
+    local list = collectPhrases(optHoodLines, hoodCount.v)
+    if #list == 0 then return end
+    if nowMs() - state.lastHood < 3000 then return end
+    state.lastHood = nowMs()
+    sendPhraseDelayed(pickCycleLine(list, state.hoodCycle))
+end
+
 local function sendMoneyReply(sum)
     if not optCheat.v or not optAutoReply.v then return end
     local list, st, lastField
@@ -1257,7 +1326,7 @@ local function sendMoneyReply(sum)
     if #list == 0 then return end
     if nowMs() - state[lastField] < 10000 then return end
     state[lastField] = nowMs()
-    pcall(sampSendChat, pickCycleLine(list, st))
+    sendPhraseDelayed(pickCycleLine(list, st))
 end
 
 
@@ -1285,6 +1354,11 @@ function onServerMessage(color, text)
             or tonumber(text:match("[Вв]ам деньги%s+(%d+)"))
         if sum then
             sendMoneyReply(sum)
+            return nil
+        end
+        -- v1.3.1: сервер просит открыть капот
+        if text:find("апот транспорта должен быть открыт", 1, true) then
+            sendHoodReply()
             return nil
         end
     end
@@ -1316,6 +1390,9 @@ function onReceiveRpc(id, bs)
         -- v1.2.9: перевод денег (в том числе если onServerMessage не сработал)
         local msum = payloadMoneySum(bs)
         if msum then sendMoneyReply(msum) end
+        pcall(raknetBitStreamResetReadPointer, bs)
+        -- v1.3.1: сервер просит открыть капот
+        if payloadHasHoodOpen(bs) then sendHoodReply() end
         pcall(raknetBitStreamResetReadPointer, bs)
     end
     if id ~= 101 then return end
@@ -1603,20 +1680,31 @@ drawRepairEsp = function()
     if not et or not et.pid then return end
     -- таймаут цели: заявка старше 5 минут и не принята - забываем
     if nowMs() - et.at > 300000 then state.espTarget = nil return end
+    -- v1.3.1: машину цели определяем динамически - водитель мог пересесть,
+    -- а сохранённый et.veh мог быть переиспользован игрой под другой транспорт
+    local veh = et.veh
+    if type(sampGetPlayerCarHandle) == "function" then
+        local okPv, pv = pcall(sampGetPlayerCarHandle, et.pid)
+        if okPv and pv and pv ~= 0 then
+            local okE2, ex2 = pcall(doesVehicleExist, pv)
+            if okE2 and ex2 then veh = pv end
+        end
+    end
     -- если машина исчезла (уехала/разрушена) - снимаем метку
-    if et.veh then
-        local okE, exists = pcall(doesVehicleExist, et.veh)
+    if veh then
+        local okE, exists = pcall(doesVehicleExist, veh)
         if not okE or not exists then state.espTarget = nil return end
     end
     local sc = fsc or 1
     local okR, resX, resY = pcall(getScreenResolution)
     if not okR or not resX or not resY then resX, resY = 1920, 1080 end
     local okV, vx, vy, vz
-    if et.veh then okV, vx, vy, vz = pcall(getVehiclePos, et.veh) end
+    if veh then okV, vx, vy, vz = pcall(getVehiclePos, veh) end
     local okScr = false
     local sx, sy = 0, 0
-    if et.veh and okV and vx and vy and vz then
-        local okS, X, Y = pcall(convert3DCoordsToScreen, vx, vy, vz)
+    if veh and okV and vx and vy and vz then
+        -- +0.9 м: метка ложится на корпус машины, а не на уровень земли
+        local okS, X, Y = pcall(convert3DCoordsToScreen, vx, vy, vz + 0.9)
         if okS and X and Y and X == X and Y == Y and X > -100 and X < 9000 and Y > -100 and Y < 8000 then
             sx, sy, okScr = X, Y, true
         end
@@ -1638,7 +1726,7 @@ drawRepairEsp = function()
             if okN and n and n ~= "" then nick = n end
         end
         local model = ""
-        if et.veh then model = vehicleDisplayName(et.veh) end
+        if veh then model = vehicleDisplayName(veh) end
         local line = "id " .. et.pid .. (nick and (" | " .. nick) or "") .. (model ~= "" and (" | " .. model) or "")
         local pw = math.min(resX - 20, 420 * sc)
         local ph = 26 * sc
@@ -1974,7 +2062,7 @@ function imgui.OnDrawFrame()
 
         elseif activeTab == 5 then
             -- ====== ВКЛАДКА «ФРАЗЫ» ======
-            imgui.TextWrapped(u8"Фразы по окончанию миниигры и ответы на перевод денег (формат «Ник передал Вам деньги 5000 руб»)")
+            imgui.TextWrapped(u8"Фразы по окончанию миниигры, ответы на перевод денег (формат «Ник передал Вам деньги 5000 руб») и на просьбу открыть капот")
             imgui.Separator()
 
             imgui.Text(u8"Фразы по окончанию миниигры (через 1 сек после закрытия):")
@@ -2062,6 +2150,37 @@ function imgui.OnDrawFrame()
                 if imgui.Button(u8"Добавить от 4001", imgui.ImVec2(170 * fsc, 0)) then
                     moneyHighCount.v = moneyHighCount.v + 1
                     optMoneyHighLines[moneyHighCount.v].v = ""
+                    changed = true
+                end
+                if imgui.IsItemHovered() then
+                    imgui.SetTooltip(u8"Добавить ещё одно поле для фразы (всего до 5)")
+                end
+            end
+
+            imgui.Separator()
+            imgui.Text(u8"Фразы на сообщение «Капот транспорта должен быть открыт»:")
+            imgui.PushItemWidth(280 * fsc)
+            for i = 1, hoodCount.v do
+                imgui.PushID(600 + i)
+                if imgui.InputText(u8("   капот " .. i .. "##hoodLine"), optHoodLines[i]) then changed = true end
+                imgui.SameLine(0, 6)
+                if hoodCount.v > 1 then
+                    if imgui.SmallButton(u8"х") then
+                        for j = i, hoodCount.v - 1 do
+                            optHoodLines[j].v = optHoodLines[j + 1].v
+                        end
+                        optHoodLines[hoodCount.v].v = ""
+                        hoodCount.v = hoodCount.v - 1
+                        changed = true
+                    end
+                end
+                imgui.PopID()
+            end
+            imgui.PopItemWidth()
+            if hoodCount.v < 5 then
+                if imgui.Button(u8"Добавить капот", imgui.ImVec2(170 * fsc, 0)) then
+                    hoodCount.v = hoodCount.v + 1
+                    optHoodLines[hoodCount.v].v = ""
                     changed = true
                 end
                 if imgui.IsItemHovered() then
