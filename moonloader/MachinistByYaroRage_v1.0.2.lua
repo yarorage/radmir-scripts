@@ -354,9 +354,10 @@ inpChat.v = st.tg_chat_id
 local menuTab = imgui.ImInt(1)
 
 -- ---------- Рабочее состояние автопилота ----------
+-- ---------- Р°СѓС‚РѕРїРёР»РѕС‚: СЃРѕСЃС‚РѕСЏРЅРёСЏ ----------
 local drive = {
     tickThread = nil,
-    lastAction = "Нет",
+    lastAction = "РќРµС‚",
     phase = "IDLE",
     stopped = false,
     station_arrived = false,
@@ -368,12 +369,12 @@ local drive = {
     stop_preview = 0,
     crawl_start = nil,
     crawl_done = false,
-    -- Overspeed (превышение скорости)
+    -- Overspeed (РїСЂРµРІС‹С€РµС… СЃРєРѕСЂРѕСЃС‚Рё)
     overspeed_active = false,
     overspeed_until = 0,
     overspeed_target_speed = 0,
     overspeed_brake_started = false,
-    -- Station stop timer (остановка на станции N сек)
+    -- Station stop timer (РѕСЃС‚Р°РЅРѕРІРєР° РЅР° СЃС‚Р°РЅСЊС†РёРё N СЃРµРє)
     station_stop_active = false,
     station_stop_until = 0,
     station_stop_duration = 0,
@@ -834,45 +835,10 @@ function onReceivePacket(id, bs)
             if st.last_dist_ms == 0 then st.last_dist_ms = wallClockMs() end
         end
     end
-    if f.money then
+        if f.money then
         st.money = f.money
     end
-    -- Обработка InformationTimer (в том числе "Остановитесь на станции")
-    if f.info_timer then
-        st.info_timer = f.info_timer
-        if f.info_timer_sec then
-            st.info_timer_sec = f.info_timer_sec
-            st.info_timer_until = os.time() + f.info_timer_sec
-        end
-        -- Проверка на таймер "Остановитесь на станции"
-        if f.info_timer:find("Остановитесь на станции", 1, true) then
-            drive.station_stop_active = true
-            drive.station_stop_duration = f.info_timer_sec or 24
-            drive.station_stop_until = os.time() + (f.info_timer_sec or 24)
-            drive.station_stop_force_brake = false
-            print(string.format("[Machinist] STATION STOP TIMER: %d сек", f.info_timer_sec or 24))
-        end
-    elseif st.info_timer and st.info_timer_until and st.info_timer_until < os.time() then
-        -- Таймер истёк
-        st.info_timer = ""
-        st.info_timer_sec = nil
-        st.info_timer_until = 0
-        if drive.station_stop_active then
-            drive.station_stop_active = false
-            drive.station_stop_force_brake = false
-            print("[Machinist] STATION STOP TIMER END")
-        end
-    end
-
-    -- v0.9.6:
-    -- v0.9.6: ТАЙМЕРЫ. Парсер cef.lua теперь понимает реальный формат
-    -- «InformationTimer ["...",N,0]» (пробел и перевод строки между именем и
-    -- скобками) — раньше паттерн требовал кавычку сразу после «InformationTimer»
-    -- и f.info_timer был ВСЕГДА nil, поэтому таймеры не работали.
-    -- Сервер шлёт текстовый таймер ОДИН раз с полным остатком секунд, а следом
-    -- идут пустые InformationTimer: активность считаем по дедлайну
-    -- info_timer_until, а не по последнему пакету (иначе команда «терялась»
-    -- через секунду и состав не останавливался на станции).
+    -- РћР±СЂР°Р±РѕС‚РєР° InformationTimer (РІ С‚РѕРј С‡РёСЃР»Рµ РѕСЃС‚Р°РЅР°РЅРѕРІРёС‚СЊСЃСЏ РЅР° СЃС‚Р°РЅСЊРёСЏ РЅР° СЃС‚Р°РЅСЊРёСЏ РЅР° СЃС‚Р°РЅСЊРёСЏ)
     if f.info_timer then
         st.info_timer = f.info_timer
         st.info_timer_sec = f.info_timer_sec
@@ -880,130 +846,18 @@ function onReceivePacket(id, bs)
         -- вообще не станет активной (дедлайн не выставится).
         local sec = f.info_timer_sec
         if not sec or sec <= 0 then sec = 15 end
-        st.info_timer_until = os.time() + sec
-    elseif st.info_timer ~= "" and st.info_timer_until and st.info_timer_until < os.time() then
-        -- дедлайн истёк, пришёл пустой InformationTimer — чистим подсказку
-        st.info_timer = ""
-        st.info_timer_sec = nil
-        st.info_timer_until = 0
-    end
-
-    -- «Увеличьте скорость до штрафа» — сервер требует РАЗГОНЯТЬСЯ (таймер
-    -- снимаем: штраф превышения и требование разгона взаимоисключающие).
-    st.need_go = false
-    if f.info_timer and f.info_timer:find("Увеличьте скорость", 1, true) then
-        st.need_go = true
-        st.overspeed_fine = false
-        st.overspeed_timer = 0
-    end
-    -- v0.9.8: новый таймер «Остановитесь на станции» разрешает докрутку заново
-    -- (на каждую станцию ровно одна докрутка 50 м), но ТОЛЬКО если состав ещё
-    -- едет: у стоящего поезда сбрасывать нельзя — иначе он снова трогался.
-    if f.info_timer and f.info_timer:find("Остановитесь", 1, true) then
-        if (st.speed_est or 0) * 3.6 > 3 then
-            drive.crawl_start = nil
-            drive.crawl_done = false
+        if f.info_timer:find(b"РћСЃС‚Р°РЅРѕРІРёС‚СЊ РЅР° СЃС‚Р°РЅСЊРёРё", 1, true) then
+            drive.station_stop_active = true
+            drive.station_stop_duration = f.info_timer_sec or 24
+            drive.station_stop_until = os.time() + (f.info_timer_sec or 24)
+            drive.station_stop_force_brake = false
+            print(string.format("[Machinist] STATION STOP TIMER: %d СЃРµРє", f.info_timer_sec or 24))
         end
-    end
-    -- «Снизьте скорость до штрафа» — плановый плавный сброс к вилке за остаток
-    -- таймера. Флаг НЕ сбрасываем по любому другому таймеру (раньше else-ветка
-    -- гасила overspeed_fine между пакетами, и торможение не срабатывало).
-    if f.info_timer and f.info_timer:find("Снизьте скорость", 1, true) then
-        local sec = f.info_timer_sec or 15
-        st.overspeed_fine = true
-        st.overspeed_timer = os.time() + sec
-        print(string.format(
-            '[MachinistByYaroRage] FINE: «Снизьте скорость до штрафа», остаток %d c', sec))
-    end
-    -- v0.6.7: всегда-работающий мини-дамп Machinist-состояния (раз в 5 сек)
-    do
-        local nowDiag = wallClockMs()
-        if not st._lastMachDiag then st._lastMachDiag = 0 end
-        if nowDiag - st._lastMachDiag >= 5000 then
-            local mid = st.speed_lo + ((st.speed_hi - st.speed_lo) / 2)
-            if mid <= 0 then mid = 40 end
-            local txT = ''
-            if st.last_rx_text then txT = st.last_rx_text:sub(1, 120) end
-            print(string.format(
-                '[MachinistByYaroRage] MACH: lo=%d hi=%d mid=%.0f code=%s st=%s/%s sem=%s txt=%s',
-                st.speed_lo, st.speed_hi, mid, tostring(st.speed_code),
-                tostring(st.station_name), tostring(st.station_dist),
-                table.concat(st.semaphores, ','),
-                txT))
-            st._lastMachDiag = nowDiag
-        end
-    end
-
-
-    -- Включили автовождение, когда интерфейс машиниста уже активен
-    if optEnabled.v and optAutoDrive.v and st.semaphores[1] ~= nil and
-       drive.phase == "IDLE" then
-        drive.phase = "DRIVE"
-        drive.lastAction = u8"старт ведения"
-    end
-end
-
--- Детект сообщений админов -> уведомление в телеграм и остановка автопилота.
--- Глобальный хук: вызывается MoonLoader'ом при каждом чат-сообщении сервера.
--- На Radmir серверный чат сюда НЕ приходит (основной поток — в пузырях CEF и
--- в собственных отправленных сообщениях), хук оставлен для совместимости.
-function onServerMessage(color, text)
-    processChatText("сервер", text)
-end
-
--- Проверка что локальный игрок находится в кабине локомотива.
--- Основной сигнал — свежие RX-пакеты интерфейса 'Machinist' (setSpeed /
--- setSemaphoreState и т.п.): они приходят ~раз в 1-2 сек, пока интерфейс
--- кабины открыт (замерено по дампам CefPacketAnalyzer: 68 пакетов за
--- 1.25 мин, интервалы 1-2 сек). Любой такой пакет = мы в кабине, держим
--- флаг ещё cab_timeout секунд.
--- ВАЖНО: нативный isCharInAnyCar() НЕ используется вовсе — на установленном
--- движке MoonRage.dll v0.0.29 его вызов вешает SAMP-поток на ~1.2 сек
--- (замерено: при v0.5.8 тик драйв-потока упал с ~7/с до 1/с, wall-gap
--- 1125-1625 мс; antiticket тоже зовёт его, но только на OnPlayerEnterArea,
--- поэтому заметного фриза нет). CEF-детект кабины мгновенный (пакет приходит
--- в первую же секунду), нативный сигнал не даёт выигрыша, только фризы.
-local function inCabNow()
-    -- Принудительный режим (force_cab): считаем, что мы в кабине всегда —
-    -- автопилот стартует и ведёт, даже если CEF-пакеты 'Machinist' не приходят.
-    if st.force_cab then return true end
-    return st.in_cab and (os.time() - st.last_pkt_time) <= st.cab_timeout
-end
-
--- ---------- Ведение поезда (порт из рабочего mashinist.lua) ----------
--- v0.9.6: кадровый путь ПОЛНОСТЬЮ безнативный. Никаких storeCarCharIsInNoSave /
--- getCarSpeed / getCharCoordinates / getDistanceBetweenCoords3d / setTrainSpeed —
--- на MoonRage каждый нативный game-вызов вешает поток SAMP на ~900-1000 мс
--- (это и давало «безбожные лаги» в поезде). Для движения это и не нужно:
---   1) газ — setGameKeyState(16,255) на кадр, пока скорость ниже цели;
---   2) тормоз — setGameKeyState(14,255) + writeMemory(0xB73458+0x1C,1,lvl,false);
---      отпускание тормоза — те же вызовы со значением 0;
---   3) скорость — оценка st.speed_est (м/с) по убыванию серверной дистанции
---      setStation (пакет раз в секунду), дистанция — st.station_dist;
---   4) направление сервер читает из keysData исходящего vehicle sync:
---      бит 0x08 (accel) когда состав движется вперёд, 0x20 (decel) назад,
---      0 — стоит. key считается по ЗНАКУ оценённой скорости (st.speed_est).
--- Весь автопилот гейтится безнативным CEF-детектом inCabNow(): вне поезда
--- скрипт НЕ трогает ни клавиши, ни keysData — поэтому в обычном автомобиле
--- двигатель заводится нормально (в v0.6.5 releaseKeysNative() каждые 150 мс
--- обнулял W/S и блокировал запуск двигателя).
-
--- Целевой чекпоинт: сервер ставит race checkpoint по маршруту состава.
-local driveCp = { x = 0, y = 0, z = 0 }
-local driveCpFinish = false
-
--- Нажать газ (игровая клавиша W), как в mashinist.lua — без writeMemory.
-local function pressGasNative()
-    -- Газ — только игровая клавиша W (как в mashinist.lua: их цикл
-    -- на разгоне жмёт setGameKeyState(16, 255), accel пишет лишь тормоз).
-    -- Настоящий accel для сервера уходит через drive.keys в onSendVehicleSync.
-    -- v0.9.0: отмечаем, что газ нажат в этом тике — на отправлении accel-бит
-    -- уходит серверу даже при speed=0 (см. keysData в driveTick).
-    drive._gasPressed = true
-    pcall(setGameKeyState, 16, 255)
-end
+        -- 
 
 -- Нажать тормоз (S): игровая клавиша + память (как press_brake в mashinist.lua).
+end
+
 local function pressBrakeNative()
     pcall(setGameKeyState, 14, 255)
     pcall(writeMemory, 0xB73458 + 0x1C, 1, 255, false)
@@ -1142,7 +996,7 @@ local function driveTick()
     local vHi = (st.speed_hi and st.speed_hi > 0) and st.speed_hi
         or (vLo > 0 and vLo or 40)
     local target = (vHi > 1) and (vHi - 1) or vHi
-    -- Фикс: целевая скорость = макс. вилка - 1 км/ч
+    -- Fix: target speed = max - 1 km/h
     target = (st.speed_hi and st.speed_hi > 0) and (st.speed_hi - 1) or target
 
     -- ---------- Активные серверные таймеры ----------
@@ -1170,7 +1024,6 @@ local function driveTick()
     -- Режим «Превышать скорость»: топим выше вилки, но не выше скорости, которую
     -- успеем плавно сбросить обратно за типовое окно таймера штрафа (12 с).
     if st.overspeed and not fineActive and not finePause then
-    target = math.max(target, target_speed)
         local vCeil = vHi + brakeA * 0.8 * 12 * 3.6
         allowed = math.max(target, math.min(vHi + (st.overspeed_extra or 25), vCeil))
     end
@@ -1368,6 +1221,8 @@ local function driveThread()
 end
 
 -- ---------- Команды ----------
+end
+
 local function toggleMenu()
     if st.dbg_no_gui then
         pcall(sampAddChatMessage, u8:decode(u8"Machinist: GUI отключён (dbg_no_gui=1)"), 0xAAAAFF)
