@@ -1,10 +1,24 @@
--- РњРѕРґСѓР»СЊ РґРµС‚РµРєС‚РёСЂРѕРІР°РЅРёСЏ Р°РґРјРёРЅРѕРІ РґР»СЏ MachinistByYaroRage.
--- РђРґР°РїС‚РёСЂРѕРІР°РЅ РёР· AutoLoginByYaroRage/admin_detection.lua (Р±РµР· СЃРІРѕРµР№ state-Р·Р°РІРёСЃРёРјРѕСЃС‚Рё).
+-- Модуль детектирования админов для MachinistByYaroRage.
+-- Адаптирован из AutoLoginByYaroRage/admin_detection.lua (без своей state-зависимости).
 local M = {}
 
 local state = require("MachinistByYaroRage.state")
 
--- Р РµР·СѓР»СЊС‚Р°С‚ РїР°СЂСЃРёРЅРіР°: СЃРїРёСЃРѕРє РёРјС‘РЅ.
+-- v0.9.3: нижний регистр кириллицы CP1251. Lua string.lower() трогает
+-- только ASCII, поэтому серверное «Вы тут»/«Администратор» не находилось
+-- байт-чувствительным поиском по «вы тут»/«администратор» — детект админов
+-- работал вхолостую. Приводим верхний регистр А-Я (байты 0xC0..0xDF)
+-- к нижнему а-я (0xE0..0xFF), остальные байты не трогаем.
+local function casefoldCyr(s)
+    if not s or #s == 0 then return s end
+    return (s:gsub("[\128-\255]", function(ch)
+        local b = ch:byte()
+        if b >= 0xC0 and b <= 0xDF then return string.char(b + 32) end
+        return ch
+    end))
+end
+
+-- Результат парсинга: список имён.
 local function parse_admin_names(str)
     local names = {}
     if not str or #str == 0 then return names end
@@ -15,9 +29,9 @@ local function parse_admin_names(str)
     return names
 end
 
--- Р§С‚РµРЅРёРµ РЅРёРєРѕРІ Р°РґРјРёРЅРѕРІ РёР· С„Р°Р№Р»Р° config\CheatAdminList.txt.
--- Р’ С„Р°Р№Р»Рµ Р»РµР¶Р°С‚ РѕС‡РёС‰РµРЅРЅС‹Рµ РЅРёРєРё (РїРѕ РѕРґРЅРѕРјСѓ РЅР° СЃС‚СЂРѕРєСѓ), РЅРѕ РЅР° РІСЃСЏРєРёР№ СЃР»СѓС‡Р°Р№
--- СЃС‚СЂРѕРєРё С„РѕСЂРјР°С‚Р° "РќРёРє|Р·РІР°РЅРёРµ|РґР°С‚Р°" С‚РѕР¶Рµ РїРѕРЅРёРјР°РµРј: Р±РµСЂС‘Рј РїРµСЂРІРѕРµ РїРѕР»Рµ.
+-- Чтение ников админов из файла config\CheatAdminList.txt.
+-- В файле лежат очищенные ники (по одному на строку), но на всякий случай
+-- строки формата "Ник|звание|дата" тоже понимаем: берём первое поле.
 local fileCache = nil
 local function read_file_names()
     local f = io.open(state.admin_file, "rb")
@@ -25,8 +39,8 @@ local function read_file_names()
     local data = f:read("*a")
     f:close()
     if fileCache and fileCache.src == data then return fileCache.list end
-    -- РќРёРєРё РІ С„Р°Р№Р»Рµ Р»Р°С‚РёРЅРёС†РµР№ (ASCII), РЅРѕ С‡РёС‚Р°РµРј Р°РєРєСѓСЂР°С‚РЅРѕ: РґРµРєРѕРґРёСЂСѓРµРј CP1251,
-    -- С‡С‚РѕР±С‹ РєРѕСЂСЂРµРєС‚РЅРѕ РїРµСЂРµР¶РёС‚СЊ РІРѕР·РјРѕР¶РЅС‹Рµ РєРёСЂРёР»Р»РёС‡РµСЃРєРёРµ РЅРёРєРё.
+    -- Ники в файле латиницей (ASCII), но читаем аккуратно: декодируем CP1251,
+    -- чтобы корректно пережить возможные кириллические ники.
     local text = data
     local ok_enc, enc = pcall(require, "encoding")
     if ok_enc and enc and enc.CP1251 and enc.CP1251.decode then
@@ -37,8 +51,8 @@ local function read_file_names()
     for line in text:gmatch("[^\r\n]+") do
         line = line:gsub("%s*$", "")
         if #line > 0 then
-            -- РѕС‚РґРµР»СЏРµРј РїРµСЂРІС‹Р№ СЃС‚РѕР»Р±РµС† (РЅРёРє) РѕС‚ РІРѕР·РјРѕР¶РЅС‹С… "|Р·РІР°РЅРёРµ|РґР°С‚Р°",
-            -- Р»РёР±Рѕ Р±РµСЂС‘Рј С‚РѕРєРµРЅ РґРѕ Р·Р°РїСЏС‚РѕР№/С‚РѕС‡РєРё СЃ Р·Р°РїСЏС‚РѕР№/РїСЂРѕР±РµР»Р° (Р·Р°С‰РёС‚Р° РѕС‚ РјСѓСЃРѕСЂР°)
+            -- отделяем первый столбец (ник) от возможных "|звание|дата",
+            -- либо берём токен до запятой/точки с запятой/пробела (защита от мусора)
             local nick = line:match("^%s*([^%s|,;]+)")
             if nick and #nick > 0 then names[#names + 1] = nick end
         end
@@ -47,7 +61,7 @@ local function read_file_names()
     return names
 end
 
--- РљСЌС€ СЂР°СЃРїР°СЂСЃРµРЅРЅС‹С… РёРјС‘РЅ: РѕР±СЉРµРґРёРЅСЏРµРј С„Р°Р№Р»РѕРІС‹Р№ СЃРїРёСЃРѕРє Рё СЂСѓС‡РЅРѕР№ admin_names.
+-- Кэш распарсенных имён: объединяем файловый список и ручной admin_names.
 local cachedNames = nil
 local function getAdminNames()
     local manual = state.state.admin_names or ""
@@ -67,12 +81,12 @@ local function getAdminNames()
     return cachedNames.list
 end
 
--- Р­РєСЃРїРѕСЂС‚ СЃРїРёСЃРєР° РґР»СЏ GUI/РєРѕРјР°РЅРґ: РїРѕРєР°Р·С‹РІР°РµС‚ СЂРµР°Р»СЊРЅС‹Р№ СЃРїРёСЃРѕРє Р°РґРјРёРЅРѕРІ,
--- РєРѕС‚РѕСЂС‹Р№ РёСЃРїРѕР»СЊР·СѓРµС‚ РґРµС‚РµРєС‚ (С„Р°Р№Р» + СЂСѓС‡РЅРѕР№ СЃРїРёСЃРѕРє).
+-- Экспорт списка для GUI/команд: показывает реальный список админов,
+-- который использует детект (файл + ручной список).
 M.get_admin_names = getAdminNames
 
--- РџСЂРѕРІРµСЂРєР° СЃРѕРІРїР°РґРµРЅРёСЏ РёРјРµРЅРё РєР°Рє Р¦Р•Р›РћР“Рћ СЃР»РѕРІР° РІ С‚РµРєСЃС‚Рµ.
--- Lua 5.1 РЅРµ РёРјРµРµС‚ %f, РїРѕСЌС‚РѕРјСѓ РіСЂР°РЅРёС†Сѓ РїСЂРѕРІРµСЂСЏРµРј РІСЂСѓС‡РЅСѓСЋ.
+-- Проверка совпадения имени как ЦЕЛОГО слова в тексте.
+-- Lua 5.1 не имеет %f, поэтому границу проверяем вручную.
 local function wordFind(text, needle)
     if not needle or #needle == 0 then return false end
     local pos = 1
@@ -93,7 +107,7 @@ local function wordFind(text, needle)
     end
 end
 
--- РџСЂРѕРІРµСЂРєР° РІС…РѕР¶РґРµРЅРёСЏ РёР·РІРµСЃС‚РЅРѕРіРѕ Р°РґРјРёРЅР° РІ С‚РµРєСЃС‚ (С†РµР»С‹Рј СЃР»РѕРІРѕРј).
+-- Проверка вхождения известного админа в текст (целым словом).
 function M.has_known_admin(text)
     if not text then return false end
     local names = getAdminNames()
@@ -107,19 +121,21 @@ function M.has_known_admin(text)
     return false
 end
 
--- РџСЂРѕРІРµСЂРєР°, С‡С‚Рѕ С‚РµРєСЃС‚ РїРѕС…РѕР¶ РЅР° РѕР±СЉСЏРІР»РµРЅРёРµ РѕР± Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂРµ.
-local PREFIXES = { "РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ", "Administrator" }
+-- Проверка, что текст похож на объявление об администраторе.
+-- v0.9.3: префиксы заданы в нижнем регистре, поиск по приведённому
+-- тексту — иначе серверное «Администратор» не находилось по маске.
+local PREFIXES = { "администратор", "administrator" }
 
 function M.has_admin_prefix(text)
     if not text then return false end
-    local lower = text:lower()
+    local lower = casefoldCyr(text:lower())
     for _, p in ipairs(PREFIXES) do
-        if lower:find(p:lower(), 1, true) then return true end
+        if lower:find(p, 1, true) then return true end
     end
     return false
 end
 
--- РР·РІР»РµС‡РµРЅРёРµ РЅРёРєР° РёР· OOC-СЃРѕРѕР±С‰РµРЅРёСЏ РІРёРґР° (( РРјСЏ: С‚РµРєСЃС‚ )) РёР»Рё [РРјСЏ: С‚РµРєСЃС‚]
+-- Извлечение ника из OOC-сообщения вида (( Имя: текст )) или [Имя: текст]
 function M.extract_ooc_name(text)
     if not text then return nil end
     local name = text:match("%(%(%s*(.-)%s*:)") or
@@ -133,36 +149,36 @@ function M.extract_ooc_name(text)
     return nil
 end
 
--- Р“Р»Р°РІРЅР°СЏ РїСЂРѕРІРµСЂРєР°: СЏРІР»СЏРµС‚СЃСЏ Р»Рё СЃРѕРѕР±С‰РµРЅРёРµ Р°РґРјРёРЅСЃРєРёРј.
--- Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРјСЏ Р°РґРјРёРЅР° РёР»Рё false.
--- v0.7.2: СЂР°СЃРїРѕР·РЅР°РІР°РЅРёРµ Р°РґРјРёРЅСЃРєРёС… РјРїРёСЃРєРѕРІ/Р°РЅС‚Рё-Р±РѕС‚ РїСЂРѕРІРµСЂРѕРє РІРёРґР°
---   В«РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ <РЅРёРє_Р°РґРјРёРЅР°> РґР»СЏ <РЅРёРє_РїРµСЂСЃРѕРЅР°Р¶Р°> Р’С‹ С‚СѓС‚?
---    РќР°РїРёС€РёС‚Рµ РІ С‡Р°С‚ /report - 1 СЏ С‚СѓС‚В»
--- Р‘РµСЂС‘Рј РЅРёРє Р°РґРјРёРЅР° РїРѕСЃР»Рµ СЃР»РѕРІР° В«РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂВ»/В«AdministratorВ» Рё, РµСЃР»Рё
--- РїРµСЂРµРґР°РЅ myNick, РѕСЃС‚Р°РІР»СЏРµРј С‚РѕР»СЊРєРѕ РѕР±СЂР°С‰РµРЅРёСЏ В«РґР»СЏ <РјРѕР№ РЅРёРє>В» (РёРЅР°С‡Рµ СЌС‚Рѕ
--- С‡СѓР¶РѕР№ РІС‹Р·РѕРІ). Р’РѕР·РІСЂР°С‰Р°РµС‚ РЅРёРє Р°РґРјРёРЅР° РёР»Рё true (РјР°СЂРєРµСЂ РЅР°Р№РґРµРЅ), Р»РёР±Рѕ nil.
+-- Главная проверка: является ли сообщение админским.
+-- Возвращает имя админа или false.
+-- v0.7.2: распознавание админских мписков/анти-бот проверок вида
+--   «Администратор <ник_админа> для <ник_персонажа> Вы тут?
+--    Напишите в чат /report - 1 я тут»
+-- Берём ник админа после слова «Администратор»/«Administrator» и, если
+-- передан myNick, оставляем только обращения «для <мой ник>» (иначе это
+-- чужой вызов). Возвращает ник админа или true (маркер найден), либо nil.
 function M.parse_admin_call(text, myNick)
     if not text or #text == 0 then return nil end
-    local lower = text:lower()
-    -- РјР°СЂРєРµСЂ Р°РЅС‚Рё-Р±РѕС‚ РїСЂРѕРІРµСЂРєРё: В«Р’С‹ С‚СѓС‚?В» РёР»Рё РїСЂРѕСЃСЊР±Р° РЅР°РїРёСЃР°С‚СЊ /report;
-    -- С‚Р°РєР¶Рµ РіРѕРґРёС‚СЃСЏ РїСЂРѕСЃС‚РѕРµ СѓРїРѕРјРёРЅР°РЅРёРµ В«РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂВ».
-    local hasCall = lower:find("РІС‹ С‚СѓС‚", 1, true)
+    local lower = casefoldCyr(text:lower())
+    -- маркер анти-бот проверки: «Вы тут?» или просьба написать /report;
+    -- также годится простое упоминание «Администратор».
+    local hasCall = lower:find("вы тут", 1, true)
     if not hasCall then hasCall = lower:find("/report", 1, true) end
     if not hasCall then
-        hasCall = lower:find("Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ", 1, true)
+        hasCall = lower:find("администратор", 1, true)
     end
     if not hasCall then
         hasCall = lower:find("administrator", 1, true)
     end
     if not hasCall then return nil end
-    -- РЅРёРє Р°РґРјРёРЅР° СЃСЂР°Р·Сѓ РїРѕСЃР»Рµ СЃР»РѕРІР° В«РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂВ»
-    local admin = text:match("[РђР°]РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ[%s:%-вЂ”]*([Рђ-РЇР°-СЏA-Za-z0-9_]+)")
-            or text:match("[Aa]dministrator[%s:%-вЂ”]*([Рђ-РЇР°-СЏA-Za-z0-9_]+)")
-    -- Р°РґСЂРµСЃР°С‚ В«РґР»СЏ <РЅРёРє>В»
-    local addr = text:match("РґР»СЏ%s*[:%-вЂ”]?%s*([Рђ-РЇР°-СЏA-Za-z0-9_]+)")
+    -- ник админа сразу после слова «Администратор»
+    local admin = text:match("[Аа]дминистратор[%s:%-—]*([А-Яа-яA-Za-z0-9_]+)")
+            or text:match("[Aa]dministrator[%s:%-—]*([А-Яа-яA-Za-z0-9_]+)")
+    -- адресат «для <ник>» (регистр буквы «д» — любой)
+    local addr = text:match("[Дд]ля%s*[:%-—]?%s*([А-Яа-яA-Za-z0-9_]+)")
     if addr and myNick and #myNick > 0 then
-        if addr:lower() ~= myNick:lower() then
-            return nil -- РѕР±СЂР°С‰РµРЅРёРµ Рє РґСЂСѓРіРѕРјСѓ РёРіСЂРѕРєСѓ
+        if casefoldCyr(addr:lower()) ~= casefoldCyr(myNick:lower()) then
+            return nil -- обращение к другому игроку
         end
     end
     return admin or true
@@ -170,12 +186,12 @@ end
 
 function M.is_admin_message(text)
     if not text or #text == 0 then return false end
-    -- СЃРѕРѕР±С‰РµРЅРёРµ РѕС‚ РёР·РІРµСЃС‚РЅРѕРіРѕ Р°РґРјРёРЅР°
+    -- сообщение от известного админа
     local known = M.has_known_admin(text)
     if known then return known end
-    -- РѕР±СЉСЏРІР»РµРЅРёРµ РѕР± Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂРµ
+    -- объявление об администраторе
     if M.has_admin_prefix(text) then return true end
-    -- OOC-СЃРѕРѕР±С‰РµРЅРёРµ СЃ РЅРёРєРѕРј Р°РґРјРёРЅР° РІ РЅР°С‡Р°Р»Рµ
+    -- OOC-сообщение с ником админа в начале
     local name = M.extract_ooc_name(text)
     if name then
         local known2 = M.has_known_admin(name)
@@ -184,8 +200,8 @@ function M.is_admin_message(text)
     return false
 end
 
--- РЎР±СЂРѕСЃ РєРµС€Р° СЃРїРёСЃРєР° Р°РґРјРёРЅРѕРІ (РїРѕСЃР»Рµ РґРѕР±Р°РІР»РµРЅРёСЏ/СѓРґР°Р»РµРЅРёСЏ С‡РµСЂРµР· GUI), С‡С‚РѕР±С‹
--- РїРѕРІС‚РѕСЂРЅС‹Р№ РІС‹Р·РѕРІ get_admin_names() РїРµСЂРµС‡РёС‚Р°Р» С„Р°Р№Р» Рё СЂСѓС‡РЅРѕР№ СЃРїРёСЃРѕРє.
+-- Сброс кеша списка админов (после добавления/удаления через GUI), чтобы
+-- повторный вызов get_admin_names() перечитал файл и ручной список.
 function M.invalidate()
     fileCache = nil
     cachedNames = nil

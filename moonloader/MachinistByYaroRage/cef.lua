@@ -1,17 +1,17 @@
--- ĞœĞ¾Ğ´ÑƒĞ»ÑŒ Ñ€Ğ°Ğ±Ğ¾Ñ‚Ñ‹ Ñ CEF-Ğ¿Ğ°ĞºĞµÑ‚Ğ°Ğ¼Ğ¸ (id = 215, 0xD7).
--- ĞŸĞ¾Ğ´Ğ´ĞµÑ€Ğ¶Ğ¸Ğ²Ğ°ĞµÑ‚ Ğ¾Ñ‚Ğ¿Ñ€Ğ°Ğ²ĞºÑƒ OnPlayerClientSideKey (ĞºĞ»Ğ°Ğ²Ğ¸ÑˆĞ¸ W=87, S=83 Ğ´Ğ»Ñ
--- ÑƒĞ¿Ñ€Ğ°Ğ²Ğ»ĞµĞ½Ğ¸Ñ Ğ¿Ğ¾ĞµĞ·Ğ´Ğ¾Ğ¼) Ğ¸ Ñ€Ğ°Ğ·Ğ±Ğ¾Ñ€ ÑĞ¾ÑÑ‚Ğ¾ÑĞ½Ğ¸Ñ Ğ¸Ğ½Ñ‚ĞµÑ€Ñ„ĞµĞ¹ÑĞ° 'Machinist'.
--- Ğ¤Ğ¾Ñ€Ğ¼Ğ°Ñ‚ TX Ğ¿Ğ¾Ğ´Ñ‚Ğ²ĞµÑ€Ğ¶Ğ´Ñ‘Ğ½ Ğ¿Ğ¾ Ğ´Ğ°Ğ¼Ğ¿Ğ°Ğ¼:
---   [215][int32 2][0][0][int32 len][Ğ¸Ğ¼Ñ][int32 2][0x64][int32 vk]
--- ĞÑ‚Ğ¿Ñ€Ğ°Ğ²ĞºĞ° Ñ‡ĞµÑ€ĞµĞ· raknetSendBitStream (ĞºĞ°Ğº Ğ² AutoLoginByYaroRage/restore.lua).
+-- Ìîäóëü ğàáîòû ñ CEF-ïàêåòàìè (id = 215, 0xD7).
+-- Ïîääåğæèâàåò îòïğàâêó OnPlayerClientSideKey (êëàâèøè W=87, S=83 äëÿ
+-- óïğàâëåíèÿ ïîåçäîì) è ğàçáîğ ñîñòîÿíèÿ èíòåğôåéñà 'Machinist'.
+-- Ôîğìàò TX ïîäòâåğæä¸í ïî äàìïàì:
+--   [215][int32 2][0][0][int32 len][èìÿ][int32 2][0x64][int32 vk]
+-- Îòïğàâêà ÷åğåç raknetSendBitStream (êàê â AutoLoginByYaroRage/restore.lua).
 local M = {}
 
 local encoding = require "encoding"
 local u8 = encoding.UTF8
 
--- ---------- ĞÑ‚Ğ¿Ñ€Ğ°Ğ²ĞºĞ° ----------
+-- ---------- Îòïğàâêà ----------
 
--- Ğ¡Ğ±Ğ¾Ñ€ĞºĞ° Ğ±Ğ°Ğ¹Ñ‚Ğ¾Ğ² Ğ¿Ğ°ĞºĞµÑ‚Ğ° CEF id=215.
+-- Ñáîğêà áàéòîâ ïàêåòà CEF id=215.
 local function build_bytes(name, args)
     local p = {}
     local function push(x) p[#p + 1] = x end
@@ -33,7 +33,7 @@ local function build_bytes(name, args)
     return p
 end
 
--- ĞÑ‚Ğ¿Ñ€Ğ°Ğ²ĞºĞ° Ğ³Ğ¾Ñ‚Ğ¾Ğ²Ğ¾Ğ³Ğ¾ Ğ±Ğ°Ğ¹Ñ‚Ğ¾Ğ²Ğ¾Ğ³Ğ¾ Ğ¼Ğ°ÑÑĞ¸Ğ²Ğ° ĞºĞ°Ğº CEF-Ğ¿Ğ°ĞºĞµÑ‚Ğ°.
+-- Îòïğàâêà ãîòîâîãî áàéòîâîãî ìàññèâà êàê CEF-ïàêåòà.
 local function send_bytes(bytes)
     if not bytes or #bytes == 0 then return false end
     local ok_bs, bs = pcall(raknetNewBitStream)
@@ -52,12 +52,12 @@ local function send_bytes(bytes)
     return ok_s == true
 end
 
--- Ğ˜Ğ¼Ğ¸Ñ‚Ğ°Ñ†Ğ¸Ñ Ğ½Ğ°Ğ¶Ğ°Ñ‚Ğ¸Ñ ĞºĞ»Ğ°Ğ²Ğ¸ÑˆĞ¸ Ñ‡ĞµÑ€ĞµĞ· CEF (OnPlayerClientSideKey).
--- ĞšĞ»Ğ°Ğ²Ğ¸ÑˆĞ¸: 87 = W (Ğ³Ğ°Ğ·), 83 = S (Ñ‚Ğ¾Ñ€Ğ¼Ğ¾Ğ·), 69 = E, 16 = Ğ½Ğ¸Ñ‡ĞµĞ³Ğ¾.
+-- Èìèòàöèÿ íàæàòèÿ êëàâèøè ÷åğåç CEF (OnPlayerClientSideKey).
+-- Êëàâèøè: 87 = W (ãàç), 83 = S (òîğìîç), 69 = E, 16 = íè÷åãî.
 local function build_key_packet(vk)
     local name = "OnPlayerClientSideKey"
     local args = {
-        2, 0, 0, 0,          -- Ğ·Ğ°Ğ³Ğ¾Ğ»Ğ¾Ğ²Ğ¾Ğº Ğ°Ñ€Ğ³ÑƒĞ¼ĞµĞ½Ñ‚Ğ¾Ğ²
+        2, 0, 0, 0,          -- çàãîëîâîê àğãóìåíòîâ
         0x64, vk % 256, math.floor(vk / 256) % 256, math.floor(vk / 65536) % 256, math.floor(vk / 16777216) % 256,
     }
     return build_bytes(name, args)
@@ -68,16 +68,16 @@ function M.send_key(vk)
 end
 
 function M.send_key_w()
-    return M.send_key(87) -- W = Ğ³Ğ°Ğ·
+    return M.send_key(87) -- W = ãàç
 end
 
 function M.send_key_s()
-    return M.send_key(83) -- S = Ñ‚Ğ¾Ñ€Ğ¼Ğ¾Ğ·
+    return M.send_key(83) -- S = òîğìîç
 end
 
--- ---------- Ğ Ğ°Ğ·Ğ±Ğ¾Ñ€ Ğ²Ñ…Ğ¾Ğ´ÑÑ‰Ğ¸Ñ… Ğ´Ğ°Ğ½Ğ½Ñ‹Ñ… ----------
+-- ---------- Ğàçáîğ âõîäÿùèõ äàííûõ ----------
 
--- ĞÑ€Ğ³ÑƒĞ¼ĞµĞ½Ñ‚ ĞºĞ¾Ğ¼Ğ°Ğ½Ğ´Ñ‹ Ğ²Ğ¸Ğ´Ğ° setXxx('[...]') Ğ¸Ğ»Ğ¸ setXxx([ ... ]).
+-- Àğãóìåíò êîìàíäû âèäà setXxx('[...]') èëè setXxx([ ... ]).
 local function cmdArg(text, cmd)
     local s, e = text:find(cmd, 1, true)
     if not s then return nil end
@@ -97,7 +97,7 @@ local function cmdArg(text, cmd)
     return text:sub(open + 1, last - 1)
 end
 
--- Ğ’ÑĞµ Ğ·Ğ½Ğ°Ñ‡ĞµĞ½Ğ¸Ñ int Ğ¸Ğ· Ğ¿Ğ¾Ğ´ÑÑ‚Ñ€Ğ¾ĞºĞ¸ (Ğ´Ğ»Ñ ÑĞµĞ¼Ğ°Ñ„Ğ¾Ñ€Ğ¾Ğ²).
+-- Âñå çíà÷åíèÿ int èç ïîäñòğîêè (äëÿ ñåìàôîğîâ).
 local function parseInts(str)
     local out = {}
     for n in str:gmatch("%d+") do
@@ -106,22 +106,22 @@ local function parseInts(str)
     return out
 end
 
--- Ğ˜Ğ·Ğ²Ğ»ĞµÑ‡ĞµĞ½Ğ¸Ğµ Ğ´Ğ°Ğ½Ğ½Ñ‹Ñ… Ğ¼Ğ°ÑˆĞ¸Ğ½Ğ¸ÑÑ‚Ğ° Ğ¸Ğ· Ğ²Ñ…Ğ¾Ğ´ÑÑ‰ĞµĞ³Ğ¾ Ñ‚ĞµĞºÑÑ‚Ğ° CEF (RX id=215).
--- Ğ’Ğ¾Ğ·Ğ²Ñ€Ğ°Ñ‰Ğ°ĞµÑ‚ Ñ‚Ğ°Ğ±Ğ»Ğ¸Ñ†Ñƒ Ğ¿Ğ¾Ğ»ĞµĞ¹ Ğ¸Ğ»Ğ¸ nil, ĞµÑĞ»Ğ¸ Ñ‚ĞµĞºÑÑ‚ Ğ½Ğµ Ğ¾Ñ‚Ğ½Ğ¾ÑĞ¸Ñ‚ÑÑ Ğº Ğ¼Ğ°ÑˆĞ¸Ğ½Ğ¸ÑÑ‚Ñƒ.
--- Ğ˜ÑÑ‚Ğ¾Ñ‡Ğ½Ğ¸Ğº: Ğ´Ğ°Ğ¼Ğ¿Ñ‹ Ğ¸Ğ½Ñ‚ĞµÑ€Ñ„ĞµĞ¹ÑĞ° 'Machinist' Ğ¾Ñ‚ 14.09.2026:
+-- Èçâëå÷åíèå äàííûõ ìàøèíèñòà èç âõîäÿùåãî òåêñòà CEF (RX id=215).
+-- Âîçâğàùàåò òàáëèöó ïîëåé èëè nil, åñëè òåêñò íå îòíîñèòñÿ ê ìàøèíèñòó.
+-- Èñòî÷íèê: äàìïû èíòåğôåéñà 'Machinist' îò 14.09.2026:
 --   interface('Machinist').setSemaphoreState('[1,1,1,1]')
---   interface('Machinist').setStation('["Ğ‘Ğ¾Ğ»ÑŒĞ½Ğ¸Ñ‡Ğ½Ğ°Ñ", 697, 1]')
+--   interface('Machinist').setStation('["Áîëüíè÷íàÿ", 697, 1]')
 --   interface('Machinist').setSpeed('["39-45", 2]')
 --   interface('Machinist').setMoney(121875)
 function M.parse_state_text(txt)
     if not txt or #txt == 0 then return nil end
     local fields = {}
 
-    -- ĞšĞ¾Ğ¼Ğ±Ğ¸Ğ½Ğ¸Ñ€Ğ¾Ğ²Ğ°Ğ½Ğ½Ñ‹Ğ¹ Ğ¿Ğ°ĞºĞµÑ‚: Ğ¸Ğ½Ñ‚ĞµÑ€Ñ„ĞµĞ¹Ñ 'Machinist8' ÑˆĞ»Ñ‘Ñ‚ Ğ²ÑÑ‘ ÑĞ¾ÑÑ‚Ğ¾ÑĞ½Ğ¸Ğµ Ğ¾Ğ´Ğ½Ğ¸Ğ¼
-    -- Ğ²Ñ‹Ğ·Ğ¾Ğ²Ğ¾Ğ¼ Ğ±ĞµĞ· Ğ¾Ñ‚Ğ´ĞµĞ»ÑŒĞ½Ñ‹Ñ… Ñ„ÑƒĞ½ĞºÑ†Ğ¸Ğ¹:
-    --   Machinist8[[1,1,1,1],["54-63",0],["Ğ¡Ğ¾ÑĞ·Ğ½Ğ°Ñ",759,0],8125]
-    -- Ğ¤Ğ¾Ñ€Ğ¼Ğ°Ñ‚ Ğ¿Ğ¾Ğ´Ñ‚Ğ²ĞµÑ€Ğ¶Ğ´Ñ‘Ğ½ Ğ¿Ğ¾ Ğ´Ğ°Ğ¼Ğ¿Ñƒ 14.09.2026 (ĞµĞ´Ğ¸Ğ½ÑÑ‚Ğ²ĞµĞ½Ğ½Ğ¾Ğµ Ğ²Ñ…Ğ¾Ğ¶Ğ´ĞµĞ½Ğ¸Ğµ, Ğ½Ğ¾
-    -- ÑĞµÑ€Ğ²ĞµÑ€ Ğ¼Ğ¾Ğ¶ĞµÑ‚ Ğ¿ĞµÑ€ĞµĞºĞ»ÑÑ‡Ğ¸Ñ‚ÑŒÑÑ Ğ½Ğ° Ğ½ĞµĞ³Ğ¾ Ğ² Ğ»ÑĞ±Ğ¾Ğ¹ Ğ¼Ğ¾Ğ¼ĞµĞ½Ñ‚).
+    -- Êîìáèíèğîâàííûé ïàêåò: èíòåğôåéñ 'Machinist8' øë¸ò âñ¸ ñîñòîÿíèå îäíèì
+    -- âûçîâîì áåç îòäåëüíûõ ôóíêöèé:
+    --   Machinist8[[1,1,1,1],["54-63",0],["Ñîşçíàÿ",759,0],8125]
+    -- Ôîğìàò ïîäòâåğæä¸í ïî äàìïó 14.09.2026 (åäèíñòâåííîå âõîæäåíèå, íî
+    -- ñåğâåğ ìîæåò ïåğåêëş÷èòüñÿ íà íåãî â ëşáîé ìîìåíò).
     local sem, lo, hi, code, name, dist, stcode, money =
         txt:match('Machinist8%[%[([%d%s,]+)%]%s*,%s*%["?(%d+)-(%d+)"?%s*,%s*(%-?%d+)%]%s*,%s*%["([^"]+)"%s*,%s*(%-?%d+)%s*,%s*(%-?%d+)%]%s*,%s*(%-?%d+)%]')
     if sem and lo and hi then
@@ -137,7 +137,7 @@ function M.parse_state_text(txt)
         return fields
     end
 
-    -- ÑĞµĞ¼Ğ°Ñ„Ğ¾Ñ€Ñ‹
+    -- ñåìàôîğû
     local semArg = cmdArg(txt, "setSemaphoreState")
     if semArg then
         local nums = parseInts(semArg)
@@ -146,9 +146,9 @@ function M.parse_state_text(txt)
         end
     end
 
-    -- ÑĞºĞ¾Ñ€Ğ¾ÑÑ‚ÑŒ Ğ¸ ĞµÑ‘ ĞºĞ¾Ğ´ (Ğ²Ğ¸Ğ»ĞºĞ° "Ğ¼Ğ¸Ğ½-Ğ¼Ğ°ĞºÑ" ĞºĞ¼/Ñ‡, ĞºĞ¾Ğ´: 0=Ğ³Ğ°Ğ·, 1=Ğ¾Ğº, 2=Ñ‚Ğ¾Ñ€Ğ¼Ğ¾Ğ·).
-    -- Ğ’ Ğ´Ğ°Ğ¼Ğ¿Ğ°Ñ… Ğ´Ğ¸Ğ°Ğ¿Ğ°Ğ·Ğ¾Ğ½ Ğ²ÑĞµĞ³Ğ´Ğ° Ğ² ĞºĞ°Ğ²Ñ‹Ñ‡ĞºĞ°Ñ…: setSpeed('["39-45", 2]') â€” Ñ€Ğ°Ğ½ÑŒÑˆĞµ
-    -- regex Ğ¸Ñ… Ğ½Ğµ ÑƒÑ‡Ğ¸Ñ‚Ñ‹Ğ²Ğ°Ğ» Ğ¸ ÑĞºĞ¾Ñ€Ğ¾ÑÑ‚ÑŒ Ğ²Ğ¾Ğ¾Ğ±Ñ‰Ğµ Ğ½Ğµ Ñ€Ğ°Ğ·Ğ±Ğ¸Ñ€Ğ°Ğ»Ğ°ÑÑŒ (Ğ±Ğ¾Ñ‚ ĞµÑ…Ğ°Ğ» Ğ²ÑĞ»ĞµĞ¿ÑƒÑ).
+    -- ñêîğîñòü è å¸ êîä (âèëêà "ìèí-ìàêñ" êì/÷, êîä: 0=ãàç, 1=îê, 2=òîğìîç).
+    -- Â äàìïàõ äèàïàçîí âñåãäà â êàâû÷êàõ: setSpeed('["39-45", 2]') — ğàíüøå
+    -- regex èõ íå ó÷èòûâàë è ñêîğîñòü âîîáùå íå ğàçáèğàëàñü (áîò åõàë âñëåïóş).
     local speedArg = cmdArg(txt, "setSpeed")
     if speedArg then
         local lo, hi, code = speedArg:match('%["(%d+)-(%d+)"%s*,%s*(%-?%d+)')
@@ -162,7 +162,7 @@ function M.parse_state_text(txt)
         end
     end
 
-    -- ÑÑ‚Ğ°Ğ½Ñ†Ğ¸Ñ
+    -- ñòàíöèÿ
     local stationArg = cmdArg(txt, "setStation")
     if stationArg then
         local name, dist, code = stationArg:match('%["([^"]+)"%s*,%s*(%-?%d+)%s*,%s*(%-?%d+)')
@@ -174,17 +174,17 @@ function M.parse_state_text(txt)
         end
     end
 
-    -- Ğ´ĞµĞ½ÑŒĞ³Ğ¸ (setMoney(8125))
+    -- äåíüãè (setMoney(8125))
     local moneyArg = cmdArg(txt, "setMoney")
     if moneyArg then
         local n = moneyArg:match("(%d+)")
         if n then fields.money = tonumber(n) end
     end
 
-    -- Ñ‚Ğ°Ğ¹Ğ¼ĞµÑ€-Ğ¿Ğ¾Ğ´ÑĞºĞ°Ğ·ĞºĞ°: InformationTimer["ĞÑÑ‚Ğ°Ğ½Ğ¾Ğ²Ğ¸Ñ‚ĞµÑÑŒ Ğ½Ğ° ÑÑ‚Ğ°Ğ½Ñ†Ğ¸Ğ¸",25,0]
-    -- v0.7.6: Ñ‚Ğ°Ğ¹Ğ¼ĞµÑ€ ÑˆÑ‚Ñ€Ğ°Ñ„Ğ° Ğ·Ğ° Ğ¿Ñ€ĞµĞ²Ñ‹ÑˆĞµĞ½Ğ¸Ğµ (Â«Ğ£Ğ²ĞµĞ»Ğ¸Ñ‡ÑŒÑ‚Ğµ ÑĞºĞ¾Ñ€Ğ¾ÑÑ‚ÑŒ Ğ´Ğ¾ ÑˆÑ‚Ñ€Ğ°Ñ„Ğ°Â», N
-    -- ÑĞµĞºÑƒĞ½Ğ´) ÑˆĞ»Ñ‘Ñ‚ Ğ¸ Ñ‡Ğ¸ÑĞ»Ğ¾ â€” ÑĞ¾Ñ…Ñ€Ğ°Ğ½ÑĞµĞ¼ ĞµĞ³Ğ¾ Ğ² info_timer_sec Ğ´Ğ»Ñ Ñ€ĞµĞ¶Ğ¸Ğ¼Ğ°
-    -- Â«ĞŸÑ€ĞµĞ²Ñ‹ÑˆĞ°Ñ‚ÑŒ ÑĞºĞ¾Ñ€Ğ¾ÑÑ‚ÑŒÂ».
+    -- òàéìåğ-ïîäñêàçêà: InformationTimer["Îñòàíîâèòåñü íà ñòàíöèè",25,0]
+    -- v0.7.6: òàéìåğ øòğàôà çà ïğåâûøåíèå («Óâåëè÷üòå ñêîğîñòü äî øòğàôà», N
+    -- ñåêóíä) øë¸ò è ÷èñëî — ñîõğàíÿåì åãî â info_timer_sec äëÿ ğåæèìà
+    -- «Ïğåâûøàòü ñêîğîñòü».
     local info, info_sec = txt:match('InformationTimer%[?"([^"]+)"%s*,%s*(%-?%d+)')
     if not info then info = txt:match('InformationTimer%[?"([^"]+)"') end
     if info then
@@ -198,20 +198,20 @@ function M.parse_state_text(txt)
     return fields
 end
 
--- ĞŸĞ°Ñ€ÑĞ¸Ğ½Ğ³ Ğ³Ğ¾Ğ»Ğ¾ÑĞ¾Ğ²Ğ¾Ğ³Ğ¾ Ñ‡Ğ°Ñ‚Ğ° (HUD). ĞĞ° Radmir Ğ³Ğ¾Ğ»Ğ¾ÑĞ¾Ğ²Ñ‹Ğµ ĞºĞ°Ğ½Ğ°Ğ»Ñ‹ Ğ¿Ğ¾ĞºĞ°Ğ·Ñ‹Ğ²Ğ°ÑÑ‚ÑÑ
--- Ñ‚Ğ°Ğº:
+-- Ïàğñèíã ãîëîñîâîãî ÷àòà (HUD). Íà Radmir ãîëîñîâûå êàíàëû ïîêàçûâàşòñÿ
+-- òàê:
 --   interface('Hud').addVoiceChatEntry([0,"Artemon_Pahomov",518,0,"",565])
 --   interface('Hud').removeVoiceChatEntry([[518,565]])
--- add Ğ²Ğ¾Ğ·Ğ²Ñ€Ğ°Ñ‰Ğ°ĞµÑ‚ { id, nick } (ĞºÑ‚Ğ¾ Ğ—ĞĞ¨ĞĞ› Ğ² Ğ³Ğ¾Ğ»Ğ¾ÑĞ¾Ğ²Ğ¾Ğ¹ ĞºĞ°Ğ½Ğ°Ğ»/Ğ½Ğ°Ñ‡Ğ°Ğ» Ğ³Ğ¾Ğ²Ğ¾Ñ€Ğ¸Ñ‚ÑŒ),
--- remove â€” Ñ‚Ğ¾Ğ»ÑŒĞºĞ¾ Ğ¼Ğ°ÑÑĞ¸Ğ² id (Ğ²Ñ‹ÑˆĞµĞ»). ĞĞ¸Ğº Ğ¸Ğ· add Ğ¸ÑĞ¿Ğ¾Ğ»ÑŒĞ·ÑƒĞµĞ¼ Ğ¸ ĞºĞ°Ğº Ğ·Ğ°Ğ¿Ğ°ÑĞ½Ğ¾Ğ¹
--- Ğ¸ÑÑ‚Ğ¾Ñ‡Ğ½Ğ¸Ğº Â«id Ğ¸Ğ³Ñ€Ğ¾ĞºĞ° -> Ğ½Ğ¸ĞºÂ» Ğ´Ğ»Ñ Ğ¿ÑƒĞ·Ñ‹Ñ€ĞµĞ¹ Ñ‡Ğ°Ñ‚Ğ° (sampGetPlayerNameById Ğ½Ğ°
--- Radmir Ğ¼Ğ¾Ğ¶ĞµÑ‚ Ğ½Ğµ Ğ·Ğ°Ğ¿Ğ¾Ğ»Ğ½ÑÑ‚ÑŒÑÑ).
+-- add âîçâğàùàåò { id, nick } (êòî ÇÀØ¨Ë â ãîëîñîâîé êàíàë/íà÷àë ãîâîğèòü),
+-- remove — òîëüêî ìàññèâ id (âûøåë). Íèê èç add èñïîëüçóåì è êàê çàïàñíîé
+-- èñòî÷íèê «id èãğîêà -> íèê» äëÿ ïóçûğåé ÷àòà (sampGetPlayerNameById íà
+-- Radmir ìîæåò íå çàïîëíÿòüñÿ).
 local VOICE_ADD = "addVoiceChatEntry"
 local VOICE_REMOVE = "removeVoiceChatEntry"
 
 function M.parse_voice_chat(txt)
     if not txt or #txt == 0 then return nil end
-    -- addVoiceChatEntry([TYPE,"ĞĞ¸Ğº",ID,ÑÑ‚Ğ°Ñ‚ÑƒÑ,"",ĞºĞ°Ğ½Ğ°Ğ»])
+    -- addVoiceChatEntry([TYPE,"Íèê",ID,ñòàòóñ,"",êàíàë])
     local a = txt:find(VOICE_ADD, 1, true)
     if a then
         local rest = txt:sub(a + #VOICE_ADD)
@@ -221,7 +221,7 @@ function M.parse_voice_chat(txt)
         end
         return { action = "add", id = nil, nick = nick }
     end
-    -- removeVoiceChatEntry([[id,ĞºĞ°Ğ½Ğ°Ğ»],...])
+    -- removeVoiceChatEntry([[id,êàíàë],...])
     local r = txt:find(VOICE_REMOVE, 1, true)
     if r then
         local ids = {}
@@ -233,12 +233,12 @@ function M.parse_voice_chat(txt)
     return nil
 end
 
--- ĞŸĞ°Ñ€ÑĞ¸Ğ½Ğ³ Ğ²ÑĞ¿Ğ»Ñ‹Ğ²Ğ°ÑÑ‰ĞµĞ³Ğ¾ ÑĞ¾Ğ¾Ğ±Ñ‰ĞµĞ½Ğ¸Ñ Ñ‡Ğ°Ñ‚Ğ° (Ğ¿ÑƒĞ·Ñ‹Ñ€Ñ):
---   window.setPlayerChatBubble(132, 'Ñ‚ĞµĞºÑÑ‚', 13434879, 7.50, 8000)
---   window.setPlayerChatBubble(114, 'Ñ‚ĞµĞºÑÑ‚', -1, 5.00, 524000)  -- Ñ†Ğ²ĞµÑ‚ Ğ¼Ğ¾Ğ¶ĞµÑ‚ Ğ±Ñ‹Ñ‚ÑŒ ĞĞ¢Ğ Ğ˜Ğ¦ĞĞ¢Ğ•Ğ›Ğ¬ĞĞ«Ğœ!
--- Ğ§Ğ°Ñ‚ Ğ½Ğ° Radmir Ğ¸Ğ´Ñ‘Ñ‚ Ğ¢ĞĞ›Ğ¬ĞšĞ Ñ‚Ğ°ĞºĞ¸Ğ¼Ğ¸ CEF-ĞºĞ¾Ğ¼Ğ°Ğ½Ğ´Ğ°Ğ¼Ğ¸ (onServerMessage Ğ½Ğµ
--- Ğ²Ñ‹Ğ·Ñ‹Ğ²Ğ°ĞµÑ‚ÑÑ â€” Ğ¿Ğ¾Ğ´Ñ‚Ğ²ĞµÑ€Ğ¶Ğ´ĞµĞ½Ğ¾ Ğ´Ğ¸Ğ°Ğ³Ğ½Ğ¾ÑÑ‚Ğ¸ĞºĞ¾Ğ¹ v0.4.0).
--- Ğ’Ğ¾Ğ·Ğ²Ñ€Ğ°Ñ‰Ğ°ĞµÑ‚ { id, text, color, dist, time } Ğ¸Ğ»Ğ¸ nil.
+-- Ïàğñèíã âñïëûâàşùåãî ñîîáùåíèÿ ÷àòà (ïóçûğÿ):
+--   window.setPlayerChatBubble(132, 'òåêñò', 13434879, 7.50, 8000)
+--   window.setPlayerChatBubble(114, 'òåêñò', -1, 5.00, 524000)  -- öâåò ìîæåò áûòü ÎÒĞÈÖÀÒÅËÜÍÛÌ!
+-- ×àò íà Radmir èä¸ò ÒÎËÜÊÎ òàêèìè CEF-êîìàíäàìè (onServerMessage íå
+-- âûçûâàåòñÿ — ïîäòâåğæäåíî äèàãíîñòèêîé v0.4.0).
+-- Âîçâğàùàåò { id, text, color, dist, time } èëè nil.
 function M.parse_chat_bubble(txt)
     if not txt or #txt == 0 then return nil end
     local id, text, color, dist, time = txt:match(
@@ -253,24 +253,24 @@ function M.parse_chat_bubble(txt)
     }
 end
 
--- ĞŸĞ°Ñ€ÑĞ¸Ğ½Ğ³ ĞºĞ¾Ğ¼Ğ°Ğ½Ğ´ Â«Ğ¿ĞµÑ€ĞµĞ´ Ğ¸Ğ³Ñ€Ğ¾ĞºĞ¾Ğ¼ Ğ¾Ñ‚ĞºÑ€Ñ‹Ğ»Ğ¾ÑÑŒ Ğ¾ĞºĞ½Ğ¾/Ğ´Ğ¸Ğ°Ğ»Ğ¾Ğ³Â». ĞĞ° Radmir Ğ¾ĞºĞ½Ğ°
--- Ğ¿Ñ€Ğ¸Ñ…Ğ¾Ğ´ÑÑ‚ Ñ‚Ğ°ĞºĞ¸Ğ¼Ğ¸ CEF-ĞºĞ¾Ğ¼Ğ°Ğ½Ğ´Ğ°Ğ¼Ğ¸:
---   window.addDialogInQueue('[216,"Ğ—Ğ°Ğ³Ğ¾Ğ»Ğ¾Ğ²Ğ¾Ğº",0,"ĞĞš","ĞÑ‚Ğ¼ĞµĞ½Ğ°","Ñ‚ĞµĞºÑÑ‚"]', ...)
+-- Ïàğñèíã êîìàíä «ïåğåä èãğîêîì îòêğûëîñü îêíî/äèàëîã». Íà Radmir îêíà
+-- ïğèõîäÿò òàêèìè CEF-êîìàíäàìè:
+--   window.addDialogInQueue('[216,"Çàãîëîâîê",0,"ÎÊ","Îòìåíà","òåêñò"]', ...)
 --   PlayerInteraction... / interface('PlayerInteraction').onServerResponse(...)
 --   Quests / QuestsTalks
--- Ğ’Ğ¾Ğ·Ğ²Ñ€Ğ°Ñ‰Ğ°ĞµÑ‚ Ñ‚Ğ°Ğ±Ğ»Ğ¸Ñ†Ñƒ { sig, short, long } Ğ¸Ğ»Ğ¸ nil:
---   sig   â€” Ğ¿Ğ¾Ğ´Ğ¿Ğ¸ÑÑŒ Ğ´Ğ»Ñ Ğ´ĞµĞ´ÑƒĞ¿Ğ»Ğ¸ĞºĞ°Ñ†Ğ¸Ğ¸ (Ñ‚Ğ¸Ğ¿ + id + Ğ·Ğ°Ğ³Ğ¾Ğ»Ğ¾Ğ²Ğ¾Ğº);
---   short â€” ĞºĞ¾Ñ€Ğ¾Ñ‚ĞºĞ°Ñ ÑÑ‚Ñ€Ğ¾ĞºĞ° Ğ´Ğ»Ñ Ğ¸Ğ³Ñ€Ğ¾Ğ²Ğ¾Ğ³Ğ¾ Ñ‡Ğ°Ñ‚Ğ°;
---   long  â€” Ğ¿Ğ¾Ğ´Ñ€Ğ¾Ğ±Ğ½Ğ¾Ğµ Ğ¼Ğ½Ğ¾Ğ³Ğ¾ÑÑ‚Ñ€Ğ¾Ñ‡Ğ½Ğ¾Ğµ Ğ¾Ğ¿Ğ¸ÑĞ°Ğ½Ğ¸Ğµ Ğ´Ğ»Ñ Telegram.
+-- Âîçâğàùàåò òàáëèöó { sig, short, long } èëè nil:
+--   sig   — ïîäïèñü äëÿ äåäóïëèêàöèè (òèï + id + çàãîëîâîê);
+--   short — êîğîòêàÿ ñòğîêà äëÿ èãğîâîãî ÷àòà;
+--   long  — ïîäğîáíîå ìíîãîñòğî÷íîå îïèñàíèå äëÿ Telegram.
 local WINDOW_CMDS = {
-    { name = "addDialogInQueue", label = "Ğ´Ğ¸Ğ°Ğ»Ğ¾Ğ³" },
-    { name = "PlayerInteraction", label = "Ğ¾ĞºĞ½Ğ¾ Ğ²Ğ·Ğ°Ğ¸Ğ¼Ğ¾Ğ´ĞµĞ¹ÑÑ‚Ğ²Ğ¸Ñ" },
-    { name = "QuestsTalks", label = "Ğ¾ĞºĞ½Ğ¾ Ñ€Ğ°Ğ·Ğ³Ğ¾Ğ²Ğ¾Ñ€Ğ°" },
-    { name = "Quests", label = "Ğ¾ĞºĞ½Ğ¾ ĞºĞ²ĞµÑÑ‚Ğ¾Ğ²" },
+    { name = "addDialogInQueue", label = "äèàëîã" },
+    { name = "PlayerInteraction", label = "îêíî âçàèìîäåéñòâèÿ" },
+    { name = "QuestsTalks", label = "îêíî ğàçãîâîğà" },
+    { name = "Quests", label = "îêíî êâåñòîâ" },
 }
 
--- ĞŸĞ¾Ğ¸ÑĞº Ğ¸Ğ¼ĞµĞ½Ğ¸ ĞºĞ¾Ğ¼Ğ°Ğ½Ğ´Ñ‹ ĞºĞ°Ğº Ğ¾Ñ‚Ğ´ĞµĞ»ÑŒĞ½Ğ¾Ğ³Ğ¾ ÑĞ»Ğ¾Ğ²Ğ° (Ñ‡Ñ‚Ğ¾Ğ±Ñ‹ Â«QuestsÂ» Ğ½Ğµ Ğ½Ğ°Ñ…Ğ¾Ğ´Ğ¸Ğ»Ğ¾ÑÑŒ
--- Ğ²Ğ½ÑƒÑ‚Ñ€Ğ¸ Â«QuestsTalksÂ»). Ğ’Ğ¾Ğ·Ğ²Ñ€Ğ°Ñ‰Ğ°ĞµÑ‚ Ğ¿Ğ¾Ğ·Ğ¸Ñ†Ğ¸Ñ Ğ¸Ğ»Ğ¸ nil.
+-- Ïîèñê èìåíè êîìàíäû êàê îòäåëüíîãî ñëîâà (÷òîáû «Quests» íå íàõîäèëîñü
+-- âíóòğè «QuestsTalks»). Âîçâğàùàåò ïîçèöèş èëè nil.
 local function find_word(txt, name, pos)
     while true do
         local hit = txt:find(name, pos, true)
@@ -284,9 +284,9 @@ local function find_word(txt, name, pos)
     end
 end
 
--- Ğ”Ğ¾ÑÑ‚Ğ°Ñ‘Ñ‚ ÑĞ¾Ğ´ĞµÑ€Ğ¶Ğ¸Ğ¼Ğ¾Ğµ Ğ¿ĞµÑ€Ğ²Ğ¾Ğ¹ ÑÑ‚Ñ€Ğ¾ĞºĞ¸ Ğ² ĞºĞ°Ğ²Ñ‹Ñ‡ĞºĞ°Ñ… (Ğ¾Ğ´Ğ¸Ğ½Ğ°Ñ€Ğ½Ñ‹Ñ… Ğ¸Ğ»Ğ¸ Ğ´Ğ²Ğ¾Ğ¹Ğ½Ñ‹Ñ…).
--- Ğ’Ğ¾Ğ·Ğ²Ñ€Ğ°Ñ‰Ğ°ĞµÑ‚ (ÑĞ¾Ğ´ĞµÑ€Ğ¶Ğ¸Ğ¼Ğ¾Ğµ, Ğ¾ÑÑ‚Ğ°Ñ‚Ğ¾Ğº_ÑÑ‚Ñ€Ğ¾ĞºĞ¸) Ğ¸Ğ»Ğ¸ nil, ĞµÑĞ»Ğ¸ Ğ·Ğ°ĞºÑ€Ñ‹Ğ²Ğ°ÑÑ‰ĞµĞ¹
--- ĞºĞ°Ğ²Ñ‹Ñ‡ĞºĞ¸ Ğ½ĞµÑ‚. Ğ­ĞºÑ€Ğ°Ğ½Ğ¸Ñ€Ğ¾Ğ²Ğ°Ğ½Ğ½Ñ‹Ğµ ĞºĞ°Ğ²Ñ‹Ñ‡ĞºĞ¸ Ğ½Ğµ ÑÑ‡Ğ¸Ñ‚Ğ°ÑÑ‚ÑÑ Ğ·Ğ°ĞºÑ€Ñ‹Ğ²Ğ°ÑÑ‰Ğ¸Ğ¼Ğ¸.
+-- Äîñòà¸ò ñîäåğæèìîå ïåğâîé ñòğîêè â êàâû÷êàõ (îäèíàğíûõ èëè äâîéíûõ).
+-- Âîçâğàùàåò (ñîäåğæèìîå, îñòàòîê_ñòğîêè) èëè nil, åñëè çàêğûâàşùåé
+-- êàâû÷êè íåò. İêğàíèğîâàííûå êàâû÷êè íå ñ÷èòàşòñÿ çàêğûâàşùèìè.
 local function take_quoted(s)
     if not s or #s == 0 then return nil end
     local i = s:find("['\"]")
@@ -310,10 +310,10 @@ local function take_quoted(s)
     return nil
 end
 
--- Ğ Ğ°Ğ·Ğ±Ğ¸Ñ€Ğ°ĞµÑ‚ Ğ¿Ğ¾Ğ»ĞµĞ·Ğ½ÑƒÑ Ğ½Ğ°Ğ³Ñ€ÑƒĞ·ĞºÑƒ Ğ´Ğ¸Ğ°Ğ»Ğ¾Ğ³Ğ° (JSON-Ğ¼Ğ°ÑÑĞ¸Ğ² Ğ²Ğ½ÑƒÑ‚Ñ€Ğ¸ ÑÑ‚Ñ€Ğ¾ĞºĞ¸):
---   '[216,"Ğ—Ğ°Ğ³Ğ¾Ğ»Ğ¾Ğ²Ğ¾Ğº",0,"ĞĞš","ĞÑ‚Ğ¼ĞµĞ½Ğ°","Ñ‚ĞµĞºÑÑ‚"]'
--- Ğ—Ğ°Ğ¿ÑÑ‚Ñ‹Ğµ Ğ²Ğ½ÑƒÑ‚Ñ€Ğ¸ ÑÑ‚Ñ€Ğ¾Ğº Ğ½Ğµ ÑÑ‡Ğ¸Ñ‚Ğ°ÑÑ‚ÑÑ Ñ€Ğ°Ğ·Ğ´ĞµĞ»Ğ¸Ñ‚ĞµĞ»ÑĞ¼Ğ¸, \n Ğ¸ \" Ñ€Ğ°Ğ·ÑĞºÑ€Ğ°Ğ½Ğ¸Ñ€ÑƒÑÑ‚ÑÑ.
--- Ğ’Ğ¾Ğ·Ğ²Ñ€Ğ°Ñ‰Ğ°ĞµÑ‚ Ğ¼Ğ°ÑÑĞ¸Ğ² Ğ¿Ğ¾Ğ»ĞµĞ¹ (Ñ‡Ğ¸ÑĞ»Ğ° â€” ĞºĞ°Ğº Ñ‡Ğ¸ÑĞ»Ğ°, ÑÑ‚Ñ€Ğ¾ĞºĞ¸ â€” ĞºĞ°Ğº ÑÑ‚Ñ€Ğ¾ĞºĞ¸).
+-- Ğàçáèğàåò ïîëåçíóş íàãğóçêó äèàëîãà (JSON-ìàññèâ âíóòğè ñòğîêè):
+--   '[216,"Çàãîëîâîê",0,"ÎÊ","Îòìåíà","òåêñò"]'
+-- Çàïÿòûå âíóòğè ñòğîê íå ñ÷èòàşòñÿ ğàçäåëèòåëÿìè, \n è \" ğàçıêğàíèğóşòñÿ.
+-- Âîçâğàùàåò ìàññèâ ïîëåé (÷èñëà — êàê ÷èñëà, ñòğîêè — êàê ñòğîêè).
 local function split_fields(s)
     local fields, cur, inStr, esc = {}, {}, false, false
     for i = 1, #s do
@@ -342,7 +342,7 @@ local function split_fields(s)
     return fields
 end
 
--- Ğ¡ĞºĞ»ĞµĞ¸Ğ²Ğ°ĞµÑ‚ ĞºĞ½Ğ¾Ğ¿ĞºĞ¸ Ğ¸Ğ· Ğ´Ğ²ÑƒÑ… Ğ¿Ğ¾Ğ»ĞµĞ¹ (Ğ¿Ñ€Ğ¾Ğ¿ÑƒÑĞºĞ°ĞµÑ‚ Â«0Â» Ğ¸ Ğ¿ÑƒÑÑ‚Ñ‹Ğµ).
+-- Ñêëåèâàåò êíîïêè èç äâóõ ïîëåé (ïğîïóñêàåò «0» è ïóñòûå).
 local function join_buttons(b1, b2)
     local btns = {}
     if type(b1) == "string" and #b1 > 0 and b1 ~= "0" then btns[#btns + 1] = b1 end
@@ -351,7 +351,7 @@ local function join_buttons(b1, b2)
     return table.concat(btns, " / ")
 end
 
--- Ğ”Ğ¸Ğ°Ğ»Ğ¾Ğ³ addDialogInQueue: [id, Ğ·Ğ°Ğ³Ğ¾Ğ»Ğ¾Ğ²Ğ¾Ğº, ÑÑ‚Ğ¸Ğ»ÑŒ, ĞºĞ½Ğ¾Ğ¿ĞºĞ°1, ĞºĞ½Ğ¾Ğ¿ĞºĞ°2, Ñ‚ĞµĞºÑÑ‚...].
+-- Äèàëîã addDialogInQueue: [id, çàãîëîâîê, ñòèëü, êíîïêà1, êíîïêà2, òåêñò...].
 local function describe_dialog(c, after)
     local payload = take_quoted(after)
     if not payload or #payload == 0 then return nil end
@@ -365,8 +365,8 @@ local function describe_dialog(c, after)
     end
     local lines = { c.label .. ": \"" .. title .. "\"" }
     local btns = join_buttons(f[4], f[5])
-    if btns then lines[#lines + 1] = "ĞšĞ½Ğ¾Ğ¿ĞºĞ¸: " .. btns end
-    if #text > 0 then lines[#lines + 1] = "Ğ¢ĞµĞºÑÑ‚: " .. text end
+    if btns then lines[#lines + 1] = "Êíîïêè: " .. btns end
+    if #text > 0 then lines[#lines + 1] = "Òåêñò: " .. text end
     return {
         sig   = c.label .. "|" .. tostring(id) .. "|" .. title,
         short = c.label .. ": '" .. title .. "'",
@@ -374,8 +374,8 @@ local function describe_dialog(c, after)
     }
 end
 
--- ĞŸÑ€Ğ¾Ñ‡Ğ¸Ğµ Ğ¾ĞºĞ½Ğ° (PlayerInteraction/QuestsTalks/Quests): ÑĞ¾Ğ±Ğ¸Ñ€Ğ°ĞµĞ¼ Ğ´Ğ¾ Ñ‚Ñ€Ñ‘Ñ…
--- Ñ‡Ğ¸Ñ‚Ğ°ĞµĞ¼Ñ‹Ñ… Ğ½Ğ°Ğ´Ğ¿Ğ¸ÑĞµĞ¹, ĞºĞ¾Ñ‚Ğ¾Ñ€Ñ‹Ğµ Ğ¸Ğ´ÑƒÑ‚ Ğ¿Ğ¾ÑĞ»Ğµ ĞºĞ¾Ğ¼Ğ°Ğ½Ğ´Ñ‹ Ğ² ĞºĞ°Ğ²Ñ‹Ñ‡ĞºĞ°Ñ….
+-- Ïğî÷èå îêíà (PlayerInteraction/QuestsTalks/Quests): ñîáèğàåì äî òğ¸õ
+-- ÷èòàåìûõ íàäïèñåé, êîòîğûå èäóò ïîñëå êîìàíäû â êàâû÷êàõ.
 local function describe_generic(c, after)
     if #after > 0 and (after:sub(1, 1) == "'" or after:sub(1, 1) == "\"") then
         after = after:sub(2)

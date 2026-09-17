@@ -1,26 +1,26 @@
--- РњРѕРґСѓР»СЊ Telegram РґР»СЏ MachinistByYaroRage.
+-- Модуль Telegram для MachinistByYaroRage.
 --
--- РџРћР›РќРћРЎРўР¬Р® РќР•Р‘Р›РћРљРР РЈР®Р©РР™ (v0.2.0). Р’СЃСЏ СЃРµС‚СЊ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ РѕС‚РґРµР»СЊРЅС‹Рј
--- РїСЂРѕС†РµСЃСЃРѕРј curl.exe, Р·Р°РїСѓСЃРєР°РµРјС‹Рј С‡РµСЂРµР· WinExec (Р°СЃРёРЅС…СЂРѕРЅРЅС‹Р№ Р·Р°РїСѓСЃРє Р±РµР·
--- РѕР¶РёРґР°РЅРёСЏ Р·Р°РІРµСЂС€РµРЅРёСЏ). РџРѕС‚РѕРє SAMP РќР• Р±Р»РѕРєРёСЂСѓРµС‚СЃСЏ HTTPS РІРѕРѕР±С‰Рµ:
---   * ssl.https/ltn12 РќР• РёСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ (РІ MoonLoader РѕРЅРё РІС‹РїРѕР»РЅСЏСЋС‚СЃСЏ
---     СЃРёРЅС…СЂРѕРЅРЅРѕ РІ РєРѕСЂСѓС‚РёРЅРµ РЅР° РїРѕС‚РѕРєРµ РёРіСЂС‹ Рё Р·Р°РјРѕСЂР°Р¶РёРІР°СЋС‚ СЂРµРЅРґРµСЂ);
---   * С‚РµР»Р° Р·Р°РїСЂРѕСЃРѕРІ РїРёС€СѓС‚СЃСЏ РІРѕ РІСЂРµРјРµРЅРЅС‹Р№ JSON-С„Р°Р№Р» РІ РїР°РїРєРµ СЃРєСЂРёРїС‚Р°;
---   * curl РІС‹РїРѕР»РЅСЏРµС‚ HTTPS СЃР°Рј, РѕРґРёРЅ СЂР°Р·, Р±РµР· РІРёРґРёРјРѕРіРѕ РѕРєРЅР°;
---   * РѕС‚РІРµС‚ getUpdates СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ РІ С„Р°Р№Р» Рё С‡РёС‚Р°РµС‚СЃСЏ РѕС‚РґРµР»СЊРЅРѕ (async).
+-- ПОЛНОСТЬЮ НЕБЛОКИРУЮЩИЙ (v0.2.0). Вся сеть выполняется отдельным
+-- процессом curl.exe, запускаемым через WinExec (асинхронный запуск без
+-- ожидания завершения). Поток SAMP НЕ блокируется HTTPS вообще:
+--   * ssl.https/ltn12 НЕ используются (в MoonLoader они выполняются
+--     синхронно в корутине на потоке игры и замораживают рендер);
+--   * тела запросов пишутся во временный JSON-файл в папке скрипта;
+--   * curl выполняет HTTPS сам, один раз, без видимого окна;
+--   * ответ getUpdates сохраняется в файл и читается отдельно (async).
 --
--- РћРіСЂР°РЅРёС‡РµРЅРёРµ: РµСЃР»Рё curl.exe РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚ (СЃС‚Р°СЂС‹Рµ Windows), СѓРІРµРґРѕРјР»РµРЅРёСЏ
--- РїСЂРѕСЃС‚Рѕ РЅРµ РѕС‚РїСЂР°РІР»СЏСЋС‚СЃСЏ вЂ” РЅРѕ СЌС‚Рѕ РќРРљРћР“Р”Рђ РЅРµ С„СЂРёР·РёС‚ РёРіСЂСѓ.
+-- Ограничение: если curl.exe отсутствует (старые Windows), уведомления
+-- просто не отправляются — но это НИКОГДА не фризит игру.
 local M = {}
 
 local ffi = require "ffi"
 
--- РџР°РїРєР° РІСЂРµРјРµРЅРЅС‹С… С„Р°Р№Р»РѕРІ РјРѕРґСѓР»СЏ (СЃРѕР·РґР°С‘С‚СЃСЏ РїСЂРё РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё).
--- getWorkingDirectory() РІРѕР·РІСЂР°С‰Р°РµС‚ РїСѓС‚СЊ Р±РµР· Р·Р°РІРµСЂС€Р°СЋС‰РµРіРѕ "\\" вЂ” РґРѕР±Р°РІР»СЏРµРј РµРіРѕ СЏРІРЅРѕ,
--- РёРЅР°С‡Рµ РїР°РїРєР° СЃРєР»РµРёРІР°РµС‚СЃСЏ РІ РјСѓСЃРѕСЂ ("...\moonloaderMachinistByYaroRage\tg_tmp\").
+-- Папка временных файлов модуля (создаётся при необходимости).
+-- getWorkingDirectory() возвращает путь без завершающего "\\" — добавляем его явно,
+-- иначе папка склеивается в мусор ("...\moonloaderMachinistByYaroRage\tg_tmp\").
 local TG_DIR = getWorkingDirectory():gsub("[\\/]+$", "") .. "\\MachinistByYaroRage\\tg_tmp\\"
 
--- РџСЂРѕРІРµСЂРєР° РЅР°Р»РёС‡РёСЏ curl.exe Рё РѕР±СЉСЏРІР»РµРЅРёРµ WinExec.
+-- Проверка наличия curl.exe и объявление WinExec.
 local winExecOk = false
 do
     local ok_cdef = pcall(function()
@@ -45,28 +45,28 @@ do
     end
 end
 
--- Р—Р°РїСѓСЃРє РєРѕРјР°РЅРґС‹ РІ С„РѕРЅРµ С‡РµСЂРµР· WinExec. WinExec РЅРµ Р¶РґС‘С‚ Р·Р°РІРµСЂС€РµРЅРёСЏ РїСЂРѕС†РµСЃСЃР°,
--- РїРѕСЌС‚РѕРјСѓ РїРѕС‚РѕРє РёРіСЂС‹ С„СЂРёР·РёС‚СЃСЏ СЃР°РјРѕРµ Р±РѕР»СЊС€РµРµ РЅР° РјРёР»Р»РёСЃРµРєСѓРЅРґС‹ СЃРѕР·РґР°РЅРёСЏ
--- РїСЂРѕС†РµСЃСЃР°. РљРѕРјР°РЅРґР° РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ СЃРєСЂС‹С‚Рѕ (uCmdShow=0).
+-- Запуск команды в фоне через WinExec. WinExec не ждёт завершения процесса,
+-- поэтому поток игры фризится самое большее на миллисекунды создания
+-- процесса. Команда выполняется скрыто (uCmdShow=0).
 local function runBg(cmdline)
     if not winExecOk then
-        print("[MachinistByYaroRage] WinExec РЅРµРґРѕСЃС‚СѓРїРµРЅ")
+        print("[MachinistByYaroRage] WinExec недоступен")
         return false
     end
     local ok, code = pcall(function()
         return ffi.C.WinExec(cmdline, 0)
     end)
     if not ok then
-        print("[MachinistByYaroRage] РћС€РёР±РєР° WinExec: " .. tostring(code))
+        print("[MachinistByYaroRage] Ошибка WinExec: " .. tostring(code))
         return false
     end
-    -- РєРѕРґ >31 РѕР·РЅР°С‡Р°РµС‚ СѓСЃРїРµС€РЅРѕРµ СЃРѕР·РґР°РЅРёРµ РїСЂРѕС†РµСЃСЃР°
+    -- код >31 означает успешное создание процесса
     if type(code) == "number" and code > 31 then return true end
-    print("[MachinistByYaroRage] РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РїСѓСЃС‚РёС‚СЊ curl (РєРѕРґ " .. tostring(code) .. ")")
+    print("[MachinistByYaroRage] Не удалось запустить curl (код " .. tostring(code) .. ")")
     return false
 end
 
--- РР·РІР»РµС‡РµРЅРёРµ С‡РёСЃР»Р° РёР· СЃС‚СЂРѕРєРё (Р·Р°РјРµРЅСЏРµС‚ tonumber РґР»СЏ РїРѕРіСЂР°РЅРёС‡РЅС‹С… СЃР»СѓС‡Р°РµРІ).
+-- Извлечение числа из строки (заменяет tonumber для пограничных случаев).
 local function num(s)
     local n = tonumber(s)
     if n then return n end
@@ -87,33 +87,33 @@ local function writeUtf8File(path, content)
     return true
 end
 
--- РћС‚РїСЂР°РІРєР° СЃРѕРѕР±С‰РµРЅРёСЏ: fire-and-forget С‡РµСЂРµР· curl.exe. РќРРљРћР“Р”Рђ РЅРµ Р¶РґС‘С‚
--- РѕС‚РІРµС‚Р° вЂ” РёРіСЂР° РЅРµ С„СЂРёР·РёС‚. РўРµР»Рѕ JSON Р·Р°РїРёСЃС‹РІР°РµС‚СЃСЏ РІ С„Р°Р№Р» (UTF-8), С‡С‚РѕР±С‹
--- РЅРµ РїСЂРѕР±РёРІР°С‚СЊ СЋРЅРёРєРѕРґ С‡РµСЂРµР· РєРѕРјР°РЅРґРЅСѓСЋ СЃС‚СЂРѕРєСѓ.
+-- Отправка сообщения: fire-and-forget через curl.exe. НИКОГДА не ждёт
+-- ответа — игра не фризит. Тело JSON записывается в файл (UTF-8), чтобы
+-- не пробивать юникод через командную строку.
 function M.send(token, chat_id, text)
-    if not token or token == "" then return false, "РЅРµС‚ С‚РѕРєРµРЅР°" end
-    if not chat_id or chat_id == "" then return false, "РЅРµС‚ С‡Р°С‚Р°" end
-    if not text or #text == 0 then return false, "РїСѓСЃС‚РѕРµ СЃРѕРѕР±С‰РµРЅРёРµ" end
+    if not token or token == "" then return false, "нет токена" end
+    if not chat_id or chat_id == "" then return false, "нет чата" end
+    if not text or #text == 0 then return false, "пустое сообщение" end
     if curlPath == "" then
-        print("[MachinistByYaroRage] curl.exe РЅРµ РЅР°Р№РґРµРЅ вЂ” Telegram РѕС‚РєР»СЋС‡С‘РЅ")
-        return false, "РЅРµС‚ curl"
+        print("[MachinistByYaroRage] curl.exe не найден — Telegram отключён")
+        return false, "нет curl"
     end
     local ok_json, dkjson = pcall(require, "dkjson")
-    if not ok_json then return false, "dkjson РЅРµРґРѕСЃС‚СѓРїРµРЅ" end
+    if not ok_json then return false, "dkjson недоступен" end
     local body = dkjson.encode({
         chat_id = chat_id,
         text = text,
         disable_web_page_preview = true,
     })
     local bodyPath = TG_DIR .. "send.json"
-    if not writeUtf8File(bodyPath, body) then return false, "РЅРµС‚ РґРѕСЃС‚СѓРїР° Рє tg_tmp" end
-    -- РџСЂРµРґС‹РґСѓС‰РёР№ РѕС‚РІРµС‚ curl РѕСЃС‚Р°РІР»СЏРµРј РґР»СЏ РІР°Р»РёРґР°С†РёРё РЅР°СЃС‚СЂРѕРµРє (РІР°Р¶РЅРѕ РґР»СЏ
-    -- РґРёР°РіРЅРѕСЃС‚РёРєРё: РµСЃР»Рё РІ send_resp.json РѕС‚ Telegram API РїСЂРёРґС‘С‚ РѕС€РёР±РєР° вЂ”
-    -- СЌС‚Рѕ РЅРµРїСЂР°РІРёР»СЊРЅС‹Р№ С‚РѕРєРµРЅ/chat_id).
+    if not writeUtf8File(bodyPath, body) then return false, "нет доступа к tg_tmp" end
+    -- Предыдущий ответ curl оставляем для валидации настроек (важно для
+    -- диагностики: если в send_resp.json от Telegram API придёт ошибка —
+    -- это неправильный токен/chat_id).
     local respPath = TG_DIR .. "send_resp.json"
     local url = "https://api.telegram.org/bot" .. token .. "/sendMessage"
-    -- curl РІ С„РѕРЅРµ: -s С‚РёС…Рѕ, -m 10 РјР°РєСЃРёРјСѓРј 10 СЃРµРє, РѕРєРЅРѕ СЃРєСЂС‹С‚Рѕ.
-    -- -o СЃРѕС…СЂР°РЅСЏРµС‚ РѕС‚РІРµС‚ API РІ send_resp.json (СЃРј. РІС‹С€Рµ).
+    -- curl в фоне: -s тихо, -m 10 максимум 10 сек, окно скрыто.
+    -- -o сохраняет ответ API в send_resp.json (см. выше).
     local cmdline = '"' .. curlPath .. '" -s -m 10 -X POST "' .. url ..
         '" -H "Content-Type: application/json" --data-binary "@' .. bodyPath ..
         '" -o "' .. respPath .. '"'
@@ -121,15 +121,15 @@ function M.send(token, chat_id, text)
     return true
 end
 
--- РђР»РёР°СЃ: РїРѕР»РЅР°СЏ Р°СЃРёРЅС…СЂРѕРЅРЅРѕСЃС‚СЊ РёР· РєРѕСЂРѕР±РєРё (РЅР° СЃР°РјРѕРј РґРµР»Рµ send СѓР¶Рµ async).
+-- Алиас: полная асинхронность из коробки (на самом деле send уже async).
 function M.send_async(token, chat_id, text)
     return M.send(token, chat_id, text)
 end
 
--- РћРїСЂРѕСЃ Р°РїРґРµР№С‚РѕРІ (fire-and-forget): Р·Р°РїСѓСЃРєР°РµС‚ РІ С„РѕРЅРµ getUpdates, РѕС‚РІРµС‚
--- curl СЃРѕС…СЂР°РЅСЏРµС‚ РІ tg_updates.json. Р’РѕР·РІСЂР°С‰Р°РµС‚ Р—РђРџРРЎРђРќРќР«Р™ СЂР°РЅРµРµ РѕС‚РІРµС‚
--- (С‡С‚РѕР±С‹ РєРѕРјР°РЅРґС‹ РѕР±СЂР°Р±Р°С‚С‹РІР°Р»РёСЃСЊ Р±РµР· Р±Р»РѕРєРёСЂРѕРІРєРё). РЎСЂР°Р·Сѓ РІРѕР·РІСЂР°С‰Р°РµС‚ nil,
--- СЂРµР°Р»СЊРЅС‹Р№ СЂРµР·СѓР»СЊС‚Р°С‚ РїРѕРґС‚СЏРіРёРІР°РµС‚СЃСЏ СЃР»РµРґСѓСЋС‰РёРј РІС‹Р·РѕРІРѕРј read_updates().
+-- Опрос апдейтов (fire-and-forget): запускает в фоне getUpdates, ответ
+-- curl сохраняет в tg_updates.json. Возвращает ЗАПИСАННЫЙ ранее ответ
+-- (чтобы команды обрабатывались без блокировки). Сразу возвращает nil,
+-- реальный результат подтягивается следующим вызовом read_updates().
 function M.get_updates(token, offset)
     if not token or token == "" then return nil end
     if curlPath == "" then return nil end
@@ -142,8 +142,8 @@ function M.get_updates(token, offset)
     return nil
 end
 
--- Р§С‚РµРЅРёРµ РїРѕСЃР»РµРґРЅРµРіРѕ СЃРѕС…СЂР°РЅС‘РЅРЅРѕРіРѕ РѕС‚РІРµС‚Р° getUpdates. Р’С‹Р·С‹РІР°РµС‚СЃСЏ РѕС‚РґРµР»СЊРЅРѕ,
--- Р±РµР· СЃРµС‚Рё: С‚РѕР»СЊРєРѕ Р»РѕРєР°Р»СЊРЅРѕРµ С‡С‚РµРЅРёРµ С„Р°Р№Р»Р° (РјРіРЅРѕРІРµРЅРЅРѕ, Р±РµР· С„СЂРёР·РѕРІ).
+-- Чтение последнего сохранённого ответа getUpdates. Вызывается отдельно,
+-- без сети: только локальное чтение файла (мгновенно, без фризов).
 function M.read_updates()
     local path = TG_DIR .. "updates.json"
     local f = io.open(path, "rb")
@@ -158,7 +158,7 @@ function M.read_updates()
     return data.result
 end
 
--- РџРѕР»РЅР°СЏ РѕС‡РёСЃС‚РєР° РїРѕСЃР»РµРґРЅРёС… РєРѕРјР°РЅРґ РїРµСЂРµРґ СЃР»РµРґСѓСЋС‰РёРј Р·Р°РїСѓСЃРєРѕРј (РїРѕ Р¶РµР»Р°РЅРёСЋ).
+-- Полная очистка последних команд перед следующим запуском (по желанию).
 function M.clear_response()
     os.remove(TG_DIR .. "updates.json")
 end

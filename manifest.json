@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.7",
     "launcherVersion":  "1.1.7",
-    "updatedAt":  "2026-09-17 02:11",
+    "updatedAt":  "2026-09-17 14:58",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -149,9 +149,9 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/MachinistByYaroRage_v0.9.1.lua",
-                      "sha256":  "b890386923466e824018bd40c2c454bcf6867a00f1dfc921e353a85dc792d529",
-                      "size":  106527,
+                      "path":  "moonloader/MachinistByYaroRage_v0.9.3.lua",
+                      "sha256":  "d0fdcba6f635d9ea1d2a0623141a643787ec53fcdbc03c63833e0d6ff85cac47",
+                      "size":  108787,
                       "dest":  "gameRoot"
                   },
                   {
@@ -2430,14 +2430,14 @@
                   },
                   {
                       "path":  "moonloader/MachinistByYaroRage/admin.lua",
-                      "sha256":  "d9848d004e3f67926389d5125d8a888283f455db0138fab34b401ab1c4da3cf3",
-                      "size":  8640,
+                      "sha256":  "e8056e26a23706ea0c93b927a9d8a2327d8be66bad16bdb625b31832689b931c",
+                      "size":  7937,
                       "dest":  "gameRoot"
                   },
                   {
                       "path":  "moonloader/MachinistByYaroRage/cef.lua",
-                      "sha256":  "9e6e272e9b32081daf78d51f13c2ff77f9a485ed795bd96cc86462bbd1445667",
-                      "size":  17670,
+                      "sha256":  "d8c7f9e1fa8d7bc0112603c55f24bf6f97b63c9c6b68707a482e9871128be329",
+                      "size":  15474,
                       "dest":  "gameRoot"
                   },
                   {
@@ -2448,8 +2448,8 @@
                   },
                   {
                       "path":  "moonloader/MachinistByYaroRage/telegram.lua",
-                      "sha256":  "6602b9edcbddd9f339dec50c2bf20e4f6afbc4120f4520e21cc0003d444cfb56",
-                      "size":  7799,
+                      "sha256":  "1959b7bb49394c5439f1820354cc90e8ed1033201d15b380a826003e453ebc6a",
+                      "size":  6229,
                       "dest":  "gameRoot"
                   },
                   {
