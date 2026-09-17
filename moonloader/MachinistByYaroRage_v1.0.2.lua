@@ -462,12 +462,15 @@ local function processChatText(label, text, authorNick, skipDiag)
     -- выполнять полный детект и слать уведомление, а не печататься в лог.
     if not skipDiag and os.time() < chatDiagUntil then
         chatDiagCount = chatDiagCount + 1
-        print("[MachinistByYaroRage] чат-diag#" .. tostring(chatDiagCount) ..
-            " [" .. label .. " '" .. text .. "']" ..
-            (authorNick and #authorNick > 0 and (" автор=" .. authorNick) or " автор=?" ) ..
-            " notify=" .. tostring(optNotify.v) ..
-            " tg=" .. tostring(st.tg_bot_token ~= "" and st.tg_chat_id ~= "") ..
-            " events=" .. tostring(not st.dbg_no_events))
+        -- Debug: только при dbg_log=1
+        if st.dbg_log then
+            print("[MachinistByYaroRage] чат-diag#" .. tostring(chatDiagCount) ..
+                " [" .. label .. " '" .. text .. "']" ..
+                (authorNick and #authorNick > 0 and (" автор=" .. authorNick) or " автор=?" ) ..
+                " notify=" .. tostring(optNotify.v) ..
+                " tg=" .. tostring(st.tg_bot_token ~= "" and st.tg_chat_id ~= "") ..
+                " events=" .. tostring(not st.dbg_no_events))
+        end
         return
     end
     if not optNotify.v then return end
@@ -530,7 +533,9 @@ local function adminScanTick(nowWall)
                     adminIdByCurrentId[id] = who
                     if not found then
                         found = true
-                        print("[MachinistByYaroRage] scan-id: [" .. tostring(id) .. "] " .. name)
+                        if st.dbg_log then
+                            print("[MachinistByYaroRage] scan-id: [" .. tostring(id) .. "] " .. name)
+                        end
                     end
                 end
             end
@@ -548,7 +553,9 @@ local function adminScanTick(nowWall)
             local myWho = admin.has_known_admin(myNick)
             if myWho then
                 adminIdByCurrentId[myId] = myWho
-                print("[MachinistByYaroRage] scan-self: [" .. tostring(myId) .. "] " .. myNick)
+                if st.dbg_log then
+                    print("[MachinistByYaroRage] scan-self: [" .. tostring(myId) .. "] " .. myNick)
+                end
             end
         end
     end
@@ -918,7 +925,7 @@ function onReceivePacket(id, bs)
     do
         local nowDiag = wallClockMs()
         if not st._lastMachDiag then st._lastMachDiag = 0 end
-        if nowDiag - st._lastMachDiag >= 5000 then
+        if nowDiag - st._lastMachDiag >= 5000 and st.dbg_log then
             local mid = st.speed_lo + ((st.speed_hi - st.speed_lo) / 2)
             if mid <= 0 then mid = 40 end
             local txT = ''
