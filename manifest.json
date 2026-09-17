@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.7",
     "launcherVersion":  "1.1.7",
-    "updatedAt":  "2026-09-18 01:28",
+    "updatedAt":  "2026-09-18 02:48",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -155,9 +155,9 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/MechWorkByYaroRage_v1.3.6.lua",
-                      "sha256":  "5bb31e41d46b2926be3b457b1be060f1a623b94f76cd6934e276cfb2b9a31afa",
-                      "size":  110796,
+                      "path":  "moonloader/MechWorkByYaroRage_v1.3.7.lua",
+                      "sha256":  "db1cc1c278d356348040654c880dbc6259849bc113a9a308c246a02fbceecb7c",
+                      "size":  111386,
                       "dest":  "gameRoot"
                   },
                   {

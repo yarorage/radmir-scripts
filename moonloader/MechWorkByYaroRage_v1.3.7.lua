@@ -1,4 +1,8 @@
--- MechWorkByYaroRage v1.3.6
+-- MechWorkByYaroRage v1.3.7
+-- v1.3.7: кнопка Ђ¬ключить/¬ыключить читї вынесена из-под заголовка окна
+-- в отдельную строку (раньше скрывалась под шапкой на части разрешений/
+-- DPI); чит по умолчанию выключен, старые настройки один раз перевод€тс€
+-- в выключенное состо€ние.
 -- v1.3.6: GUI перегруппирован: фразы автоответа перенесены во вкладку
 -- Ђ‘разыї, блоки фраз свЄрнуты в раскрывающиес€ заголовки (галочка,
 -- исключени€ id и список фраз вместе), ползунки радиуса/паузы сто€т
@@ -138,7 +142,7 @@
 -- экранна€ надпись printStringNow убрана (мешала обзору).
 -- ћеню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.3.6")
+script_version("1.3.7")
 
 require "moonloader"
 
@@ -205,7 +209,7 @@ local fsc = 1
 local iniFile = getGameDirectory() .. "\\moonloader\\MechWorkByYaroRage.ini"
 
 local function loadSettings()
-    local s = { enabled = true, cheatEnabled = true, delayMs = 3000, autoStart = true, startDelayMs = 300,
+    local s = { enabled = true, cheatEnabled = false, delayMs = 3000, autoStart = true, startDelayMs = 300,
                 autoRepair = true, repairCooldown = 4000,
                 autoReply = true,
                replyDelayMinSec = 1, replyDelayMaxSec = 2, -- v1.3.2: диапазон задержки фраз в чат (сек)
@@ -491,6 +495,12 @@ end
 local optEnabled = imgui.ImBool(settings.enabled)
 -- v1.2.7: мастер-выключатель всего чита (кнопка в шапке окна)
 local optCheat = imgui.ImBool(settings.cheatEnabled)
+-- v1.3.7: чит по умолчанию выключен. ƒл€ старых ini (cheatEnabled = true)
+-- без метки cheatOffMigrated один раз принудительно выключаем чит.
+if not settings.cheatOffMigrated then
+    optCheat.v = false
+    settings.cheatEnabled = false
+end
 -- задержка после старта миниигры до отправки финиша, мс
 local optDelayMs = imgui.ImInt(settings.delayMs)
 -- v1.3.4: диапазон случайной задержки перед закрытием миниигры, —≈ ”Ќƒџ (0..20)
@@ -810,6 +820,7 @@ function saveSettings()
     local lines = {
         "enabled = " .. (optEnabled.v and "true" or "false"),
         "cheatEnabled = " .. (optCheat.v and "true" or "false"),
+        "cheatOffMigrated = true",
         "delayMs = " .. optDelayMs.v,
         "delayMinMs = " .. (optDelayMinSec.v * 1000),
         "delayMaxMs = " .. (optDelayMaxSec.v * 1000),
@@ -2039,30 +2050,29 @@ function imgui.OnDrawFrame()
         imgui.SetNextWindowSize(imgui.ImVec2(winW, winH), imgui.Cond.Always)
         imgui.Begin(u8"MechWorkByYaroRage", showMenu, imgui.WindowFlags.NoCollapse)
 
-        -- ===== Ўјѕ ј:  Ќќѕ ј ¬ Ћё„≈Ќ»я/¬џ Ћё„≈Ќ»я ¬—≈√ќ „»“ј =====
-        -- v1.2.7: мастер-переключатель всех функций (как в Les/Machinist):
-        -- красна€ Ђ¬ыключить читї при включЄнном, зелЄна€ Ђ¬ключить читї при выключенном.
-        local _tH = imgui.GetTextLineHeightWithSpacing()
-        local _oy = imgui.GetCursorPosY()
-        local _bW = 150 * fsc
-        local _bH = 24 * fsc
-        if optCheat.v then
-            imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.80, 0.18, 0.18, 1.0))
-            imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.0, 0.25, 0.25, 1.0))
-        else
-            imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.15, 0.65, 0.20, 1.0))
-            imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.20, 0.85, 0.25, 1.0))
+        -- ===== Ўјѕ ј: ћј—“≈–-ѕ≈–≈ Ћё„ј“≈Ћ№ ¬—≈√ќ „»“ј =====
+        -- v1.3.7: кнопка вынесена из-под заголовка окна в отдельную строку Ч
+        -- раньше на части разрешений/DPI она уходила под шапку и была не видна.
+        do
+            local cheatBw = winW - 24 * fsc
+            local cheatBh = 30 * fsc
+            if optCheat.v then
+                imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.80, 0.18, 0.18, 1.0))
+                imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.0, 0.25, 0.25, 1.0))
+            else
+                imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.15, 0.65, 0.20, 1.0))
+                imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.20, 0.85, 0.25, 1.0))
+            end
+            if imgui.Button(optCheat.v and u8"¬џ Ћё„»“№ „»“" or u8"¬ Ћё„»“№ „»“", imgui.ImVec2(cheatBw, cheatBh)) then
+                setCheatMaster(not optCheat.v)
+            end
+            imgui.PopStyleColor(2)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"ќдин клик включает или выключает всю работу чита. ѕока чит выключен, скрипт ничего не делает")
+            end
         end
-        imgui.SetCursorPosX(imgui.GetWindowWidth() - _bW - 34 * fsc)
-        imgui.SetCursorPosY(_oy - _tH - _bH * 0.5)
-        if imgui.Button(optCheat.v and u8"¬џ Ћё„»“№ „»“" or u8"¬ Ћё„»“№ „»“", imgui.ImVec2(_bW, _bH)) then
-            setCheatMaster(not optCheat.v)
-        end
-        imgui.PopStyleColor(2)
-        if imgui.IsItemHovered() then
-            imgui.SetTooltip(u8"¬ыключить или включить весь чит одним кликом")
-        end
-        imgui.SetCursorPos(imgui.ImVec2(0.0, _oy))
+        imgui.TextColored(optCheat.v and imgui.ImVec4(0.35, 0.85, 0.40, 1) or imgui.ImVec4(1.0, 0.55, 0.30, 1),
+            optCheat.v and u8"„ит включЄн" or u8"„ит выключен (по умолчанию)")
         imgui.Separator()
 
         -- ===== ѕјЌ≈Ћ№ ¬ Ћјƒќ  =====
