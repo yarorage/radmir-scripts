@@ -1,4 +1,6 @@
--- MechWorkByYaroRage v1.3.3
+-- MechWorkByYaroRage v1.3.4
+-- v1.3.4: диапазон задержки перед закрытием миниигры задаётся в секундах
+-- от 0 до 20 (ползунки «от/до»).
 -- v1.3.3: строгий цикл фраз без повторов до полного прохода списка; ESP не
 -- зеркалится за спиной (метка рисуется только перед активной камерой).
 -- v1.3.2: задержка каждой фразы выбирается случайно в диапазоне «от/до»
@@ -130,7 +132,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.3.3")
+script_version("1.3.4")
 
 require "moonloader"
 
@@ -383,7 +385,8 @@ local function loadSettings()
     s.delayMaxMs = tonumber(s.delayMaxMs) or s.delayMaxMs or 5000
     if s.delayMinMs < 0 then s.delayMinMs = 0 end
     if s.delayMaxMs < 0 then s.delayMaxMs = 0 end
-    if s.delayMaxMs > 10000 then s.delayMaxMs = 10000 end
+    if s.delayMaxMs > 20000 then s.delayMaxMs = 20000 end
+    if s.delayMinMs > 20000 then s.delayMinMs = 20000 end
     if s.delayMinMs > s.delayMaxMs then s.delayMinMs = s.delayMaxMs end
     -- v1.3.2: диапазон задержки фраз в чат (секунды, 0..600)
     s.replyDelayMinSec = tonumber(s.replyDelayMinSec) or 1
@@ -466,9 +469,9 @@ local optEnabled = imgui.ImBool(settings.enabled)
 local optCheat = imgui.ImBool(settings.cheatEnabled)
 -- задержка после старта миниигры до отправки финиша, мс
 local optDelayMs = imgui.ImInt(settings.delayMs)
--- v1.1.8: диапазон случайной задержки перед закрытием миниигры, мс
-local optDelayMinMs = imgui.ImInt(settings.delayMinMs)
-local optDelayMaxMs = imgui.ImInt(settings.delayMaxMs)
+-- v1.3.4: диапазон случайной задержки перед закрытием миниигры, СЕКУНДЫ (0..20)
+local optDelayMinSec = imgui.ImInt(math.max(0, math.min(20, math.floor((settings.delayMinMs or 0) / 1000 + 0.5))))
+local optDelayMaxSec = imgui.ImInt(math.max(0, math.min(20, math.floor((settings.delayMaxMs or 0) / 1000 + 0.5))))
 -- авто-старт ремонта при появлении окна Interactions
 local optAutoStart = imgui.ImBool(settings.autoStart)
 -- задержка после появления окна до клика, мс
@@ -636,8 +639,8 @@ function saveSettings()
         "enabled = " .. (optEnabled.v and "true" or "false"),
         "cheatEnabled = " .. (optCheat.v and "true" or "false"),
         "delayMs = " .. optDelayMs.v,
-        "delayMinMs = " .. optDelayMinMs.v,
-        "delayMaxMs = " .. optDelayMaxMs.v,
+        "delayMinMs = " .. (optDelayMinSec.v * 1000),
+        "delayMaxMs = " .. (optDelayMaxSec.v * 1000),
         "autoStart = " .. (optAutoStart.v and "true" or "false"),
         "startDelayMs = " .. optStartDelayMs.v,
         "autoRepair = " .. (optAutoRepair.v and "true" or "false"),
@@ -819,7 +822,7 @@ local function finishMinigameThread()
     -- v1.1.8: при КАЖДОЙ новой миниигре время до успешного финиша
     -- выбирается СЛУЧАЙНО в диапазоне от/до (мс), заданном игроком
     -- в GUI. Если границы совпали/выродились - берём это значение.
-    local delayMin, delayMax = optDelayMinMs.v or 0, optDelayMaxMs.v or 0
+    local delayMin, delayMax = (optDelayMinSec.v or 0) * 1000, (optDelayMaxSec.v or 0) * 1000
     if delayMin > delayMax then delayMin, delayMax = delayMax, delayMin end
     if delayMin < 0 then delayMin = 0 end
     if delayMax < 0 then delayMax = 0 end
@@ -1923,8 +1926,8 @@ function imgui.OnDrawFrame()
             imgui.Separator()
             imgui.Text(u8"Случайная задержка перед закрытием:")
             imgui.PushItemWidth(120 * fsc)
-            if imgui.SliderInt(u8"   от, мс", optDelayMinMs, 0, 10000) then changed = true end
-            if imgui.SliderInt(u8"   до, мс", optDelayMaxMs, 0, 10000) then changed = true end
+            if imgui.SliderInt(u8"   от, сек", optDelayMinSec, 0, 20) then changed = true end
+            if imgui.SliderInt(u8"   до, сек", optDelayMaxSec, 0, 20) then changed = true end
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"При КАЖДОЙ новой миниигре время до успешного финиша выбирается случайно в этом диапазоне")
             end
@@ -2283,7 +2286,7 @@ function imgui.OnDrawFrame()
             imgui.SameLine(0, 20)
             imgui.Text(u8"Авторемонт: " .. (optAutoRepair.v and u8"вкл" or u8"выкл"))
 
-            imgui.Text(u8"Задержка: " .. optDelayMinMs.v .. u8"–" .. optDelayMaxMs.v .. u8" мс")
+            imgui.Text(u8"Задержка: " .. optDelayMinSec.v .. u8"–" .. optDelayMaxSec.v .. u8" сек")
             imgui.SameLine(0, 20)
             imgui.Text(u8"Пауза ремонта: " .. optRepairCooldown.v .. u8" мс")
 
