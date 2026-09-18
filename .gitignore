@@ -14,10 +14,10 @@
 
 # Сборки — бинарники собираются из исходников, не храним в репо
 AutoUpdaterYR.exe
-MoonGuard.exe
-MoonloaderGuard.exe
-AutoStart.exe
 MoonLoaderUninstall.exe
+
+# Бинарники-помощники коммитятся намеренно для скачивания с raw- URLs
+# AutoStart.exe, MoonGuard.exe — tracked в корне
 
 # Пользовательские конфиги — привязаны к конкретной машине
 *.ini
