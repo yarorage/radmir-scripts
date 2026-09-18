@@ -1,4 +1,8 @@
--- MechWorkByYaroRage v1.3.7
+-- MechWorkByYaroRage v1.3.8
+-- v1.3.8: авто-старт ремонта обновлён под новый сервер: кнопка начала
+-- теперь называется «Выполнить работу» (код 48), а не «Начать»; после её
+-- клика сервер открывает диалог «Выбор действия» — скрипт сам выбирает
+-- пункт «1. Начать ремонт», чтобы миниигра стартовала автоматически.
 -- v1.3.7: кнопка «Включить/Выключить чит» вынесена из-под заголовка окна
 -- в отдельную строку (раньше скрывалась под шапкой на части разрешений/
 -- DPI); чит по умолчанию выключен, старые настройки один раз переводятся
@@ -142,7 +146,7 @@
 -- экранная надпись printStringNow убрана (мешала обзору).
 -- Меню: /mech
 script_name("MechWorkByYaroRage")
-script_version("1.3.7")
+script_version("1.3.8")
 
 require "moonloader"
 
@@ -646,6 +650,7 @@ local state = {
     title = "",        -- название миниигры
     busy = false,      -- поток автозакрытия уже запущен
     autoStarting = false, -- поток авто-старта уже запущен
+    awaitDialog = false,   -- v1.3.8: ждём диалог «Выбор действия» после клика
     lastRepair = 0,    -- время последнего автозапроса /repair (GetTickCount, мс)
     lastAutoReply = 0, -- время последнего автоответа в чат (GetTickCount, мс)
     lastAutoReplyText = "", -- последняя отправленная фраза автоответа (CP1251, v1.1.5)
@@ -899,6 +904,7 @@ function setCheatMaster(v)
         state.active = false
         state.busy = false
         state.autoStarting = false
+        state.awaitDialog = false
         state.pendingRepair = nil
         state.espTarget = nil
         state.nearWaiting = false
@@ -963,6 +969,43 @@ local function sendInteractionsClick(code)
     return send_packet(name_inter, args)
 end
 
+-- v1.3.8: выбор пункта в диалоге (OnDialogResponse).
+-- Структура RX-подтверждения из дампа: префикс int32(8), затем 3 типизированных
+-- 'd'-аргумента (0, 1, индекс пункта) и 's'-аргумент (длина + html строки пункта).
+local name_dialog = { string.byte("OnDialogResponse", 1, 16) }
+
+local function sendDialogSelect(index, itemHtml)
+    local b0 = int32_le_bytes(0)
+    local b1 = int32_le_bytes(1)
+    local bi = int32_le_bytes(index or 0)
+    local bl = int32_le_bytes(#itemHtml)
+    local args = {}
+    local function push(x) args[#args + 1] = x end
+    -- префикс int32(8)
+    push(8); push(0); push(0); push(0)
+    -- d(0)
+    push(100); push(b0[1]); push(b0[2]); push(b0[3]); push(b0[4])
+    -- d(1)
+    push(100); push(b1[1]); push(b1[2]); push(b1[3]); push(b1[4])
+    -- d(индекс)
+    push(100); push(bi[1]); push(bi[2]); push(bi[3]); push(bi[4])
+    -- s(длина + байты html)
+    push(115); push(bl[1]); push(bl[2]); push(bl[3]); push(bl[4])
+    for i = 1, #itemHtml do
+        push(string.byte(itemHtml, i))
+    end
+    return send_packet(name_dialog, args)
+end
+
+-- Достаёт первый пункт (до <n>) из списка диалога в RX addDialogInQueue.
+local function extractDialogFirstItem(txt)
+    local s = txt:find("', \"", 1, true)
+    if not s then return nil end
+    local e = txt:find("<n>", s, true)
+    if not e then return nil end
+    return txt:sub(s + 4, e - 1)
+end
+
 -- ---------- Чтение RX id=215 в текст ----------
 local function readBodyText(bs)
     local len = 0
@@ -980,16 +1023,16 @@ local function readBodyText(bs)
 end
 
 -- ---------- Поиск кода кнопки «Начать работу» в тексте setInfo ----------
--- Формат RX: interface('Interactions').setInfo('[[48,"Завершить работу"],[153,"Начать работу"]]')
--- Возвращает код кнопки, у которой подпись содержит «Начать»; иначе nil.
--- Кнопку «Завершить работу» (48) НЕ трогаем - она завершает работу механика в целом.
+-- Формат RX: interface('Interactions').setInfo('[[48,"Выполнить работу"],[153,"Закончить работу"]]')
+-- Возвращает код кнопки, у которой подпись содержит «Выполнить» или «Начать»;
+-- иначе nil. Кнопку завершения («Закончить работу») не выбираем.
 local function findStartButtonCode(txt)
     local code = nil
     local pos = 1
     while true do
         local s, e, c, lbl = txt:find('%[(%d+),%"([^"]+)%"]', pos)
         if not s then break end
-        if lbl:find("Начать", 1, true) then
+        if lbl:find("Выполнить", 1, true) or lbl:find("Начать", 1, true) then
             code = tonumber(c)
             break
         end
@@ -1000,10 +1043,14 @@ end
 
 -- ---------- Поток авто-старта ремонта ----------
 local function startMinigameThread(code)
-    -- ждём, пока окно Interactions отрисуется, затем кликаем «Начать работу»
+    -- ждём, пока окно Interactions отрисуется, затем кликаем «Выполнить работу»
     if optStartDelayMs.v > 0 then wait(optStartDelayMs.v) end
-    if state.autoStarting and code and code ~= 48 then
+    if state.autoStarting and code then
+        state.awaitDialog = true
         sendInteractionsClick(code)
+        -- ждём ответа сервера (диалог «Выбор действия»); иначе сброс по таймауту
+        wait(4000)
+        state.awaitDialog = false
     end
     state.autoStarting = false
 end
@@ -1699,6 +1746,19 @@ function onReceivePacket(id, bs)
         if code and not state.autoStarting then
             state.autoStarting = true
             lua_thread.create(startMinigameThread, code)
+        end
+        return
+    end
+
+    -- v1.3.8: после клика «Выполнить работу» сервер открывает диалог
+    -- «Выбор действия» с пунктом «1. Начать ремонт» — отвечаем его выбором
+    if optCheat.v and optAutoStart.v and state.awaitDialog
+       and txt:find("addDialogInQueue", 1, true)
+       and txt:find("Начать ремонт", 1, true) then
+        state.awaitDialog = false
+        local item = extractDialogFirstItem(txt)
+        if item then
+            sendDialogSelect(0, '<p style="color: #">' .. item .. '</p>')
         end
         return
     end
