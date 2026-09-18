@@ -1,7 +1,7 @@
 ﻿{
-    "version":  "1.1.8",
-    "launcherVersion":  "1.1.8",
-    "updatedAt":  "2026-09-18 16:53",
+    "version":  "1.1.9",
+    "launcherVersion":  "1.1.9",
+    "updatedAt":  "2026-09-18 17:09",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -108,14 +108,14 @@
                   },
                   {
                       "path":  "mafk_watchdog/autostart_action.ps1",
-                      "sha256":  "a07ebd78c874927bde9a1d2c4bd7d91676141f06bb073618e830868c2cfc06ff",
-                      "size":  7050,
+                      "sha256":  "bca7a838ec511c0e0e9b25a84851f76a9bac86f182499ae8588f7d9a0cdd8e23",
+                      "size":  7646,
                       "dest":  "base"
                   },
                   {
                       "path":  "mafk_watchdog/mafk_watchdog.ps1",
-                      "sha256":  "9e2695e77849d85fd072342e4cbc1620f67a8e4b41bf84d59e4a6fd61bb643d9",
-                      "size":  4049,
+                      "sha256":  "f2a8c09e565ed81255faa2e880d01f31ce5a94389398b92a36f7c9164ff21509",
+                      "size":  4305,
                       "dest":  "base"
                   },
                   {

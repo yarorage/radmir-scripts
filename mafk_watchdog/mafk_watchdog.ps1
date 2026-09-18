@@ -1,7 +1,12 @@
-﻿param()
+﻿param([string]$GameRoot, [string]$LauncherExe)
 $ErrorActionPreference = 'Continue'
 
-$FLAG = Join-Path (Split-Path $PSScriptRoot -Parent) 'RADMIR CRMP\mafk_on.flag'
+$BASE = Split-Path $PSScriptRoot -Parent
+if($GameRoot -and (Test-Path -LiteralPath $GameRoot)){
+  $FLAG = Join-Path $GameRoot 'mafk_on.flag'
+} else {
+  $FLAG = Join-Path $BASE 'RADMIR CRMP\mafk_on.flag'
+}
 $ACTION = Join-Path $PSScriptRoot 'autostart_action.ps1'
 $LOGFILE = Join-Path $PSScriptRoot 'watchdog.log'
 
@@ -79,7 +84,7 @@ while($true){
 
   if(-not $gta){
     Write-Log 'TRIGGER: game not running -> autostart'
-    & $ACTION -LogFile $LOGFILE
+    & $ACTION -LogFile $LOGFILE -GameRoot $GameRoot -LauncherExe $LauncherExe
     Start-Sleep -Seconds 5
     continue
   }
@@ -105,7 +110,7 @@ while($true){
       Start-Sleep -Seconds 2
     }
     Write-Log 'TRIGGER: after crash -> autostart'
-    & $ACTION -LogFile $LOGFILE
+    & $ACTION -LogFile $LOGFILE -GameRoot $GameRoot -LauncherExe $LauncherExe
     Start-Sleep -Seconds 5
     continue
   }

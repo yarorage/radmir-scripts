@@ -1,5 +1,19 @@
-param([string]$LogFile)
+param([string]$LogFile, [string]$GameRoot, [string]$LauncherExe)
 $ErrorActionPreference = 'Continue'
+
+# Определяем путь к RADMIR Launcher.exe: параметр, иначе поиск рядом со скриптом/игрой
+function Get-LauncherPath {
+  if($LauncherExe -and (Test-Path -LiteralPath $LauncherExe)){ return $LauncherExe }
+  $base = Split-Path $PSScriptRoot -Parent
+  $c1 = Join-Path $base 'Launcher\RADMIR Launcher.exe'
+  if(Test-Path -LiteralPath $c1){ return $c1 }
+  if($GameRoot -and (Test-Path -LiteralPath (Join-Path $GameRoot 'Launcher\RADMIR Launcher.exe'))){
+    return Join-Path $GameRoot 'Launcher\RADMIR Launcher.exe'
+  }
+  $c2 = Join-Path $base 'RADMIR Launcher.exe'
+  if(Test-Path -LiteralPath $c2){ return $c2 }
+  return $c1
+}
 
 Add-Type @"
 using System;
@@ -120,7 +134,7 @@ function Restart-Launcher(){
     Stop-Process -Force -ErrorAction SilentlyContinue
   Start-Sleep -Seconds 2
   try {
-    Start-Process -FilePath (Join-Path (Split-Path $PSScriptRoot -Parent) 'Launcher\RADMIR Launcher.exe')
+    Start-Process -FilePath (Get-LauncherPath)
   } catch { Write-Log ('Reload launch error: ' + $_.Exception.Message) }
   # wait for window
   for($i=0; $i -lt 60; $i++){
@@ -138,7 +152,7 @@ $lap = Get-HwndByTitle 'RADMIR Launcher'
 if($lap -eq 0){
   Write-Log 'Launcher not open - launching'
   try {
-    Start-Process -FilePath (Join-Path (Split-Path $PSScriptRoot -Parent) 'Launcher\RADMIR Launcher.exe')
+    Start-Process -FilePath (Get-LauncherPath)
   } catch { Write-Log ('Launch error: ' + $_.Exception.Message) }
   for($i=0; $i -lt 60; $i++){
     $lap = Get-HwndByTitle 'RADMIR Launcher'
