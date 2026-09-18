@@ -947,6 +947,7 @@ end
 -- безбожно лагалої. “еперь все данные берутс€ из CEF-пакетов (скорость Ч
 -- st.speed_est по убыванию дистанции setStation, дистанци€ Ч st.station_dist,
 -- команды Ч таймеры InformationTimer), а газ/тормоз/keysData пишутс€ напр€мую.
+end
 local function driveTick()
     if st.dbg_no_thread then return end
     drive._lastTickMs = wallClockMs()
@@ -1197,7 +1198,6 @@ local function driveTick()
     else
         drive.keys = drive._gasPressed and 8 or 0
     end
-end
 
 -- ѕоток автопилота Ч  јƒ–ќ¬џ… источник тиков (порт цикла из mashinist.lua):
 --   bot.state        -> optEnabled.v (наше включение автопилота)
@@ -1219,6 +1219,9 @@ function driveThread()
     end
     drive.tickThread = nil
 end
+
+-- Ensure driveThread is globally accessible for main()
+_G.driveThread = driveThread
 
 -- ----------  оманды ----------
 end
