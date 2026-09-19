@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.9",
     "launcherVersion":  "1.1.9",
-    "updatedAt":  "2026-09-19 17:38",
+    "updatedAt":  "2026-09-19 17:41",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -119,8 +119,8 @@
                       "dest":  "base"
                   },
                   {
-                      "path":  "moonloader/AutoLoginByYaroRage_v1.5.6.lua",
-                      "sha256":  "151dc9ac54d6c7d7410c2a1490d88687f20cf98db3731da2895b95eecbddf615",
+                      "path":  "moonloader/AutoLoginByYaroRage_v1.5.7.lua",
+                      "sha256":  "6ea10940130eb52d4363c0feadf489495a2cc9f94e5668e63aa9d3bf2810a1b5",
                       "size":  47229,
                       "dest":  "gameRoot"
                   },
@@ -222,8 +222,8 @@
                   },
                   {
                       "path":  "moonloader/AutoLoginByYaroRage/ui.lua",
-                      "sha256":  "50597efe9fd1ff22cc41c3c8db49e2122cf697e3520349a1364d0ebc63b3b3f8",
-                      "size":  26920,
+                      "sha256":  "dab9319413200d8dcc923f76fa2c814f22f596850d882cbed16fa35a68a91ad8",
+                      "size":  27120,
                       "dest":  "gameRoot"
                   },
                   {

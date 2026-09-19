@@ -519,6 +519,12 @@ function PF.render()
 end
 
 -- ImGui Settings Menu
+-- Вкладки меню объявлены заранее (local), чтобы быть видимыми из draw_settings_menu
+local draw_autologin_tab
+local draw_antiafk_tab
+local draw_admins_tab
+local draw_reconnect_tab
+local draw_misc_tab
 local show_settings = false
 local settings_tabs = {"Автологин", "Anti-AFK", "Админы", "Реконнект", "Прочее"}
 local current_tab = 1
