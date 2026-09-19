@@ -30,6 +30,27 @@ local CONFIG_SCHEMA = {
     HealCooldown = { type = "number", default = 5000 },
 }
 
+-- Карта camelCase-ключей INI на поля state (snake_case)
+local CONFIG_STATE_MAP = {
+    SpawnChoice = "spawn_choice",
+    ScriptActive = "script_active",
+    AutoRestart = "auto_restart",
+    AdminColorPattern = "admin_color_pattern",
+    FastReconnectEnabled = "fast_reconnect_enabled",
+    AutoHealEnabled = "auto_heal_enabled",
+    AutoArmorEnabled = "auto_armor_enabled",
+    HealThreshold = "heal_threshold",
+    ArmorThreshold = "armor_threshold",
+    HealAmount = "heal_amount",
+    ArmorAmount = "armor_amount",
+    HealCooldown = "heal_cooldown",
+}
+
+-- Перевод camelCase-ключа INI в имя поля state
+local function key_to_state(key)
+    return CONFIG_STATE_MAP[key] or key:lower()
+end
+
 -- Парсинг INI файла
 local function parse_ini(content)
     local result = {}
@@ -133,7 +154,7 @@ function M.load()
             elseif key == "MafkEnabled" then
                 s.mafk_active = validated
             else
-                s[key:lower()] = validated
+                s[key_to_state(key)] = validated
             end
         else
             -- Use default
@@ -148,7 +169,7 @@ function M.load()
             elseif key == "MafkEnabled" then
                 s.mafk_active = false
             else
-                s[key:lower()] = schema.default
+                s[key_to_state(key)] = schema.default
             end
         end
     end
@@ -208,7 +229,7 @@ function M.save()
         elseif key == "MafkEnabled" then
             val = s.mafk_active
         else
-            val = s[key:lower()]
+            val = s[key_to_state(key)]
         end
         
         if schema.type == "string" then

@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.5.5")
+script_version("1.5.6")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -296,7 +296,7 @@ function sampevents.onSendDialogResponse(dialogId, button, listboxId, input)
     end
 end
 
-function sampevents.onServerJoin()
+function onServerJoin()
     s.is_spawned = false
     s.player_in_world = false
     s.is_logging_in = false

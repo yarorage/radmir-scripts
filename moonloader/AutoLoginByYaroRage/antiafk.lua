@@ -140,7 +140,11 @@ function M.mafk_hotkey_thread()
                 AL.chat_msg("{FFCC00}[Anti-AFK]{FFFFFF} Режим: " .. status)
                 s.mafk_notify_until = os.clock() + 3
                 s.mafk_hold_start = 0
-                wait(500)
+                -- Блокируем повторное срабатывание, пока RCtrl не отпущена
+                while bit.band(user32.GetAsyncKeyState(VK_RCONTROL), 0x8000) ~= 0 do
+                    wait(100)
+                end
+                wait(150)
             end
         else
             s.mafk_hold_start = 0

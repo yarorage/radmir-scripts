@@ -104,6 +104,7 @@ M.state = {
 
     -- Fast Reconnect (из RecconnectByYaroRage)
     fast_reconnect_enabled = false,
+    reset_confirm = false, -- флаг подтверждения сброса настроек в UI
 
     -- Health/Armor monitoring
     auto_heal_enabled = false,
@@ -123,12 +124,6 @@ M.state = {
     log_file_path = nil,
 
     -- Дистанция рейкаста
-    RAYCAST_DISTANCE = 6.0,
-    RAYCAST_ANGLE_OFFSET = 45,
-    AFK_STOP_DISTANCE = 3.0,
-    AFK_MOVE_AMOUNT = 128,
-    AFK_TURN_TOLERANCE = 6,
-    AFK_MAX_TURN_TIME = 4000,
     AFK_RUN_CHUNK = 250,
 
     -- Debug

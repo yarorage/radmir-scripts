@@ -705,7 +705,12 @@ function draw_misc_tab()
     imgui.Text("Прочее")
     imgui.Separator()
     
-    if imgui.Button("Сбросить все настройки", imgui.ImVec2(sc(200), sc(25))) then
+    if not s.reset_confirm then
+        if imgui.Button("Сбросить все настройки", imgui.ImVec2(sc(200), sc(25))) then
+            s.reset_confirm = true
+        end
+    else
+        imgui.Text("Вы уверены? Все настройки будут сброшены!")
         if imgui.Button("ДА, СБРОСИТЬ", imgui.ImVec2(sc(150), sc(25))) then
             s.password = ""
             s.spawn_choice = true
@@ -717,6 +722,11 @@ function draw_misc_tab()
             s.fast_reconnect_enabled = true
             config.save()
             AL.chat_msg("{FF3333}Все настройки сброшены!")
+            s.reset_confirm = false
+        end
+        imgui.SameLine()
+        if imgui.Button("ОТМЕНА", imgui.ImVec2(sc(150), sc(25))) then
+            s.reset_confirm = false
         end
     end
     
