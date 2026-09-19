@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.0.8")
+script_version("1.0.9")
 script_author("YaroRage")
 
 require "moonloader"
@@ -845,6 +845,22 @@ function onReceivePacket(id, bs)
         st.info_timer_until = os.time() + (f.info_timer_sec and f.info_timer_sec > 0
             and f.info_timer_sec or 15)
     end
+    -- v1.1.0: учёт таймера штрафа за превышение. Сервер ловит превышение вилки
+    -- и запускает InformationTimer «Увеличьте скорость до штрафа», N секунд.
+    -- Пока такой таймер активен, fineActive в driveTick вернёт скорость к вилке.
+    if st.overspeed and f.info_timer then
+        if f.info_timer:find("штраф", 1, true) then
+            local sec = f.info_timer_sec or 15
+            local remaining = st.overspeed_timer > 0 and (st.overspeed_timer - os.time()) or 0
+            if st.overspeed_timer == 0 or st.overspeed_timer <= os.time() or sec < remaining then
+                st.overspeed_fine = true
+                st.overspeed_timer = os.time() + sec
+            end
+        else
+            st.overspeed_fine = false
+            st.overspeed_timer = 0
+        end
+    end
     --
 end
 
@@ -1034,7 +1050,10 @@ local function driveTick()
     local stopCmd = timerText ~= "" and timerText:find("Остановитесь", 1, true) ~= nil
     local stayCmd = timerText ~= "" and (timerText:find("Ожидайте отправления", 1, true) ~= nil
         or timerText:find("Садитесь в поезд", 1, true) ~= nil)
+    -- goCmd — «Увеличьте скорость» БЕЗ «до штрафа»: штрафной таймер превышения
+    -- («Увеличьте скорость до штрафа») не должен превращаться в разгон.
     local goCmd = timerText ~= "" and timerText:find("Увеличьте скорость", 1, true) ~= nil
+        and timerText:find("до штрафа", 1, true) == nil
     local fineActive = st.overspeed_fine and st.overspeed_timer
         and st.overspeed_timer > nowSec
 
@@ -1056,22 +1075,36 @@ local function driveTick()
         -- после сброса штрафа ещё несколько секунд держим вилку
         allowed = math.min(allowed, target)
     end
-    -- Штраф «Снизьте скорость до штрафа»: плавный возврат в вилку к концу
-    -- таймера. Разрешённая скорость падает линейно (vHi + aComf * остаток), но
-    -- не ниже самой вилки — состав тормозит ровно столько, сколько успевает,
-    -- вместо резкого удара тормозом в последнюю секунду.
+    -- Штраф «Увеличьте скорость до штрафа»: превышение живёт, пока его успеваем
+    -- плавно сбросить к вилке за overspeed_guard секунд ДО конца таймера (поезд
+    -- не затормозит за последнюю секунду). Разрешённая скорость падает линейно:
+    -- вилка + aComf * (остаток - guard), но не ниже вилки и не выше вилки+extra.
     if fineActive then
         local left = math.max(0, st.overspeed_timer - nowSec)
-        allowed = math.min(allowed, vHi + aComf * left * 3.6)
-        if allowed < target then allowed = target end
-        drive.lastAction = u8"плавный сброс к вилке (штраф)"
+        local guard = (st.overspeed_guard and st.overspeed_guard > 0) and st.overspeed_guard or 1
+        local extra = (st.overspeed_extra and st.overspeed_extra > 0) and st.overspeed_extra or 25
+        if st.overspeed then
+            allowed = target + aComf * math.max(0, left - guard) * 3.6
+            if allowed > vHi + extra then allowed = vHi + extra end
+            if allowed < target then allowed = target end
+            drive.lastAction = u8"превышение, сброс к вилке к концу таймера"
+        else
+            allowed = math.min(allowed, vHi + aComf * math.max(0, left - guard) * 3.6)
+            if allowed < target then allowed = target end
+            drive.lastAction = u8"плавный сброс к вилке (штраф)"
+        end
     end
-    -- Станция впереди: физическая кривая ПОЗДНЕГО плавного торможения (без
-    -- «ползания» 1 км/ч за 50 м) — скорость сама тянется к нулю у стоп-точки.
-    if stationKnown then
+    -- Станция впереди: маркер — только СКИДЫВАНИЕ скорости перед станцией.
+    -- Триггер остановки маркер НЕ заменяет: останавливаемся строго по таймеру
+    -- «Остановитесь на станции» (stopCmd ниже). Кривую применяем, только когда
+    -- состав с текущей скорости не успевает затормозить у маркера (v^2 > 2ad),
+    -- чтобы не «ползать» на 10-20 км/ч задолго до станции в ожидании таймера.
+    if stationKnown and not stopCmd then
         local d = distance - brakeMargin
         if d < 0 then d = 0 end
-        allowed = math.min(allowed, math.sqrt(2 * aComf * d) * 3.6)
+        if speedMs * speedMs > 2 * aComf * math.max(1, d) then
+            allowed = math.min(allowed, math.sqrt(2 * aComf * d) * 3.6)
+        end
     end
     local stopping = false
     -- Команда сервера «Остановитесь на станции»: цель — полный стоп.
@@ -1107,12 +1140,11 @@ local function driveTick()
     local crawl = (st.stop_crawl and st.stop_crawl > 0) and st.stop_crawl or 10
     local crawlSec = math.max(1, math.floor(overshoot / (crawl / 3.6)))
     local nearStation = stationKnown and distance <= brakeMargin + 2
-    -- v0.9.8: без серверной команды докрутка допустима только для КАТЯЩЕГОСЯ
-    -- состава (speed > 3) — иначе мы сами сдвигали уже стоящий у станции поезд
-    -- («набрал 10 км/ч, проехал вперёд, уехал»). При stopHard (дистанция уже
-    -- на следующей станции) докрутка запрещена совсем.
-    local crawlAllowed = (stopCmd or stayCmd or (nearStation and speed > 3))
-        and not stopHard
+    -- v1.1.0: докрутка за стоп-точку отключена. Остановка — строго по таймеру
+    -- сервера («Остановитесь на станции»), маркер/триггер станции тут ни при
+    -- чём: именно докрутка давала «катится 10-15-20 км/ч» и «проезжает станцию
+    -- полностью» в ожидании таймера. Остаёмся на месте после торможения.
+    local crawlAllowed = false
     if crawlAllowed and not drive.crawl_done then
         -- Докрутку НАЧИНАЕМ только у ДВИЖУЩЕГОСЯ состава (speed > 1): если поезд
         -- уже встал, с места не трогаем — иначе получалось «встал, потом снова
