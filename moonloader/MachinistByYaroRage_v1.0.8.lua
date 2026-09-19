@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.0.7")
+script_version("1.0.8")
 script_author("YaroRage")
 
 require "moonloader"
@@ -1285,6 +1285,19 @@ startBot = function()
     if optEnabled.v and not drive.tickThread and not st.dbg_no_thread then
         drive.tickThread = lua_thread.create(driveThread)
     end
+    -- v1.0.8: закрываем меню /mq, если открыто: пока окно открыто,
+    -- imgui.Process=true перехватывает клавиатуру (пробел/прыжок не
+    -- работают), а ShowCursor=true держит курсор видимым. ¬озвращаем
+    -- хук тому, кто был до нас (как в toggleMenu), флаги сбросит и цикл.
+    if showMenu.v and not st.dbg_no_gui then
+        showMenu.v = false
+        if imgui.OnDrawFrame == uiWrapper then
+            imgui.OnDrawFrame = prevOnDraw
+        end
+        prevOnDraw = nil
+        imgui.Process = false
+        imgui.ShowCursor = false
+    end
     pcall(sampAddChatMessage, u8:decode(u8"Machinist: автопилот включЄн"), 0xAAFFAA)
 end
 
@@ -1723,7 +1736,18 @@ local renderUi = function()
 
         -- ---------- ќбщие ----------
         if menuTab.v == 1 then
-            if imgui.Checkbox(u8"јвтопилот", optEnabled) then end
+            if imgui.Checkbox(u8"јвтопилот", optEnabled) then
+                -- v1.0.8: включение автопилота галочкой тоже закрывает меню
+                if optEnabled.v and not st.dbg_no_gui then
+                    showMenu.v = false
+                    if imgui.OnDrawFrame == uiWrapper then
+                        imgui.OnDrawFrame = prevOnDraw
+                    end
+                    prevOnDraw = nil
+                    imgui.Process = false
+                    imgui.ShowCursor = false
+                end
+            end
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"”правл€ет поездом CEF-пакетами (работает и при свЄрнутой игре)")
             end
