@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.1.3")
+script_version("1.1.4")
 script_author("YaroRage")
 
 require "moonloader"
@@ -344,6 +344,7 @@ local optForceCab = imgui.ImBool(st.force_cab)
 local optNotify = imgui.ImBool(st.notify_telegram)
 local optOverspeed = imgui.ImBool(st.overspeed)
 local optSpeedMult = imgui.ImFloat(st.speed_mult and st.speed_mult > 0 and st.speed_mult or 1.0)
+local optSpeedBoost = imgui.ImFloat(st.speed_boost and st.speed_boost > 1.0 and st.speed_boost or 1.0)
 local optTgPoll = imgui.ImBool(st.tg_poll_enable)
 local inpToken = imgui.ImBuffer(128)
 local inpChat = imgui.ImBuffer(64)
@@ -394,6 +395,7 @@ local function saveAll()
         tostring(optOverspeed.v),
         tostring(optTgPoll.v),
         tostring(optSpeedMult.v),
+        tostring(optSpeedBoost.v),
         tostring(inpToken.v), tostring(inpChat.v), tostring(inpAdmins.v) })
     if sig == lastSavedSig then return false end
     lastSavedSig = sig
@@ -403,6 +405,7 @@ local function saveAll()
     st.notify_telegram = optNotify.v
     st.overspeed = optOverspeed.v
     st.speed_mult = optSpeedMult.v and optSpeedMult.v > 0 and optSpeedMult.v or 1.0
+    st.speed_boost = optSpeedBoost.v and optSpeedBoost.v > 1.0 and optSpeedBoost.v or 1.0
     st.tg_poll_enable = optTgPoll.v
     st.tg_bot_token = inpToken.v
     st.tg_chat_id = inpChat.v
@@ -899,6 +902,28 @@ function onReceivePacket(id, bs)
     --
 end
 
+-- v1.1.4: спидхак поезда. Адреса из SA Memory (BlastHack):
+--   0xBA18FC = CVehicle ** (локальный транспорт игрока),
+--   nVehicleClass на +0x590 (6 = поезд), fTrainSpeed (float) на +0x5A4.
+-- Умножаем fTrainSpeed каждый газ-тик, но не выше целивый скорости
+-- (allowed в м/с) — поезд реально разгоняется в N раз быстрее.
+local function applyTrainBoost(limitMs)
+    if not limitMs or limitMs <= 0 then return end
+    local boost = (st.speed_boost and st.speed_boost > 1.0) and st.speed_boost or 1.0
+    if boost <= 1.0 then return end
+    local ok, vehPtr = pcall(readMemory, 0xBA18FC, 4, false)
+    if not ok or not vehPtr or tonumber(vehPtr) == 0 then return end
+    vehPtr = tonumber(vehPtr)
+    local okC, cls = pcall(readMemory, vehPtr + 0x590, 4, false)
+    if not okC or tonumber(cls) ~= 6 then return end -- не поезд
+    local fts = ffi.cast("float*", vehPtr + 0x5A4) -- fTrainSpeed
+    local cur = fts[0]
+    if cur <= 0 then return end
+    local nv = cur * boost
+    if nv > limitMs then nv = limitMs end
+    if nv > cur then fts[0] = nv end
+end
+
 -- Нажать газ (игровая клавиша W), как в mashinist.lua — без writeMemory.
 local function pressGasNative()
     -- Газ — только игровая клавиша W. Accel для сервера уходит через
@@ -1296,6 +1321,15 @@ local function driveTick()
         end
     else
         releaseBrake()
+    end
+
+    -- v1.1.4: спидхак поезда (общий вызов для всех веток газа: старт,
+    -- goCmd, обычный разгон). Работает только когда газ реально нажат
+    -- и скорость ещё не достигла разрешённой — при торможении не
+    -- вмешивается, тормозной путь не ломается.
+    if not stopping and not stopHard and drive._gasPressed
+        and speed < allowed - 0.5 then
+        applyTrainBoost(allowed / 3.6)
     end
 
     -- ---------- keysData: направление для сервера ----------
@@ -1923,12 +1957,16 @@ local renderUi = function()
             imgui.TextWrapped(u8"Ведение: порт mashinist.lua, безнативные вызовы (ноль нативных game-функций). Скорость — оценка по дистанции setStation, цель — максимум вилки, у станции плавное торможение по физической кривой, стоп по команде сервера «Остановитесь на станции».")
             imgui.TextWrapped(u8"Мин/макс скорость: " .. st.speed_range .. u8" км/ч (код " .. st.speed_code .. u8")")
             imgui.Checkbox(u8"Превышать скорость", optOverspeed)
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Ехать выше вилки сервера (превышение рассчитывается само по таймеру штрафа) и за секунду до останова таймера тормозить обратно в вилку")
+            end
             imgui.SliderFloat(u8"Множитель целевой скорости", optSpeedMult, 1.0, 2.0, "%.2f")
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"Умножает целевую скорость поезда (1.00 = как есть, 1.30 = вилка +30%). Поезд активнее разгоняется и держит скорость выше вилки. Риск штрафов за превышение скоростного режима")
             end
+            imgui.SliderFloat(u8"Спидхак разгона поезда", optSpeedBoost, 1.0, 2.0, "%.2f")
             if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Ехать выше вилки сервера (превышение рассчитывается само по таймеру штрафа) и за секунду до останова таймера тормозить обратно в вилку")
+                imgui.SetTooltip(u8"Прямо умножает скорость поезда в памяти — поезд разгоняется в N раз быстрее до вилки. Риск: сервер может зафиксировать аномальный разгон и применить штраф/откат")
             end
 
         -- ---------- Телеграм и админы ----------
