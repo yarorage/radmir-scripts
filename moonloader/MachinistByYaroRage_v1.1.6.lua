@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.1.5")
+script_version("1.1.6")
 script_author("YaroRage")
 
 require "moonloader"
@@ -1338,7 +1338,14 @@ local function driveTick()
     -- goCmd, обычный разгон). –аботает только когда газ реально нажат
     -- и скорость ещЄ не достигла разрешЄнной Ч при торможении не
     -- вмешиваетс€, тормозной путь не ломаетс€.
+    -- v1.1.6: Ќ≈ примен€ем спидхак к сто€щему/едва тронувшемус€ составу
+    -- (speed < 10 км/ч): оценка скорости идЄт от setStation раз в секунду,
+    -- а fTrainSpeed в пам€ти пишетс€ каждый кадр Ч у станции поезд стоит
+    -- с нажатым газом, boost копил fTrainSpeed, и при отправлении состав
+    -- Ђвыстреливалї (улетал назад, 300+ км/ч). Boost подключаетс€ только
+    -- когда поезд реально покатилс€ вперЄд.
     if not stopping and not stopHard and drive._gasPressed
+        and speed >= 10
         and speed < allowed - 0.5 then
         applyTrainBoost(allowed / 3.6)
     end
