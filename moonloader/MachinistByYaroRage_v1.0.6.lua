@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.0.5")
+script_version("1.0.6")
 script_author("YaroRage")
 
 require "moonloader"
@@ -919,6 +919,10 @@ end
 local function inTrainNow()
     return inCabNow()
 end
+
+-- ÷елевой чекпоинт: сервер ставит race checkpoint по маршруту состава.
+local driveCp = { x = 0, y = 0, z = 0 }
+local driveCpFinish = false
 
 -- ’ук исход€щего vehicle sync: подкладываем keysData (как в mashinist.lua).
 -- ѕатчим “ќЋ№ ќ когда автопилот включЄн и игрок реально в поезде Ч иначе
