@@ -24,7 +24,6 @@ M.state = {
     force_cab = false,        -- принудительно считать, что мы в кабине (v0.6.1):
                               -- автопилот включается, даже если CEF-пакеты
                               -- интерфейса 'Machinist' не приходят
-    auto_drive = true,        -- автоведение W/S по setSpeed
     notify_telegram = true,   -- отправлять уведомления в телеграм
     tg_bot_token = "",
     tg_chat_id = "",
@@ -132,7 +131,6 @@ local function save_config()
         f:write("[MachinistByYaroRage]\n")
         f:write("enabled=" .. (s.enabled and "1" or "0") .. "\n")
         f:write("force_cab=" .. (s.force_cab and "1" or "0") .. "\n")
-        f:write("auto_drive=" .. (s.auto_drive and "1" or "0") .. "\n")
         f:write("notify_telegram=" .. (s.notify_telegram and "1" or "0") .. "\n")
         f:write("tg_bot_token=" .. s.tg_bot_token .. "\n")
         f:write("tg_chat_id=" .. s.tg_chat_id .. "\n")
@@ -187,7 +185,6 @@ local function load_config()
                 local k = line:lower()
                 if k:find("^enabled") then s.enabled = v == "1"
                 elseif k:find("^force_cab") then s.force_cab = v == "1"
-                elseif k:find("^auto_drive") then s.auto_drive = v == "1"
                 elseif k:find("^notify_telegram") then s.notify_telegram = v == "1"
                 elseif k:find("^tg_bot_token") then s.tg_bot_token = v
                 elseif k:find("^tg_chat_id") then s.tg_chat_id = v

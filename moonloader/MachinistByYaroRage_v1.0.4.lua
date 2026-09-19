@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.0.3")
+script_version("1.0.4")
 script_author("YaroRage")
 
 require "moonloader"
@@ -341,7 +341,6 @@ end
 local showMenu = imgui.ImBool(false)
 local optEnabled = imgui.ImBool(st.enabled)
 local optForceCab = imgui.ImBool(st.force_cab)
-local optAutoDrive = imgui.ImBool(st.auto_drive)
 local optNotify = imgui.ImBool(st.notify_telegram)
 local optOverspeed = imgui.ImBool(st.overspeed)
 local optTgPoll = imgui.ImBool(st.tg_poll_enable)
@@ -390,7 +389,7 @@ local function saveAll()
     -- Ћенивое сохранение: если значени€ не мен€лись с прошлой записи,
     -- Ќ≈ трогаем файлы вовсе (запись INI + CheatAdminList.txt может быть
     -- очень дорогой на этой машине и вешать кадр).
-    local sig = table.concat({ tostring(optEnabled.v), tostring(optForceCab.v), tostring(optAutoDrive.v), tostring(optNotify.v),
+    local sig = table.concat({ tostring(optEnabled.v), tostring(optForceCab.v), tostring(optNotify.v),
         tostring(optOverspeed.v),
         tostring(optTgPoll.v),
         tostring(inpToken.v), tostring(inpChat.v), tostring(inpAdmins.v) })
@@ -399,7 +398,6 @@ local function saveAll()
     local saveT = os.clock()
     st.enabled = optEnabled.v
     st.force_cab = optForceCab.v
-    st.auto_drive = optAutoDrive.v
     st.notify_telegram = optNotify.v
     st.overspeed = optOverspeed.v
     st.tg_poll_enable = optTgPoll.v
@@ -1198,6 +1196,13 @@ local function driveTick()
     else
         drive.keys = drive._gasPressed and 8 or 0
     end
+end
+
+-- driveTick видна ev-хукам (onSendVehicleSync и др.) как глобал:
+-- хуки объ€влены выше local function driveTick(), поэтому без этого
+-- ссылка в них была бы нил-глобалом.
+_G.driveTick = driveTick
+
 
 -- ѕоток автопилота Ч  јƒ–ќ¬џ… источник тиков (порт цикла из mashinist.lua):
 --   bot.state        -> optEnabled.v (наше включение автопилота)
@@ -1224,7 +1229,6 @@ end
 _G.driveThread = driveThread
 
 -- ----------  оманды ----------
-end
 
 local function toggleMenu()
     if st.dbg_no_gui then
@@ -1432,7 +1436,6 @@ function main()
     state_mod.load_config()
     optEnabled.v = st.enabled
     optForceCab.v = st.force_cab
-    optAutoDrive.v = st.auto_drive
     optNotify.v = st.notify_telegram
     optOverspeed.v = st.overspeed
     optTgPoll.v = st.tg_poll_enable
@@ -1691,7 +1694,6 @@ local renderUi = function()
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"¬ключать автопилот, даже если кабина не определена по CEF-пакетам 'Machinist'")
             end
-            if imgui.Checkbox(u8"јвтоведение W/S по подсказкам сервера", optAutoDrive) then end
             if imgui.Checkbox(u8"”ведомлени€ в телеграм (админы и окна)", optNotify) then end
             imgui.TextWrapped(u8"√ор€ча€ клавиша меню Ч /mq")
 
