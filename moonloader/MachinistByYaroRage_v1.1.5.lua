@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.1.4")
+script_version("1.1.5")
 script_author("YaroRage")
 
 require "moonloader"
@@ -614,9 +614,9 @@ local function handleVoiceChat(v)
             voiceIdNick[v.id] = v.nick
             knownIdNick[v.id] = v.nick
         end
-        -- детект админа в голосовом канале
+        -- детект админа в голосовом канале (v.nick Ч чистый ник, без текста)
         if optNotify.v and st.tg_bot_token ~= "" and st.tg_chat_id ~= "" then
-            local who = admin.is_admin_message(v.nick or "")
+            local who = admin.has_known_admin(v.nick or "")
             if who then
                 local now = os.time()
                 if now - voiceNotice.last >= 25 or v.id ~= voiceNotice.lastId then
@@ -893,10 +893,14 @@ function onReceivePacket(id, bs)
             if st.overspeed_timer == 0 or st.overspeed_timer <= os.time() or sec < remaining then
                 st.overspeed_fine = true
                 st.overspeed_timer = os.time() + sec
+                -- v1.1.5: запоминаем полную длительность окна штрафа, чтобы
+                -- driveTick мог сбрасывать скорость равномерно на весь таймер.
+                st.overspeed_timer_total = sec
             end
         else
             st.overspeed_fine = false
             st.overspeed_timer = 0
+            st.overspeed_timer_total = 0
         end
     end
     --
@@ -1149,15 +1153,22 @@ local function driveTick()
     if fineActive then
         local left = math.max(0, st.overspeed_timer - nowSec)
         local guard = (st.overspeed_guard and st.overspeed_guard > 0) and st.overspeed_guard or 1
-        -- v1.1.0: вилку должны удержать за lead сек ƒќ конца таймера штрафа, а не в
-        -- последнюю секунду (поезд не успеет физически затормозить с лишних км/ч).
-        local lead = math.max(2, guard + 1)
+        -- v1.1.5: спуск –ј¬Ќќћ≈–Ќџ… на весь таймер штрафа: разрешЄнна€ скорость
+        -- падает с вилки+extra до серверной вилки vHi линейно, к концу окна уже
+        -- внутри лимита. ѕрежн€€ логика (сброс только за lead сек до конца) не
+        -- успевала: поезд физически не может скинуть дес€тки км/ч за 2-3 сек,
+        -- а при speed_mult > 1 цель target была выше лимита сервера и таймер
+        -- штрафа перезапускалс€ бесконечно.
+        local total = st.overspeed_timer_total and st.overspeed_timer_total > 0
+            and st.overspeed_timer_total or math.max(1, left)
+        local span = math.max(1, total - guard)
+        local frac = math.max(0, math.min(1, (left - guard) / span))
         local extra = (st.overspeed_extra and st.overspeed_extra > 0) and st.overspeed_extra or 25
         if st.overspeed then
-            allowed = target + aComf * math.max(0, left - lead) * 3.6
+            allowed = vHi + extra * frac
             if allowed > vHi + extra then allowed = vHi + extra end
-            if allowed < target then allowed = target end
-            drive.lastAction = u8"превышение, сброс к вилке к концу таймера"
+            if allowed < vHi then allowed = vHi end
+            drive.lastAction = u8"превышение, плавный сброс к вилке за весь таймер"
         else
             allowed = math.min(allowed, vHi + aComf * math.max(0, left - lead) * 3.6)
             if allowed < target then allowed = target end

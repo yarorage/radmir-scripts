@@ -87,6 +87,7 @@ M.state = {
     info_timer_until = 0,     -- v0.9.6: unix-момент окончания info_timer (0 = нет)
     overspeed_fine = false,   -- сервер запустил таймер штрафа за превышение
     overspeed_timer = 0,      -- unix-момент окончания таймера штрафа (0 = нет)
+    overspeed_timer_total = 0, -- v1.1.5: полная длительность окна штрафа, сек
     last_rx_text = "",
 
     -- метки времени для оценки скорости (WallClock, миллисекунды)
@@ -370,6 +371,7 @@ function M.reset()
     s.info_timer_until = 0
     s.overspeed_fine = false
     s.overspeed_timer = 0
+    s.overspeed_timer_total = 0
     s.need_go = false
     s.semaphores = {0, 0, 0, 0}
     s.speed_range = "0-0"

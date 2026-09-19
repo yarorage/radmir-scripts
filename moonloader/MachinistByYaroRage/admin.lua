@@ -160,42 +160,62 @@ end
 function M.parse_admin_call(text, myNick)
     if not text or #text == 0 then return nil end
     local lower = casefoldCyr(text:lower())
-    -- маркер анти-бот проверки: «Вы тут?» или просьба написать /report;
-    -- также годится простое упоминание «Администратор».
-    local hasCall = lower:find("вы тут", 1, true)
-    if not hasCall then hasCall = lower:find("/report", 1, true) end
-    if not hasCall then
-        hasCall = lower:find("администратор", 1, true)
+    -- v1.1.5: маркером вызова считаются ТОЛЬКО реальные проверки игрока
+    -- («Вы тут?», просьба написать /report, капча «2+2»), а НЕ слово
+    -- «администратор»/«administrator» — из-за него ловились наказания другим
+    -- игрокам («заблокировал чат игроку X»), объявления [INFO] и т.п.
+    local hasCall = false
+    for _, m in ipairs({ "вы тут", "ты тут", "вы бот", "ты бот",
+        "вы не бот", "ты не бот", "/report", "2+2", "бот?" }) do
+        if lower:find(m, 1, true) then hasCall = true break end
     end
-    if not hasCall then
-        hasCall = lower:find("administrator", 1, true)
-    end
-    if not hasCall then return nil end
     -- ник админа сразу после слова «Администратор»
     local admin = text:match("[Аа]дминистратор[%s:%-—]*([А-Яа-яA-Za-z0-9_]+)")
             or text:match("[Aa]dministrator[%s:%-—]*([А-Яа-яA-Za-z0-9_]+)")
-    -- адресат «для <ник>» (регистр буквы «д» — любой)
+    -- адресат «для <ник>» (регистр буквы «д» — любой); чужой адресат -> nil
     local addr = text:match("[Дд]ля%s*[:%-—]?%s*([А-Яа-яA-Za-z0-9_]+)")
+    local meMention = false
+    if myNick and #myNick > 0 then meMention = wordFind(lower, casefoldCyr(myNick:lower())) end
     if addr and myNick and #myNick > 0 then
         if casefoldCyr(addr:lower()) ~= casefoldCyr(myNick:lower()) then
             return nil -- обращение к другому игроку
         end
     end
-    return admin or true
+    -- даже при наличии маркера вызова убеждаемся, что текст адресован именно
+    -- нашему персонажу: упоминание нашего ника, «для <мой ник>», явный признак
+    -- администратора или личное обращение от известного админа.
+    if hasCall then
+        if addr or meMention then
+            return admin or true
+        end
+        local oocName = M.extract_ooc_name(text)
+        if oocName and M.has_known_admin(oocName) then
+            return admin or true
+        end
+        if lower:find("администратор", 1, true) or lower:find("administrator", 1, true) then
+            return admin or true
+        end
+        return nil -- маркер был, но адресовано не нам
+    end
+    return nil
 end
 
 function M.is_admin_message(text)
     if not text or #text == 0 then return false end
-    -- сообщение от известного админа
-    local known = M.has_known_admin(text)
-    if known then return known end
-    -- объявление об администраторе
-    if M.has_admin_prefix(text) then return true end
-    -- OOC-сообщение с ником админа в начале
+    -- v1.1.5: раньше ловился ЛЮБОЙ текст, где упомянут ник известного админа
+    -- (наказание «игроку X», анонсы [INFO] и т.п.). Теперь админ-сообщение —
+    -- это только личное обращение от известного админа: OOC-форма
+    -- (( Ник_админа: ... )) / [Ник_админа: ...] / {Ник_админа: ...},
+    -- либо формат «ник_админа ответил Вам: ...».
     local name = M.extract_ooc_name(text)
     if name then
-        local known2 = M.has_known_admin(name)
-        if known2 then return known2 end
+        local known = M.has_known_admin(name)
+        if known then return known end
+    end
+    local nm = text:match("^(%S+)%s+ответил%s+Вам%s*:")
+    if nm then
+        local known = M.has_known_admin(nm)
+        if known then return known end
     end
     return false
 end
