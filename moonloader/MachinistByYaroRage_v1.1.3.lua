@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.1.2")
+script_version("1.1.3")
 script_author("YaroRage")
 
 require "moonloader"
@@ -343,6 +343,7 @@ local optEnabled = imgui.ImBool(st.enabled)
 local optForceCab = imgui.ImBool(st.force_cab)
 local optNotify = imgui.ImBool(st.notify_telegram)
 local optOverspeed = imgui.ImBool(st.overspeed)
+local optSpeedMult = imgui.ImFloat(st.speed_mult and st.speed_mult > 0 and st.speed_mult or 1.0)
 local optTgPoll = imgui.ImBool(st.tg_poll_enable)
 local inpToken = imgui.ImBuffer(128)
 local inpChat = imgui.ImBuffer(64)
@@ -392,6 +393,7 @@ local function saveAll()
     local sig = table.concat({ tostring(optEnabled.v), tostring(optForceCab.v), tostring(optNotify.v),
         tostring(optOverspeed.v),
         tostring(optTgPoll.v),
+        tostring(optSpeedMult.v),
         tostring(inpToken.v), tostring(inpChat.v), tostring(inpAdmins.v) })
     if sig == lastSavedSig then return false end
     lastSavedSig = sig
@@ -400,6 +402,7 @@ local function saveAll()
     st.force_cab = optForceCab.v
     st.notify_telegram = optNotify.v
     st.overspeed = optOverspeed.v
+    st.speed_mult = optSpeedMult.v and optSpeedMult.v > 0 and optSpeedMult.v or 1.0
     st.tg_poll_enable = optTgPoll.v
     st.tg_bot_token = inpToken.v
     st.tg_chat_id = inpChat.v
@@ -1071,6 +1074,13 @@ local function driveTick()
     local target = (vHi > 1) and (vHi - 1) or vHi
     -- Fix: target speed = max - 1 km/h
     target = (st.speed_hi and st.speed_hi > 0) and (st.speed_hi - 1) or target
+    -- v1.1.3: множитель целевой скорости (GUI «Ведение»). Умножаем target:
+    -- поезд дольше держит газ и активнее набирает скорость (выше вилки).
+    -- Осознанный риск: сервер штрафует за превышение скоростного режима.
+    local speedMult = (st.speed_mult and st.speed_mult > 0.5 and st.speed_mult < 5) and st.speed_mult or 1.0
+    if speedMult > 1.0 and target > 5 then
+        target = target * speedMult
+    end
 
     -- ---------- Активные серверные таймеры ----------
     -- Активность считаем по дедлайну info_timer_until: сервер шлёт текст ОДИН
@@ -1913,6 +1923,10 @@ local renderUi = function()
             imgui.TextWrapped(u8"Ведение: порт mashinist.lua, безнативные вызовы (ноль нативных game-функций). Скорость — оценка по дистанции setStation, цель — максимум вилки, у станции плавное торможение по физической кривой, стоп по команде сервера «Остановитесь на станции».")
             imgui.TextWrapped(u8"Мин/макс скорость: " .. st.speed_range .. u8" км/ч (код " .. st.speed_code .. u8")")
             imgui.Checkbox(u8"Превышать скорость", optOverspeed)
+            imgui.SliderFloat(u8"Множитель целевой скорости", optSpeedMult, 1.0, 2.0, "%.2f")
+            if imgui.IsItemHovered() then
+                imgui.SetTooltip(u8"Умножает целевую скорость поезда (1.00 = как есть, 1.30 = вилка +30%). Поезд активнее разгоняется и держит скорость выше вилки. Риск штрафов за превышение скоростного режима")
+            end
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"Ехать выше вилки сервера (превышение рассчитывается само по таймеру штрафа) и за секунду до останова таймера тормозить обратно в вилку")
             end
