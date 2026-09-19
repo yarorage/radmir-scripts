@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.0.6")
+script_version("1.0.7")
 script_author("YaroRage")
 
 require "moonloader"
@@ -1188,7 +1188,7 @@ local function driveTick()
         else
             drive.lastAction = u8"набор/нейтраль"
         end
-    elseif speed > target_speed + 1.5 then
+    elseif speed > allowed + 1.5 then
         -- “ормозим: уровень растЄт с глубиной превышени€ Ч м€гко, как игрок.
         local over = speed - allowed
         local span = math.max(10, allowed * 0.35)
@@ -1199,7 +1199,7 @@ local function driveTick()
         if hard or (fineActive and over > 25) then lvl = 255 end
         setBrakeLevel(lvl)
         if not stopping then drive.lastAction = u8"торможение" end
-    elseif speed < target_speed - 1.5 then
+    elseif speed < allowed - 1.5 then
         releaseBrake()
         pressGasNative()
         if fineActive then
