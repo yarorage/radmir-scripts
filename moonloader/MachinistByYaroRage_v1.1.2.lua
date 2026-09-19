@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.1.1")
+script_version("1.1.2")
 script_author("YaroRage")
 
 require "moonloader"
@@ -453,6 +453,11 @@ local rxDiag = {
 -- игроков (setPlayerChatBubble) и СОБСТВЕННЫЕ отправленные сообщения
 -- (onSendPacket 207) — свои сервер обратно не эхоирует, поэтому детект
 -- собственного текста идёт здесь, и самопроверка работает.
+-- v1.1.2: дедуп уведомлений: одинаковые админ-вызовы, пришедшие разными
+-- источниками (пузырь, сервер, чатлог), не слать в Telegram повторно.
+-- Ключ = ник админа + текст; окно 45 сек, максимум 20 записей.
+local recentNoticeKeys = {}
+
 local function processChatText(label, text, authorNick, skipDiag)
     if not text or #text == 0 then return end
     if st.dbg_no_events then return end
@@ -482,6 +487,22 @@ local function processChatText(label, text, authorNick, skipDiag)
         if known then who = known end
     end
     if not who then return end
+
+    -- v1.1.2: дедуп повторных уведомлений
+    local dupKey = tostring(who) .. "|" .. tostring(text)
+    local nowDup = os.time()
+    local dupFound = false
+    for i = #recentNoticeKeys, 1, -1 do
+        local it = recentNoticeKeys[i]
+        if nowDup - it[2] > 45 then
+            table.remove(recentNoticeKeys, i)
+        elseif it[1] == dupKey then
+            dupFound = true
+        end
+    end
+    if dupFound then return end
+    recentNoticeKeys[#recentNoticeKeys + 1] = { dupKey, nowDup }
+    if #recentNoticeKeys > 20 then table.remove(recentNoticeKeys, 1) end
     sendTg(u8"ВНИМАНИЕ! В чате админ!\nКто: " .. ensureUtf8(who) .. u8"\nСообщение: " .. ensureUtf8(text))
     -- v0.9.1: stopBot() здесь убран — уведомление об админе больше не
     -- выключает чит; все функции продолжают работать.
@@ -1521,6 +1542,76 @@ local function resetDrive()
     state_mod.reset()
 end
 
+-- ---------- чатлог-детект (v1.1.2) ----------
+-- Наблюдатель chatlog.txt: чатлог пишется SAMP всегда, даже когда игра свёрнута
+-- и события пузырей/onSendPacket не приходят. Это резервный канал детекта админов.
+-- Путь берём из USERPROFILE (Documents/Документы), как в AutoLoginByYaroRage.
+local chatlogThread
+
+local function chatlogFindPath()
+    local up = os.getenv("USERPROFILE")
+    local folders = { "Documents", "Документы" }
+    local candidates = {}
+    local function addCandidate(base)
+        for _, fld in ipairs(folders) do
+            candidates[#candidates + 1] = base .. "\\" .. fld ..
+                "\\RADMIR CRMP User Files\\SAMP\\chatlog.txt"
+        end
+    end
+    if up and #up > 0 then addCandidate(up) end
+    for _, drv in ipairs({ "C", "D", "E", "F", "G", "H" }) do
+        addCandidate(drv .. ":")
+    end
+    for _, p in ipairs(candidates) do
+        if doesFileExist(p) then return p end
+    end
+    return nil
+end
+
+function chatlogWatchThread()
+    local path = chatlogFindPath()
+    if not path then
+        print("[MachinistByYaroRage] chatlog.txt не найден, чатлог-детект отключён")
+        return
+    end
+    print("[MachinistByYaroRage] чатлог-детект: " .. tostring(path))
+    local fh = io.open(path, "rb")
+    if not fh then
+        print("[MachinistByYaroRage] не удалось открыть chatlog.txt, чатлог-детект отключён")
+        return
+    end
+    -- Стартуем с конца файла: обрабатываем только НОВЫЕ строки (с момента загрузки).
+    fh:seek("end")
+    local pos = fh:seek("end")
+    while true do
+        wait(1200)
+        if not fh then break end
+        -- Ротация файла (chatlog пересоздаётся новым подключением): если размер
+        -- стал меньше записанной позиции, переоткрываем и начинаем с нуля.
+        local okE, eof = pcall(fh.seek, fh, "end")
+        if okE and eof and eof < pos then
+            pcall(fh.close, fh)
+            fh = io.open(path, "rb")
+            if not fh then break end
+            pos = 0
+        end
+        local okS = pcall(fh.seek, fh, "set", pos or 0)
+        if not okS then break end
+        local okR, data = pcall(fh.read, fh, "*a")
+        if okR and data and #data > 0 then
+            pos = fh:seek("end") or pos
+            for line in data:gmatch("[^\r\n]+") do
+                -- Строки чатлога вида: [ЧЧ:ММ:СС] ТЕКСТ. Цвета {RRGGBB} не важны.
+                local t = line:match("^%[%d%d:%d%d:%d%d%]%s*(.*)$") or line
+                if #t > 0 then
+                    -- Сабжайте как обычное чат-сообщение без автора (пузырь "чатлог").
+                    processChatText("чатлог", t, nil)
+                end
+            end
+        end
+    end
+end
+
 -- ---------- main ----------
 function main()
     repeat wait(0) until isSampAvailable()
@@ -1620,6 +1711,11 @@ function main()
     end
 
     startTgPoll()
+
+    -- v1.1.2: наблюдатель chatlog.txt (детект админа, когда игра свёрнута)
+    if chatlogThread == nil and not st.dbg_no_events then
+        chatlogThread = lua_thread.create(chatlogWatchThread)
+    end
 
     -- Перезагрузка скрипта могла оставить от старого экземпляра глобальные
     -- imgui-флаги ShowCursor/Process и мёртвый хук OnDrawFrame (крэш или релоад
