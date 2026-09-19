@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.0.4")
+script_version("1.0.5")
 script_author("YaroRage")
 
 require "moonloader"
@@ -885,6 +885,28 @@ local function releaseBrake()
     pcall(setGameKeyState, 14, 0)
 end
 
+-- ---------- Хук серверного чата (совместимость) ----------
+-- Детект сообщений админов -> уведомление в телеграм и остановка автопилота.
+-- Глобальный хук: вызывается MoonLoader'ом при каждом чат-сообщении сервера.
+-- На Radmir серверный чат сюда НЕ приходит (основной поток — в пузырях CEF и
+-- в собственных отправленных сообщениях), хук оставлен для совместимости.
+function onServerMessage(color, text)
+    processChatText("сервер", text)
+end
+
+-- Проверка, что локальный игрок находится в кабине локомотива.
+-- Основной сигнал — свежие RX-пакеты интерфейса 'Machinist' (setSpeed /
+-- setSemaphoreState и т.п.): они приходят ~раз в 1-2 сек, пока интерфейс
+-- кабины открыт. Любой такой пакет = мы в кабине, держим флаг ещё
+-- cab_timeout секунд. Нативный isCharInAnyCar() НЕ используется (на движке
+-- MoonRage его вызов вешает SAMP-поток на ~1.2 сек).
+local function inCabNow()
+    -- Принудительный режим (force_cab): считаем, что мы в кабине всегда —
+    -- автопилот стартует и ведёт, даже если CEF-пакеты 'Machinist' не приходят.
+    if st.force_cab then return true end
+    return st.in_cab and (os.time() - st.last_pkt_time) <= st.cab_timeout
+end
+
 -- Нативно ли игрок в поезде (гейт всего автопилота).
 -- v0.9.5: НАТИВНЫЙ isCharInAnyTrain УБРАН ПОЛНОСТЬЮ. На движке MoonRage
 -- каждый нативный game-вызов вешает поток SAMP на ~900-1000 мс (замер
@@ -1527,6 +1549,17 @@ function main()
     end
 
     startTgPoll()
+
+    -- Перезагрузка скрипта могла оставить от старого экземпляра глобальные
+    -- imgui-флаги ShowCursor/Process и мёртвый хук OnDrawFrame (крэш или релоад
+    -- с открытым /mq). Пока наше меню закрыто — возвращаем ввод и курсор игре.
+    if not st.dbg_no_gui then
+        ensureUiHook()
+        if not showMenu.v then
+            imgui.Process = false
+            imgui.ShowCursor = false
+        end
+    end
 
     -- Главный цикл: никакой активной работы, когда меню закрыто.
     -- Хук imgui держим ТОЛЬКО пока окно /mq открыто (иначе конфликтуем
