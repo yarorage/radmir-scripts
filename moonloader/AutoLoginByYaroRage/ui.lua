@@ -737,14 +737,61 @@ function draw_misc_tab()
     end
     
     imgui.Spacing()
-    imgui.Text("Версия: 2.14.4")
+    imgui.Text("Версия: 1.5.8")
     imgui.Text("Автор: YaroRage")
     imgui.Text("GitHub: yarorage.github.io")
+end
+
+-- Меню рисуем через глобальный хук imgui.OnDrawFrame (как Cheat/Les/Machinist).
+-- В этой сборке движка imgui обрабатывается синхронно в on_draw_scene между
+-- renderer:BeginFrame и renderer:EndFrame, поэтому вызов imgui.Begin из
+-- отдельного потока ломал счётчик кадров (assert FrameCountEnded != FrameCount).
+local prev_on_draw = nil
+local saved_process = false
+local in_draw_wrapper = false
+local settings_draw_wrapper = function()
+    if in_draw_wrapper then return end
+    in_draw_wrapper = true
+    if prev_on_draw then
+        local ok, err = pcall(prev_on_draw)
+        if not ok then prev_on_draw = nil end
+    end
+    local ok, err = pcall(draw_settings_menu)
+    in_draw_wrapper = false
+    if not ok then
+        print("[AutoLoginByYaroRage] Ошибка отрисовки меню: " .. tostring(err))
+    end
 end
 
 -- Toggle settings menu
 M.toggle_settings = function()
     show_settings = not show_settings
+    if show_settings then
+        local cur = imgui.OnDrawFrame
+        if cur ~= settings_draw_wrapper then prev_on_draw = cur end
+        imgui.OnDrawFrame = settings_draw_wrapper
+        saved_process = imgui.Process
+        imgui.Process = true
+        imgui.ShowCursor = true
+    else
+        if imgui.OnDrawFrame == settings_draw_wrapper then
+            imgui.OnDrawFrame = prev_on_draw
+        end
+        prev_on_draw = nil
+        imgui.Process = saved_process
+        imgui.ShowCursor = false
+    end
+end
+
+-- Снятие imgui-хука при завершении скрипта
+M.cleanup_imgui = function()
+    if imgui.OnDrawFrame == settings_draw_wrapper then
+        imgui.OnDrawFrame = prev_on_draw
+    end
+    prev_on_draw = nil
+    show_settings = false
+    imgui.Process = saved_process
+    imgui.ShowCursor = false
 end
 
 M.is_settings_open = function()

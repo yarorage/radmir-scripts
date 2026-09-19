@@ -2,7 +2,7 @@
 -- Автор: YaroRage
 script_name("AutoLoginByYaroRage")
 script_author("YaroRage")
-script_version("1.5.7")
+script_version("1.5.8")
 
 require 'moonloader'
 local ffi = require('ffi')
@@ -901,6 +901,7 @@ function main()
     addEventHandler("onScriptTerminate", function(scr)
         if scr == script.this then
             pcall(utils.uninstall_minimize_guard)
+            pcall(ui_mod.cleanup_imgui)
         end
     end)
     lua_thread.create(function()
@@ -959,13 +960,8 @@ function main()
         end
     end)
 
-    -- ImGui render thread
-    lua_thread.create(function()
-        while true do
-            wait(0)
-            ui_mod.draw_settings_menu()
-        end
-    end)
+    -- Меню ImGui рисуется через imgui.OnDrawFrame (хук устанавливается
+    -- в ui_mod.toggle_settings), отдельный поток отрисовки не нужен.
 
     wait(-1)
 end
