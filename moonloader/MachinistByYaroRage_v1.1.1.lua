@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.1.0")
+script_version("1.1.1")
 script_author("YaroRage")
 
 require "moonloader"
@@ -688,8 +688,19 @@ function onSendPacket(id, bs)
 end
 
 function onReceivePacket(id, bs)
-    if id ~= 215 then return end
     if not isSampAvailable() then return end
+    -- v1.1.1: резервный тик из ¬’ќƒяў≈√ќ сетевого потока. ѕри полностью свЄрнутом
+    -- окне кадровый поток (wait(0)) и резерв из onSendVehicleSync молчат Ч игра
+    -- редко генерирует кадры и исход€щие синки. ј RX-пакеты приход€т всегда,
+    -- независимо от рендера, поэтому ведение продолжаетс€: состав не остаЄтс€
+    -- со старым keysData, не Ђедет самї, разгон€етс€ и тормозит воврем€.
+    if not st.dbg_no_thread and optEnabled.v then
+        local rxtMs = wallClockMs()
+        if rxtMs - (drive._lastTickMs or 0) >= 200 then
+            driveTick()
+        end
+    end
+    if id ~= 215 then return end
 
     -- —труктурный разбор RX-пакета CEF (id=215). ‘ормат подтверждЄн
     -- декодированием bodyHex в дампах CefPacketAnalyzer (packets_data.jsonl,
