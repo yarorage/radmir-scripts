@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.2.2")
+script_version("1.2.3")
 script_author("YaroRage")
 
 require "moonloader"
@@ -469,6 +469,10 @@ local recentNoticeKeys = {}
 
 local function processChatText(label, text, authorNick, skipDiag)
     if not text or #text == 0 then return end
+    -- v1.2.3: серверный тикающий счЄтчик ЂЌа паузе N сек.ї шлЄтс€ раз в
+    -- секунду, каждый счЄт распознаЄтс€ как админ-вызов и спамит Telegram.
+    -- ‘ильтруем его и аналогичные серийные таймеры до любой обработки.
+    if text:lower():find("на паузе%s*%d+%s*сек") then return end
     if st.dbg_no_events then return end
     -- skipDiag=true (из /mqtest) идЄт ћ»ћќ диагностики: тест должен всегда
     -- выполн€ть полный детект и слать уведомление, а не печататьс€ в лог.
