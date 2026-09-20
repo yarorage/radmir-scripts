@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.2.3")
+script_version("1.2.4")
 script_author("YaroRage")
 
 require "moonloader"
@@ -746,7 +746,10 @@ function onReceivePacket(id, bs)
     if not st.dbg_no_thread and optEnabled.v then
         local rxtMs = wallClockMs()
         if rxtMs - (drive._lastTickMs or 0) >= 200 then
+            -- v1.2.4: резервный тик (свЄрнутое окно) Ч спидхак не примен€ем.
+            drive._reserveTick = true
             driveTick()
+            drive._reserveTick = false
         end
     end
     if id ~= 215 then return end
@@ -944,14 +947,18 @@ local function applyTrainBoost(limitMs)
     if not okC or tonumber(cls) ~= 6 then return end -- не поезд
     local fts = ffi.cast("float*", vehPtr + 0x5A4) -- fTrainSpeed
     local cur = fts[0]
-    -- v1.1.9: спидхак включаетс€ только когда состав –≈јЋ№Ќќ катитс€ вперЄд
-    -- (fTrainSpeed > 1 м/с примерно 3.6 км/ч). –аньше порог сто€л на оценке
-    -- скорости из setStation (speed >= 10), котора€ приходит раз в секунду и
-    -- запаздывает на разгоне Ч поэтому спидхак Ђне работалї. «ащиту от разгона
-    -- на сто€нке держим по пам€ти: пока поезд стоит (fTrainSpeed около нул€)
-    -- не трогаем, чтобы не накопить скорость на месте и не Ђвыстрелитьї
-    -- назад/вперЄд при отправлении.
-    if cur <= 1.0 then return end
+    -- v1.2.4: нижний порог по fTrainSpeed Ч по справочнику спидхака поездов
+    -- (BlastHack, CTrain.fTrainSpeed) у движущегос€ состава значение ~0.5-1.0
+    -- (безопасный предел 0.99, лимит до 2.0) Ч это Ќ≈ м/с. —тарый порог v1.1.9
+    -- Ђcur <= 1.0ї считал fTrainSpeed в м/с и почти всегда блокировал спидхак,
+    -- поэтому он Ђне пашетї. Ѕустим только когда состав реально катитс€
+    -- (cur > 0.05): на сто€нке скорость не копитс€, Ђвыстрелаї назад/вперЄд
+    -- при отправлении нет.
+    if cur <= 0.05 then return end
+    -- v1.2.4: не бустим из резервных тиков (свЄрнутое окно): кадровый поток
+    -- стоит, физика почти не идЄт, а умножение fTrainSpeed копит разгон Ч
+    -- при возврате в окно поезд рывком/выстрелом набирает большую скорость.
+    if drive._reserveTick then return end
     local nv = cur * boost
     if nv > limitMs then nv = limitMs end
     if nv > cur then fts[0] = nv end
@@ -1061,7 +1068,10 @@ if ev then
         -- пишутс€ нативно, keysData освежаетс€ перед самой отправкой.
         local nowMs = wallClockMs()
         if nowMs - (drive._lastTickMs or 0) >= 200 then
+            -- v1.2.4: резервный тик (свЄрнутое окно) Ч спидхак не примен€ем.
+            drive._reserveTick = true
             driveTick()
+            drive._reserveTick = false
         end
         if not drive.in_train then return end
         data.keysData = drive.keys or 0
@@ -1472,6 +1482,8 @@ function driveThread()
     end
     while optEnabled.v do
         wait(0)
+        -- v1.2.4: кадровый тик Ч всегда обычный (не резервный), флаг сброшен.
+        drive._reserveTick = false
         driveTick()
     end
     drive.tickThread = nil
