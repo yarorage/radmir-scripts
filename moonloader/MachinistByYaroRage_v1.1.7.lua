@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.1.6")
+script_version("1.1.7")
 script_author("YaroRage")
 
 require "moonloader"
@@ -1982,7 +1982,7 @@ local renderUi = function()
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"Умножает целевую скорость поезда (1.00 = как есть, 1.30 = вилка +30%). Поезд активнее разгоняется и держит скорость выше вилки. Риск штрафов за превышение скоростного режима")
             end
-            imgui.SliderFloat(u8"Спидхак разгона поезда", optSpeedBoost, 1.0, 2.0, "%.2f")
+            imgui.SliderFloat(u8"Спидхак разгона поезда", optSpeedBoost, 1.0, 5.0, "%.2f")
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"Прямо умножает скорость поезда в памяти — поезд разгоняется в N раз быстрее до вилки. Риск: сервер может зафиксировать аномальный разгон и применить штраф/откат")
             end
