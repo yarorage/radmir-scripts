@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.1.8")
+script_version("1.1.9")
 script_author("YaroRage")
 
 require "moonloader"
@@ -922,7 +922,14 @@ local function applyTrainBoost(limitMs)
     if not okC or tonumber(cls) ~= 6 then return end -- не поезд
     local fts = ffi.cast("float*", vehPtr + 0x5A4) -- fTrainSpeed
     local cur = fts[0]
-    if cur <= 0 then return end
+    -- v1.1.9: спидхак включается только когда состав РЕАЛЬНО катится вперёд
+    -- (fTrainSpeed > 1 м/с примерно 3.6 км/ч). Раньше порог стоял на оценке
+    -- скорости из setStation (speed >= 10), которая приходит раз в секунду и
+    -- запаздывает на разгоне — поэтому спидхак «не работал». Защиту от разгона
+    -- на стоянке держим по памяти: пока поезд стоит (fTrainSpeed около нуля)
+    -- не трогаем, чтобы не накопить скорость на месте и не «выстрелить»
+    -- назад/вперёд при отправлении.
+    if cur <= 1.0 then return end
     local nv = cur * boost
     if nv > limitMs then nv = limitMs end
     if nv > cur then fts[0] = nv end
@@ -1132,6 +1139,10 @@ local function driveTick()
     local brakeA = (st.brake_decel and st.brake_decel > 0) and st.brake_decel or 2.0
     local aComf = math.max(0.6, brakeA * 0.8)
     local brakeMargin = (st.brake_margin and st.brake_margin >= 0) and st.brake_margin or 6
+    -- v1.1.9: подход к станции: за последние 250 м разрешено не больше
+    -- 90 км/ч, выше лимита — экстренный полный тормоз (lvl 255).
+    local stationCapDist = 250
+    local stationCapKmh = 90
 
     local allowed = target
     local finePause = (not fineActive) and st.overspeed_timer and st.overspeed_timer > 0
@@ -1186,6 +1197,11 @@ local function driveTick()
         if speedMs * speedMs > 2 * aComf * math.max(1, d) then
             allowed = math.min(allowed, math.sqrt(2 * aComf * d) * 3.6)
         end
+    end
+    -- v1.1.9: экстренный сброс: за 250 м до станции скорость не выше 90 км/ч.
+    -- Внутри зоны кривая (выше) и stopCmd доведут до полного стопа.
+    if stationKnown and distance <= stationCapDist then
+        allowed = math.min(allowed, stationCapKmh)
     end
     local stopping = false
     -- Команда сервера «Остановитесь на станции»: цель — полный стоп.
@@ -1314,10 +1330,13 @@ local function driveTick()
         local over = speed - allowed
         local span = math.max(10, allowed * 0.35)
         local lvl = math.floor(80 + math.min(1, over / span) * 150)
-        -- Экстренно: оставшегося пути не хватит даже на максимальное замедление.
-        local hard = stationKnown and distance < 250
-            and speedMs * speedMs > 2 * brakeA * math.max(1, distance - brakeMargin)
-        if hard or (fineActive and over > 25) then lvl = 255 end
+        -- Экстренно: оставшегося пути не хватит даже на максимальное замедление,
+        -- либо приближаемся к станции выше лимита 90 км/ч, либо проскочили
+        -- стоп-триггер станции (stopHard) — тормозим полностью (lvl 255).
+        local hard = stationKnown and distance <= stationCapDist
+            and (speedMs * speedMs > 2 * brakeA * math.max(1, distance - brakeMargin)
+                 or speed > stationCapKmh + 2)
+        if hard or stopHard or (fineActive and over > 25) then lvl = 255 end
         setBrakeLevel(lvl)
         if not stopping then drive.lastAction = u8"торможение" end
     elseif speed < allowed - 1.0 then
@@ -1338,14 +1357,12 @@ local function driveTick()
     -- goCmd, обычный разгон). Работает только когда газ реально нажат
     -- и скорость ещё не достигла разрешённой — при торможении не
     -- вмешивается, тормозной путь не ломается.
-    -- v1.1.6: НЕ применяем спидхак к стоящему/едва тронувшемуся составу
-    -- (speed < 10 км/ч): оценка скорости идёт от setStation раз в секунду,
-    -- а fTrainSpeed в памяти пишется каждый кадр — у станции поезд стоит
-    -- с нажатым газом, boost копил fTrainSpeed, и при отправлении состав
-    -- «выстреливал» (улетал назад, 300+ км/ч). Boost подключается только
-    -- когда поезд реально покатился вперёд.
-    if not stopping and not stopHard and drive._gasPressed
-        and speed >= 10
+    -- v1.1.9: порог «speed >= 10» (оценка setStation, раз в секунду) убран:
+    -- он запаздывал на разгоне и спидхак «не работал». Gate теперь внутри
+    -- applyTrainBoost по памяти (fTrainSpeed > 1 м/с = реальное движение
+    -- вперёд) плюс исключение stayCmd («Ожидайте отправления»/«Садитесь
+    -- в поезд»), чтобы на стоянке не накапливать скорость и не «выстреливать».
+    if not stopping and not stopHard and not stayCmd and drive._gasPressed
         and speed < allowed - 0.5 then
         applyTrainBoost(allowed / 3.6)
     end
@@ -1422,19 +1439,9 @@ startBot = function()
     if optEnabled.v and not drive.tickThread and not st.dbg_no_thread then
         drive.tickThread = lua_thread.create(driveThread)
     end
-    -- v1.0.8: закрываем меню /mq, если открыто: пока окно открыто,
-    -- imgui.Process=true перехватывает клавиатуру (пробел/прыжок не
-    -- работают), а ShowCursor=true держит курсор видимым. Возвращаем
-    -- хук тому, кто был до нас (как в toggleMenu), флаги сбросит и цикл.
-    if showMenu.v and not st.dbg_no_gui then
-        showMenu.v = false
-        if imgui.OnDrawFrame == uiWrapper then
-            imgui.OnDrawFrame = prevOnDraw
-        end
-        prevOnDraw = nil
-        imgui.Process = false
-        imgui.ShowCursor = false
-    end
+    -- v1.1.9: меню при включении автопилота НЕ закрываем (убрано авто-закрытие
+    -- из v1.0.8): при частых вкл/выкл из GUI окно пропадало само. Оставляем
+    -- окно открытым — перехват клавиатуры/курсора активен на время меню.
     pcall(sampAddChatMessage, u8:decode(u8"Machinist: автопилот включён"), 0xAAFFAA)
 end
 
@@ -1949,16 +1956,7 @@ local renderUi = function()
         -- ---------- Общие ----------
         if menuTab.v == 1 then
             if imgui.Checkbox(u8"Автопилот", optEnabled) then
-                -- v1.0.8: включение автопилота галочкой тоже закрывает меню
-                if optEnabled.v and not st.dbg_no_gui then
-                    showMenu.v = false
-                    if imgui.OnDrawFrame == uiWrapper then
-                        imgui.OnDrawFrame = prevOnDraw
-                    end
-                    prevOnDraw = nil
-                    imgui.Process = false
-                    imgui.ShowCursor = false
-                end
+                -- v1.1.9: галочка автопилота меню больше не закрывает
             end
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"Управляет поездом CEF-пакетами (работает и при свёрнутой игре)")
