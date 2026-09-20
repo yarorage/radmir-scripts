@@ -143,8 +143,8 @@ end
 -- Извлечение ника из OOC-сообщения вида (( Имя: текст )) или [Имя: текст]
 function M.extract_ooc_name(text)
     if not text then return nil end
-    local name = text:match("%(%(%s*(.-)%s*:)") or
-                 text:match("%[%s*(.-)%s*:") or
+    local name = text:match("%(%(%s*(.-):") or
+                 text:match("%[%s*(.-):") or
                  text:match("%{(.-)%:") or
                  text:match("^%s*(%S+):")
     if name then

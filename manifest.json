@@ -1,7 +1,7 @@
 ﻿{
     "version":  "1.1.9",
     "launcherVersion":  "1.1.9",
-    "updatedAt":  "2026-09-20 18:05",
+    "updatedAt":  "2026-09-20 20:29",
     "repoUrl":  "https://github.com/yarorage/radmir-scripts",
     "files":  [
                   {
@@ -149,8 +149,8 @@
                       "dest":  "gameRoot"
                   },
                   {
-                      "path":  "moonloader/MachinistByYaroRage_v1.2.9.lua",
-                      "sha256":  "4acb4222c3c854484164019813ff3d52ba0d56e10c519c139f14c730c7a4cff4",
+                      "path":  "moonloader/MachinistByYaroRage_v1.3.0.lua",
+                      "sha256":  "c27bc602b64f8523194804a836096a5c02974d361ecf9fe84f483c75a09389d8",
                       "size":  106995,
                       "dest":  "gameRoot"
                   },
@@ -2430,8 +2430,8 @@
                   },
                   {
                       "path":  "moonloader/MachinistByYaroRage/admin.lua",
-                      "sha256":  "4290847c043b40c6d43496a56fd5e40f987ed68da70252425b3221b624fa47b4",
-                      "size":  9687,
+                      "sha256":  "d0314b7f16da153eb527970c85989385359f9c89d3078fef609a2cf24471ba68",
+                      "size":  9680,
                       "dest":  "gameRoot"
                   },
                   {

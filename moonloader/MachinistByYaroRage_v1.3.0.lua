@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.2.9")
+script_version("1.3.0")
 script_author("YaroRage")
 
 require "moonloader"
