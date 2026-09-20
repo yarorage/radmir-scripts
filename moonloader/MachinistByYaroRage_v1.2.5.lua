@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.2.4")
+script_version("1.2.5")
 script_author("YaroRage")
 
 require "moonloader"
@@ -1278,6 +1278,10 @@ local function driveTick()
     if stopCmd then
         stopping = true
         stopHard = true
+        -- v1.2.5: флаг остановки по таймеру Ђќстановитесь на станцииї:
+        -- по завершении этого таймера сразу отправл€емс€, не дожида€сь
+        -- исчезновени€ прочих таймеров (штраф за низкую скорость и т.п.).
+        drive.stopped_by_timer = true
         -- v1.2.2: это и есть реальный триггер станции (может быть смещЄн
         -- относительно маркера). —корость к моменту команды уже ~10 км/ч
         -- (подкат выше) Ч гасим до нул€ и включаем жЄсткий фриз fTrainSpeed=0.
@@ -1296,7 +1300,10 @@ local function driveTick()
     end
     -- v1.2.2: жЄсткий фриз: пока активен таймер, держим fTrainSpeed = 0 через
     -- пам€ть каждый кадр Ч поезд стоит мЄртво, не катитс€ назад/вперЄд.
-    if drive.stop_freeze_until and os.time() >= drive.stop_freeze_until then
+    -- v1.2.5: фриз действует “ќЋ№ ќ пока активен таймер Ђќстановитесь на
+    -- станцииї и максимум stopFreezeSec секунд; прочие таймеры (штраф за
+    -- низкую скорость и т.п.) фриз не продлевают Ч поезд должен тронутьс€.
+    if drive.stop_freeze_until and (not stopCmd or os.time() >= drive.stop_freeze_until) then
         drive.stop_freeze_until = nil
     end
     if drive.stop_freeze_until then
@@ -1366,7 +1373,8 @@ local function driveTick()
             and st.station_release_delay or 30
         local waited = drive.station_arrive_time
             and (os.time() - drive.station_arrive_time) >= releaseDelay
-        local canGo = goCmd or st.need_go
+        local stopTimerEnded = drive.stopped_by_timer and not stopCmd and not stayCmd
+        local canGo = goCmd or st.need_go or stopTimerEnded
             or (not stopCmd and not stayCmd and not timerActive
                 and not driveCpFinish and waited)
         if canGo then
@@ -1375,6 +1383,7 @@ local function driveTick()
             drive.crawl_start = nil
             drive.crawl_done = false
             drive.stop_freeze_until = nil
+            drive.stopped_by_timer = false
             drive.phase = "DRIVE"
             releaseBrake()
             if speed < target then pressGasNative() end
@@ -1387,7 +1396,10 @@ local function driveTick()
             -- жЄсткого фриза fTrainSpeed = 0 (удерживаетс€ каждый кадр),
             -- поэтому на сто€нке поезд не катитс€ ни вперЄд, ни назад.
             releaseBrake()
-            hardFreezeTrain(true)
+            -- v1.2.5: жЄсткий фриз только по командам сто€нки (таймер
+            -- Ђќстановитесь на станцииї / Ђ—то€тьї); штрафные таймеры и
+            -- прочие посторонние не замораживают поезд Ч он может уехать.
+            if stopCmd or stayCmd then hardFreezeTrain(true) end
             drive.lastAction = u8"сто€нка на станции (фриз)"
         end
         drive.keys = drive._gasPressed and 8 or 0
