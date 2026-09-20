@@ -737,7 +737,7 @@ function draw_misc_tab()
     end
     
     imgui.Spacing()
-    imgui.Text("Версия: 1.5.8")
+    imgui.Text("Версия: 1.5.9")
     imgui.Text("Автор: YaroRage")
     imgui.Text("GitHub: yarorage.github.io")
 end
@@ -785,13 +785,19 @@ end
 
 -- Снятие imgui-хука при завершении скрипта
 M.cleanup_imgui = function()
+    -- При перезагрузке (reload) не восстанавливаем prev_on_draw и saved_process:
+    -- выгруженная обёртка чужого скрипта уже мертва, а Process=true на этом же
+    -- кадре приводит к двойному imgui.Render() -> assert FrameCountEnded != FrameCount.
+    -- Поэтому жёстко гасим флаги (так же делают Cheat/Machinist).
     if imgui.OnDrawFrame == settings_draw_wrapper then
         imgui.OnDrawFrame = prev_on_draw
     end
     prev_on_draw = nil
+    saved_process = false
     show_settings = false
-    imgui.Process = saved_process
+    imgui.Process = false
     imgui.ShowCursor = false
+    imgui.DisableInput = false
 end
 
 M.is_settings_open = function()
