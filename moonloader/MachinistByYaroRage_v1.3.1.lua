@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.3.0")
+script_version("1.3.1")
 script_author("YaroRage")
 
 require "moonloader"
@@ -1230,59 +1230,13 @@ local function driveTick()
     -- не затормозит за последнюю секунду). Разрешённая скорость падает линейно:
     -- вилка + aComf * (остаток - guard), но не ниже вилки и не выше вилки+extra.
     if fineActive then
-        local left = math.max(0, st.overspeed_timer - nowSec)
-        local guard = (st.overspeed_guard and st.overspeed_guard > 0) and st.overspeed_guard or 1
-        -- v1.1.5: спуск РАВНОМЕРНЫЙ на весь таймер штрафа: разрешённая скорость
-        -- падает с вилки+extra до серверной вилки vHi линейно, к концу окна уже
-        -- внутри лимита. Прежняя логика (сброс только за lead сек до конца) не
-        -- успевала: поезд физически не может скинуть десятки км/ч за 2-3 сек,
-        -- а при speed_mult > 1 цель target была выше лимита сервера и таймер
-        -- штрафа перезапускался бесконечно.
-        local total = st.overspeed_timer_total and st.overspeed_timer_total > 0
-            and st.overspeed_timer_total or math.max(1, left)
-        local span = math.max(1, total - guard)
-        local frac = math.max(0, math.min(1, (left - guard) / span))
-        local extra = (st.overspeed_extra and st.overspeed_extra > 0) and st.overspeed_extra or 25
-        if fineLast then
-            allowed = math.min(allowed, target)
-            drive.lastAction = u8"резкий сброс к вилке (3 сек до конца таймера)"
-        elseif st.overspeed then
-            allowed = vHi + extra * frac
-            if allowed > vHi + extra then allowed = vHi + extra end
-            if allowed < vHi then allowed = vHi end
-            drive.lastAction = u8"превышение, плавный сброс к вилке за весь таймер"
-        else
-            allowed = math.min(allowed, vHi + aComf * math.max(0, left - guard) * 3.6)
-            if allowed < target then allowed = target end
-            drive.lastAction = u8"плавный сброс к вилке (штраф)"
-        end
-    end
-    -- Станция впереди: маркер — только СКИДЫВАНИЕ скорости перед станцией.
-    -- Триггер остановки маркер НЕ заменяет: останавливаемся строго по таймеру
-    -- «Остановитесь на станции» (stopCmd ниже). Кривую применяем, только когда
-    -- состав с текущей скорости не успевает затормозить у маркера (v^2 > 2ad),
-    -- чтобы не «ползать» на 10-20 км/ч задолго до станции в ожидании таймера.
-    -- v1.2.2: подкат к станции. Маркер setStation и реальный серверный триггер
-    -- остановки на станциях Radmir СДВИНУТЫ (на каждой станции по-своему),
-    -- поэтому остановка «по маркеру» не работает: состав вставал у маркера,
-    -- разгонялся заново «искать трейдер», и стоп получался как повезёт. Теперь
-    -- с последних stop_crawl_zone метров катимся на stop_crawl км/ч (10) и НЕ
-    -- останавливаемся, пока не придёт таймер «Остановитесь на станции» (он
-    -- приходит именно на правильном триггере). В момент команды — жёсткий
-    -- фриз поезда на stop_freeze_sec секунд (см. ниже).
-    local crawl = (st.stop_crawl and st.stop_crawl > 0) and st.stop_crawl or 10
-    local crawlZone = (st.stop_crawl_zone and st.stop_crawl_zone > 0) and st.stop_crawl_zone or 150
-    if stationKnown and not stopCmd then
-        local d = distance - brakeMargin
-        if d < 0 then d = 0 end
-        if speedMs * speedMs > 2 * aComf * math.max(1, d) then
-            allowed = math.min(allowed, math.sqrt(2 * aComf * d) * 3.6)
-        end
-        if distance <= crawlZone and allowed < crawl then
-            -- не встаём у смещённого маркера — катимся на 10 км/ч к триггеру
-            allowed = crawl
-            drive.lastAction = u8"подкат к станции (10 км/ч)"
-        end
+        -- v1.3.1: сброс скорости до вилки сразу на весь таймер штрафа.
+        -- Раньше бот весь таймер ехал выше вилки (allowed = vHi + extra*frac)
+        -- и начинал сбавлять только за 3 сек до конца (fineLast). Из-за
+        -- инерции поезда и неточной оценки скорости (st.speed_est) он часто
+        -- не успевал погасить overspeed_extra, и сервер успевал выписать штраф.
+        allowed = math.min(allowed, target)
+        drive.lastAction = u8"Штраф: держим скорость в вилке"
     end
     -- v1.1.9: экстренный сброс: за 250 м до станции скорость не выше 90 км/ч.
     -- Внутри зоны кривая (выше) и stopCmd доведут до полного стопа.
