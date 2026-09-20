@@ -189,32 +189,37 @@ function M.parse_admin_call(text, myNick)
             return admin or true
         end
         local oocName = M.extract_ooc_name(text)
-        if oocName and M.has_known_admin(oocName) then
+        -- личное обращение от известного админа засчитываем только когда
+        -- в тексте упомянут НАШ ник (иначе это чужой диалог/наказание).
+        if meMention and oocName and M.has_known_admin(oocName) then
             return admin or true
         end
-        if lower:find("администратор", 1, true) or lower:find("administrator", 1, true) then
-            return admin or true
-        end
-        return nil -- маркер был, но адресовано не нам
+        return nil -- маркер был, но адресовано не нам / нет нашего ника
     end
     return nil
 end
 
-function M.is_admin_message(text)
+function M.is_admin_message(text, myNick)
     if not text or #text == 0 then return false end
     -- v1.1.5: раньше ловился ЛЮБОЙ текст, где упомянут ник известного админа
     -- (наказание «игроку X», анонсы [INFO] и т.п.). Теперь админ-сообщение —
     -- это только личное обращение от известного админа: OOC-форма
     -- (( Ник_админа: ... )) / [Ник_админа: ...] / {Ник_админа: ...},
     -- либо формат «ник_админа ответил Вам: ...».
+    -- v1.2.0: OOC от админа засчитываем, только если в тексте упомянут
+    -- НАШ ник (иначе это чужой диалог админа с другим игроком).
+    local lower = casefoldCyr(text:lower())
+    local meMention = (myNick and #myNick > 0)
+        and wordFind(lower, casefoldCyr(myNick:lower()))
     local name = M.extract_ooc_name(text)
     if name then
         local known = M.has_known_admin(name)
-        if known then return known end
+        if known and meMention then return known end
     end
     local nm = text:match("^(%S+)%s+ответил%s+Вам%s*:")
     if nm then
         local known = M.has_known_admin(nm)
+        -- «ответил Вам» — это всегда обращение к НАМ, ник не обязателен.
         if known then return known end
     end
     return false

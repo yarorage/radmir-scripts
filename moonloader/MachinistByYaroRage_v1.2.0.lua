@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.1.9")
+script_version("1.2.0")
 script_author("YaroRage")
 
 require "moonloader"
@@ -486,7 +486,7 @@ local function processChatText(label, text, authorNick, skipDiag)
     -- Вы тут? Напишите в чат /report - 1») имеют приоритет: извлекаем ник
     -- админа напрямую и фильтруем по адресату «для <мой ник>».
     local who = admin.parse_admin_call(text, st.my_nick) or
-                admin.is_admin_message(text)
+                admin.is_admin_message(text, st.my_nick)
     -- матч по автору пузыря (ник других игроков, если sampGetPlayerNameById доступен)
     if not who and authorNick and #authorNick > 0 then
         local known = admin.has_known_admin(authorNick)
@@ -1134,6 +1134,9 @@ local function driveTick()
         and timerText:find("до штрафа", 1, true) == nil
     local fineActive = st.overspeed_fine and st.overspeed_timer
         and st.overspeed_timer > nowSec
+    -- v1.2.0: последние 3 секунды таймера штрафа — жёсткий сброс к вилке.
+    local fineLeft = fineActive and math.max(0, st.overspeed_timer - nowSec) or 0
+    local fineLast = fineActive and fineLeft <= 3
 
     -- ---------- Физика торможения ----------
     local brakeA = (st.brake_decel and st.brake_decel > 0) and st.brake_decel or 2.0
@@ -1175,13 +1178,16 @@ local function driveTick()
         local span = math.max(1, total - guard)
         local frac = math.max(0, math.min(1, (left - guard) / span))
         local extra = (st.overspeed_extra and st.overspeed_extra > 0) and st.overspeed_extra or 25
-        if st.overspeed then
+        if fineLast then
+            allowed = math.min(allowed, target)
+            drive.lastAction = u8"резкий сброс к вилке (3 сек до конца таймера)"
+        elseif st.overspeed then
             allowed = vHi + extra * frac
             if allowed > vHi + extra then allowed = vHi + extra end
             if allowed < vHi then allowed = vHi end
             drive.lastAction = u8"превышение, плавный сброс к вилке за весь таймер"
         else
-            allowed = math.min(allowed, vHi + aComf * math.max(0, left - lead) * 3.6)
+            allowed = math.min(allowed, vHi + aComf * math.max(0, left - guard) * 3.6)
             if allowed < target then allowed = target end
             drive.lastAction = u8"плавный сброс к вилке (штраф)"
         end
@@ -1217,14 +1223,13 @@ local function driveTick()
         else
             local d = distance - 3
             if d < 0 then d = 0 end
-            -- v1.1.0: не роняем скорость в ноль у самого маркера. Пока до
-            -- точки остановки больше 1 метра держим минимум ~6 км/ч, чтобы
-            -- поезд плавно доехал к серверному триггеру станции и не делал
-            -- лишнюю полную остановку перед ним (встал у маркера -> снова
-            -- тронулся). Когда d станет <= 1, кривая гасит скорость до нуля
-            -- и стоп-блок (speed < 3 и stopCmd) останавливает состав.
+            -- v1.2.0: минимум ~6 км/ч убран — он держал состав на 6-10 км/ч,
+            -- и тот проезжал станцию прежде, чем сервер переключал setStation
+            -- на следующую (distance > 200). Теперь кривая ведёт скорость к
+            -- нулю у самого маркера, а полный тормоз на последних метрах
+            -- (см. stopApproach ниже) гарантирует остановку ДО стоп-точки.
+            -- Когда d <= 1, brakeTarget = 0, состав останавливается у маркера.
             local brakeTarget = math.sqrt(2 * aComf * d) * 3.6
-            if d > 1 and brakeTarget < 6 then brakeTarget = 6 end
             allowed = math.min(allowed, brakeTarget)
         end
         stopping = true
@@ -1336,7 +1341,11 @@ local function driveTick()
         local hard = stationKnown and distance <= stationCapDist
             and (speedMs * speedMs > 2 * brakeA * math.max(1, distance - brakeMargin)
                  or speed > stationCapKmh + 2)
-        if hard or stopHard or (fineActive and over > 25) then lvl = 255 end
+        -- v1.2.0: финальные метры остановки на станции (разрешено <= 15 км/ч)
+        -- тормозим ПОЛНОСТЬЮ — мягкий lvl (~140) не успевал погасить 6-10 км/ч,
+        -- и состав проезжал станцию. Следим именно за allowed (уже = brakeTarget).
+        local stopApproach = stopCmd and allowed <= 15
+        if hard or stopHard or stopApproach or fineLast or (fineActive and over > 25) then lvl = 255 end
         setBrakeLevel(lvl)
         if not stopping then drive.lastAction = u8"торможение" end
     elseif speed < allowed - 1.0 then
@@ -1980,9 +1989,9 @@ local renderUi = function()
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"Умножает целевую скорость поезда (1.00 = как есть, 1.30 = вилка +30%). Поезд активнее разгоняется и держит скорость выше вилки. Риск штрафов за превышение скоростного режима")
             end
-            imgui.SliderFloat(u8"Спидхак разгона поезда", optSpeedBoost, 1.0, 20.0, "%.2f")
+            imgui.SliderFloat(u8"Спидхак разгона поезда", optSpeedBoost, 1.0, 5.0, "%.2f")
             if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Прямо умножает скорость поезда в памяти — поезд разгоняется в N раз быстрее до вилки. Риск: сервер может зафиксировать аномальный разгон и применить штраф/откат")
+                imgui.SetTooltip(u8"Ускоряет набор скорости поезда (x1..x5): разгоняется в N раз быстрее, предел — серверная вилка. Вилку не меняет, на стоянке не срабатывает")
             end
 
         -- ---------- Телеграм и админы ----------
