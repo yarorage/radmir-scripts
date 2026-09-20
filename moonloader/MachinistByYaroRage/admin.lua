@@ -18,6 +18,11 @@ local function casefoldCyr(s)
     end))
 end
 
+-- v1.2.8: экспортируем регистронезависимое приведение кириллицы наружу,
+-- чтобы фильтры главного скрипта (например «на паузе N сек.») тоже им
+-- пользовались вместо string.lower().
+M.casefold = casefoldCyr
+
 -- Результат парсинга: список имён.
 local function parse_admin_names(str)
     local names = {}

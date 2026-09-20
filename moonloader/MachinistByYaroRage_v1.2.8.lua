@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.2.7")
+script_version("1.2.8")
 script_author("YaroRage")
 
 require "moonloader"
@@ -344,7 +344,6 @@ local optForceCab = imgui.ImBool(st.force_cab)
 local optNotify = imgui.ImBool(st.notify_telegram)
 local optOverspeed = imgui.ImBool(st.overspeed)
 local optSpeedMult = imgui.ImFloat(st.speed_mult and st.speed_mult > 0 and st.speed_mult or 1.0)
-local optSpeedBoost = imgui.ImFloat(st.speed_boost and st.speed_boost > 1.0 and st.speed_boost or 1.0)
 local optTgPoll = imgui.ImBool(st.tg_poll_enable)
 local inpToken = imgui.ImBuffer(128)
 local inpChat = imgui.ImBuffer(64)
@@ -397,7 +396,6 @@ local function saveAll()
         tostring(optOverspeed.v),
         tostring(optTgPoll.v),
         tostring(optSpeedMult.v),
-        tostring(optSpeedBoost.v),
         tostring(inpToken.v), tostring(inpChat.v), tostring(inpAdmins.v), tostring(inpMyNick.v) })
     if sig == lastSavedSig then return false end
     lastSavedSig = sig
@@ -407,7 +405,6 @@ local function saveAll()
     st.notify_telegram = optNotify.v
     st.overspeed = optOverspeed.v
     st.speed_mult = optSpeedMult.v and optSpeedMult.v > 0 and optSpeedMult.v or 1.0
-    st.speed_boost = optSpeedBoost.v and optSpeedBoost.v > 1.0 and optSpeedBoost.v or 1.0
     st.tg_poll_enable = optTgPoll.v
     st.tg_bot_token = inpToken.v
     st.tg_chat_id = inpChat.v
@@ -472,7 +469,10 @@ local function processChatText(label, text, authorNick, skipDiag)
     -- v1.2.3: серверный тикающий счётчик «На паузе N сек.» шлётся раз в
     -- секунду, каждый счёт распознаётся как админ-вызов и спамит Telegram.
     -- Фильтруем его и аналогичные серийные таймеры до любой обработки.
-    if text:lower():find("на паузе%s*%d+%s*сек") then return end
+    -- v1.2.8: string.lower() не приводит кириллицу CP1251 (только A-Z),
+    -- поэтому «На паузе N сек.» с заглавной буквы не отфильтровывался и
+    -- спамил Telegram. Регистронезависимое приведение — admin.casefold.
+    if admin.casefold(text):find("на паузе%s*%d+%s*сек") then return end
     if st.dbg_no_events then return end
     -- skipDiag=true (из /mqtest) идёт МИМО диагностики: тест должен всегда
     -- выполнять полный детект и слать уведомление, а не печататься в лог.
@@ -931,85 +931,10 @@ function onReceivePacket(id, bs)
     --
 end
 
--- v1.1.4: спидхак поезда. Адреса из SA Memory (BlastHack):
---   0xBA18FC = CVehicle ** (локальный транспорт игрока),
---   nVehicleClass на +0x590 (6 = поезд), fTrainSpeed (float) на +0x5A4.
--- Умножаем fTrainSpeed каждый газ-тик, но не выше целивый скорости
--- (allowed в м/с) — поезд реально разгоняется в N раз быстрее.
--- v1.2.6-ДИАГНОСТИКА (ВРЕМЕННАЯ): логирование причин блокировки спидхака
--- в MachinistByYaroRage\speedboost_dbg.txt. Удалить после отладки.
-local dbgBoostLastMs = 0
-local function dbgBoostTick()
-    return dbgBoostLastMs == 0 or (wallClockMs() - dbgBoostLastMs) >= 200
-end
-local function dbgBoost(what, extra)
-    if not dbgBoostTick() then return end
-    dbgBoostLastMs = wallClockMs()
-    local fh = io.open(getWorkingDirectory():gsub("[\\/]+$", "") .. "\\MachinistByYaroRage\\speedboost_dbg.txt", "a")
-    if fh then
-        fh:write(os.date("%H:%M:%S") .. " [" .. what .. "] " .. (extra or "") .. "\n")
-        fh:close()
-    end
-end
--- Отдельный контекст-лог (свой таймер 500 мс): скорость, условия, и ВАЖНО
--- fTrainSpeed (cur) прямо из памяти — чтобы видеть его и при движении.
-local dbgCtxLastMs = 0
-local function dbgCtx(extra)
-    if dbgCtxLastMs ~= 0 and (wallClockMs() - dbgCtxLastMs) < 500 then return end
-    dbgCtxLastMs = wallClockMs()
-    local fh = io.open(getWorkingDirectory():gsub("[\\/]+$", "") .. "\\MachinistByYaroRage\\speedboost_dbg.txt", "a")
-    if fh then
-        fh:write(os.date("%H:%M:%S") .. " [ctx] " .. (extra or "") .. "\n")
-        fh:close()
-    end
-end
-
-local function applyTrainBoost(limitMs)
-    if not limitMs or limitMs <= 0 then
-        dbgBoost("limit<=0", "limitMs=" .. tostring(limitMs))
-        return
-    end
-    local boost = (st.speed_boost and st.speed_boost > 1.0) and st.speed_boost or 1.0
-    if boost <= 1.0 then return end
-    local ok, vehPtr = pcall(readMemory, 0xBA18FC, 4, false)
-    if not ok or not vehPtr or tonumber(vehPtr) == 0 then return end
-    vehPtr = tonumber(vehPtr)
-    local okC, cls = pcall(readMemory, vehPtr + 0x590, 4, false)
-    if not okC or tonumber(cls) ~= 6 then return end -- не поезд
-    local fts = ffi.cast("float*", vehPtr + 0x5A4) -- fTrainSpeed
-    local cur = fts[0]
-    -- v1.2.4: нижний порог по fTrainSpeed — по справочнику спидхака поездов
-    -- (BlastHack, CTrain.fTrainSpeed) у движущегося состава значение ~0.5-1.0
-    -- (безопасный предел 0.99, лимит до 2.0) — это НЕ м/с. Старый порог v1.1.9
-    -- «cur <= 1.0» считал fTrainSpeed в м/с и почти всегда блокировал спидхак,
-    -- поэтому он «не пашет». Бустим только когда состав реально катится
-    -- (cur > 0.05): на стоянке скорость не копится, «выстрела» назад/вперёд
-    -- при отправлении нет.
-    if cur <= 0.05 then
-        dbgBoost("block-cur<=0.05", string.format("cur=%.4f boost=%.2f limit=%.2f", cur, boost, limitMs))
-        return
-    end
-    -- v1.2.4: не бустим из резервных тиков (свёрнутое окно): кадровый поток
-    -- стоит, физика почти не идёт, а умножение fTrainSpeed копит разгон —
-    -- при возврате в окно поезд рывком/выстрелом набирает большую скорость.
-    if drive._reserveTick then
-        dbgBoost("block-reserve", string.format("cur=%.4f boost=%.2f limit=%.2f", cur, boost, limitMs))
-        return
-    end
-    local nv = cur * boost
-    if nv > limitMs then nv = limitMs end
-    if nv > cur then
-        fts[0] = nv
-        dbgBoost("applied", string.format("cur=%.4f boost=%.2f limit=%.2f nv=%.4f", cur, boost, limitMs, nv))
-    else
-        dbgBoost("no-nv", string.format("cur=%.4f boost=%.2f limit=%.2f nv=%.4f", cur, boost, limitMs, nv))
-    end
-end
-
 -- v1.2.2: жёсткий фриз поезда: принудительно держим fTrainSpeed = 0 через
--- память (как applyTrainBoost, только в ноль). Мгновенно гасит любую скорость
--- -- состав встаёт ровно там, где сервер прислал команду «Остановитесь на
--- станции», и не катится (ни вперёд, ни назад) при отпущенных клавишах.
+-- память. Мгновенно гасит любую скорость — состав встаёт ровно там, где
+-- сервер прислал команду «Остановитесь на станции», и не катится (ни вперёд,
+-- ни назад) при отпущенных клавишах.
 local function hardFreezeTrain(active)
     if not active then return end
     local ok, vehPtr = pcall(readMemory, 0xBA18FC, 4, false)
@@ -1487,35 +1412,6 @@ local function driveTick()
         end
     else
         releaseBrake()
-    end
-
-    -- v1.1.4: спидхак поезда (общий вызов для всех веток газа: старт,
-    -- goCmd, обычный разгон). Работает только когда газ реально нажат
-    -- и скорость ещё не достигла разрешённой — при торможении не
-    -- вмешивается, тормозной путь не ломается.
-    -- v1.1.9: порог «speed >= 10» (оценка setStation, раз в секунду) убран:
-    -- он запаздывал на разгоне и спидхак «не работал». Gate теперь внутри
-    -- applyTrainBoost по памяти (fTrainSpeed > 1 м/с = реальное движение
-    -- вперёд) плюс исключение stayCmd («Ожидайте отправления»/«Садитесь
-    -- в поезд»), чтобы на стоянке не накапливать скорость и не «выстреливать».
-    local dbgCur = 0
-    local dbgVOk, dbgVPtr = pcall(readMemory, 0xBA18FC, 4, false)
-    if dbgVOk and dbgVPtr and tonumber(dbgVPtr) ~= 0 then
-        local dbgClsOk, dbgCls = pcall(readMemory, tonumber(dbgVPtr) + 0x590, 4, false)
-        if dbgClsOk and dbgCls and tonumber(dbgCls) == 6 then
-            dbgCur = ffi.cast("float*", tonumber(dbgVPtr) + 0x5A4)[0]
-        end
-    end
-    dbgCtx(string.format("speed=%.1f allowed=%.1f gas=%d stop=%d stopHard=%d stay=%d go=%d est=%.2f estAge=%.0fms cur=%.4f boost=%.2f limit=%.2f",
-        speed, allowed, drive._gasPressed and 1 or 0, stopping and 1 or 0, stopHard and 1 or 0,
-        stayCmd and 1 or 0, goCmd and 1 or 0, st.speed_est or 0,
-        (st.speed_est_at and (nowMs - st.speed_est_at)) or -1,
-        dbgCur,
-        (st.speed_boost and st.speed_boost > 1.0) and st.speed_boost or 1.0,
-        (allowed / 3.6)))
-    if not stopping and not stopHard and not stayCmd and drive._gasPressed
-        and speed < allowed - 0.5 then
-        applyTrainBoost(allowed / 3.6)
     end
 
     -- ---------- keysData: направление для сервера ----------
@@ -2141,10 +2037,6 @@ local renderUi = function()
             imgui.SliderFloat(u8"Множитель целевой скорости", optSpeedMult, 1.0, 2.0, "%.2f")
             if imgui.IsItemHovered() then
                 imgui.SetTooltip(u8"Умножает целевую скорость поезда (1.00 = как есть, 1.30 = вилка +30%). Поезд активнее разгоняется и держит скорость выше вилки. Риск штрафов за превышение скоростного режима")
-            end
-            imgui.SliderFloat(u8"Спидхак разгона поезда", optSpeedBoost, 1.0, 5.0, "%.2f")
-            if imgui.IsItemHovered() then
-                imgui.SetTooltip(u8"Ускоряет набор скорости поезда (x1..x5): разгоняется в N раз быстрее, предел — серверная вилка. Вилку не меняет, на стоянке не срабатывает")
             end
 
         -- ---------- Телеграм и админы ----------

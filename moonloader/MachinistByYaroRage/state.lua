@@ -42,8 +42,6 @@ M.state = {
     overspeed_extra = 25,      -- на сколько км/ч выше верхней границы вилки ехать
     overspeed_guard = 1,      -- за сколько секунд до конца таймера штрафа вернуться в вилку
     speed_mult = 1.0,         -- v1.1.3: множитель целевой скорости (GUI «Ведение»), 1.0 = без изменений
-    speed_boost = 1.0,        -- v1.1.4: спидхак поезда: во сколько раз быстрее разгоняется до вилки (1.0 = выкл)
-    speed_boost = 1.0,        -- v1.1.4: спидхак поезда: во сколько раз быстрее разгоняется до вилки (1.0 = выкл)
     station_stop_radius = 15, -- v0.8.1: радиус «прибытия на станцию» (метры)
     station_dwell = 5,        -- v0.8.1: секунды стоянки перед отправлением
     brake_decel = 2.0,          -- v0.8.2: замедление состава при торможении (м/с^2)
@@ -157,8 +155,6 @@ local function save_config()
         f:write("overspeed_extra=" .. tostring(s.overspeed_extra) .. "\n")
         f:write("overspeed_guard=" .. tostring(s.overspeed_guard) .. "\n")
         f:write("speed_mult=" .. tostring(s.speed_mult) .. "\n")
-        f:write("speed_boost=" .. tostring(s.speed_boost) .. "\n")
-        f:write("speed_boost=" .. tostring(s.speed_boost) .. "\n")
         f:write("stop_overshoot=" .. tostring(s.stop_overshoot) .. "\n")
     f:write("stop_crawl_zone=" .. tostring(s.stop_crawl_zone) .. "\n")
     f:write("stop_freeze_sec=" .. tostring(s.stop_freeze_sec) .. "\n")
@@ -219,8 +215,6 @@ elseif k:find("^my_nick") then s.my_nick = v
                 elseif k:find("^speed_hysteresis") then s.speed_hysteresis = tonumber(v) or 3
                 elseif k:find("^overspeed_guard") then s.overspeed_guard = tonumber(v) or 1
                 elseif k:find("^speed_mult") then s.speed_mult = tonumber(v) or 1.0
-                elseif k:find("^speed_boost") then s.speed_boost = tonumber(v) or 1.0
-                elseif k:find("^speed_boost") then s.speed_boost = tonumber(v) or 1.0
                 elseif k:find("^overspeed_extra") then s.overspeed_extra = tonumber(v) or 8
                 elseif k:find("^overspeed") then s.overspeed = v == "1"
                 elseif k:find("^stop_speed") then s.stop_speed = tonumber(v) or 0.6
