@@ -432,4 +432,56 @@ function M.parse_window_open(txt)
     return found
 end
 
+-- ---------- Автовыбор «Жалоба на игрока» (окно /report) ----------
+-- После команды /report клиент открывает CEF-диалог выбора типа запроса
+-- (addDialogInQueue «Выберите тип запроса»). Если игрок отошёл, нужно
+-- автоматически выбрать пункт «Жалоба на игрока», чтобы жалоба дошла до
+-- администратора. Формат TX-ответа подтверждён реальными пакетами
+-- Sonya_Tekilla (15.09.2026, разбор hex): всем пунктам списка клиент шлёт
+--   [0x64][int32 0][0x64][int32 1][0x64][int32 индекс][0x73][int32 len][байты строки]
+-- а строка выглядит как  <p style="color: #">1. Жалоба на игрока</p>  (CP1251,
+-- номер пункта «1.» подставляет сам клиент).
+
+-- Сборка TX-ответа OnDialogResponse: index — номер пункта (с 0),
+-- text_html — строка пункта (как её отправляет клиент, CP1251).
+local function build_dialog_response(index, text_html)
+    local len = #text_html
+    local args = {
+        8, 0, 0, 0,   -- префикс: 2 * число параметров (4 параметра)
+        0x64, 0, 0, 0, 0,   -- параметр 1 = 0
+        0x64, 1, 0, 0, 0,   -- параметр 2 = 1 (кнопка «Отправить»)
+        0x64, index % 256, math.floor(index / 256) % 256,
+              math.floor(index / 65536) % 256, math.floor(index / 16777216) % 256,
+        0x73, len % 256, math.floor(len / 256) % 256,
+              math.floor(len / 65536) % 256, math.floor(len / 16777216) % 256,
+    }
+    for i = 1, len do
+        args[#args + 1] = string.byte(text_html, i)
+    end
+    return build_bytes("OnDialogResponse", args)
+end
+
+-- Отправка ответа диалогу OnDialogResponse.
+function M.send_dialog_response(index, text_html)
+    if not text_html or #text_html == 0 then return false end
+    return send_bytes(build_dialog_response(index, text_html))
+end
+
+-- Определение окна выбора типа запроса (/report) с пунктом «Жалоба на игрока».
+-- Возвращает { index, text } для send_dialog_response либо nil.
+local REPORT_ITEM = "Жалоба на игрока"
+local REPORT_TITLE = "Выберите тип запроса"
+
+function M.parse_report_dialog(txt)
+    if not txt or #txt == 0 then return nil end
+    if not txt:find("addDialogInQueue", 1, true) then return nil end
+    -- пункт и заголовок условия надёжнее искать по подстрокам: заголовок
+    -- может идти с цветовым кодом {FFCD00} перед текстом.
+    if not txt:find(REPORT_ITEM, 1, true) then return nil end
+    if not txt:find(REPORT_TITLE, 1, true) then return nil end
+    -- «Жалоба на игрока» — первый пункт (индекс 0). Номер «1.» в начале
+    -- строки подставляет сам клиент, как в реальном TX-пакете.
+    return { index = 0, text = '<p style="color: #">1. ' .. REPORT_ITEM .. '</p>' }
+end
+
 return M
