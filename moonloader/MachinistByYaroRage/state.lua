@@ -27,6 +27,9 @@ M.state = {
     notify_telegram = true,   -- отправл€ть уведомлени€ в телеграм
     tg_bot_token = "",
     tg_chat_id = "",
+    my_nick = "",          -- ник собственного персонажа (задаЄтс€ вручную
+                             -- в GUI или кнопкой Ђјвтоопределить никї;
+                             -- берЄтс€ из конфига, не перезаписываетс€ сканером)
     admin_names = "", -- ƒќѕќЋЌ»“≈Ћ№Ќџ… ручной список админов (GUI, через зап€тую).
                       -- ќсновной список скачиваетс€ из config\CheatAdminList.txt.
     tap_interval = 0.45,      -- интервал импульсов клавиши W/S (сек)
@@ -138,6 +141,7 @@ local function save_config()
         f:write("notify_telegram=" .. (s.notify_telegram and "1" or "0") .. "\n")
         f:write("tg_bot_token=" .. s.tg_bot_token .. "\n")
         f:write("tg_chat_id=" .. s.tg_chat_id .. "\n")
+        f:write("my_nick=" .. s.my_nick .. "\n")
         f:write("tap_interval=" .. tostring(s.tap_interval) .. "\n")
         f:write("stop_dist=" .. tostring(s.stop_dist) .. "\n")
         f:write("keep_speed=" .. (s.keep_speed and "1" or "0") .. "\n")
@@ -195,6 +199,7 @@ local function load_config()
                 elseif k:find("^notify_telegram") then s.notify_telegram = v == "1"
                 elseif k:find("^tg_bot_token") then s.tg_bot_token = v
                 elseif k:find("^tg_chat_id") then s.tg_chat_id = v
+elseif k:find("^my_nick") then s.my_nick = v
                 elseif k:find("^tap_interval") then s.tap_interval = tonumber(v) or 0.45
                 elseif k:find("^stop_dist") then s.stop_dist = tonumber(v) or 25
                 elseif k:find("^stop_overshoot") then s.stop_overshoot = tonumber(v) or 50

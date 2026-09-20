@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.2.0")
+script_version("1.2.1")
 script_author("YaroRage")
 
 require "moonloader"
@@ -349,8 +349,10 @@ local optTgPoll = imgui.ImBool(st.tg_poll_enable)
 local inpToken = imgui.ImBuffer(128)
 local inpChat = imgui.ImBuffer(64)
 local inpAdmins = imgui.ImBuffer(512)
+local inpMyNick = imgui.ImBuffer(64)   -- ник собственного персонажа (v1.2.1)
 inpToken.v = st.tg_bot_token
 inpChat.v = st.tg_chat_id
+inpMyNick.v = st.my_nick
 -- Номер открытой вкладки меню (как в CheatByYaroRage: кнопки-вкладки сверху).
 local menuTab = imgui.ImInt(1)
 
@@ -396,7 +398,7 @@ local function saveAll()
         tostring(optTgPoll.v),
         tostring(optSpeedMult.v),
         tostring(optSpeedBoost.v),
-        tostring(inpToken.v), tostring(inpChat.v), tostring(inpAdmins.v) })
+        tostring(inpToken.v), tostring(inpChat.v), tostring(inpAdmins.v), tostring(inpMyNick.v) })
     if sig == lastSavedSig then return false end
     lastSavedSig = sig
     local saveT = os.clock()
@@ -409,6 +411,7 @@ local function saveAll()
     st.tg_poll_enable = optTgPoll.v
     st.tg_bot_token = inpToken.v
     st.tg_chat_id = inpChat.v
+    st.my_nick = (inpMyNick.v or ""):gsub("^%s+", ""):gsub("%s+$", "")
     -- Поле «Админы» одноразовое: введённые ники автоматически уходят в конец
     -- основного списка CheatAdminList.txt, а поле очищается (admin_names в
     -- INI больше не хранится — единственный источник списка это файл).
@@ -532,6 +535,20 @@ local knownIdNick = {}
 -- ID на Radmir меняются часто, поэтому кэш обновляется сканером каждые 10 сек.
 local adminIdByCurrentId = {}
 
+-- v1.2.1: определение ника собственного персонажа через SAMP. Возвращает
+-- ник или nil (SAMP недоступен / персонаж ещё не загружен). Используется
+-- кнопкой «Автоопределить ник» в GUI вкладки «Телеграм».
+local function detectMyNick()
+    if not isSampAvailable() then return nil end
+    local okMy, isMy, myId = pcall(sampGetPlayerIdByCharHandle, PLAYER_PED)
+    if not okMy or not isMy or type(myId) ~= "number" or myId < 0 then return nil end
+    local okN2, myNick = pcall(sampGetPlayerNickname, myId)
+    if okN2 and type(myNick) == "string" and #myNick > 0 and myNick ~= "N/A" then
+        return myNick
+    end
+    return nil
+end
+
 -- v0.6.8: фоновый сканер SAMP-пула. Каждые 10 сек обходит все id 0..2000,
 -- вызывает sampGetPlayerNameById(id) и сверяет результат со списком админов.
 -- Если ник совпадает с CheatAdminList — помечает id в adminIdByCurrentId.
@@ -569,7 +586,8 @@ local function adminScanTick(nowWall)
         local okN2, myNick = pcall(sampGetPlayerNickname, myId)
         if okN2 and type(myNick) == "string" and #myNick > 0 and myNick ~= "N/A" then
             knownIdNick[myId] = myNick
-            st.my_nick = myNick
+            -- v1.2.1: НЕ перезаписываем st.my_nick — ник собственного
+            -- персонажа задаётся в GUI и хранится в конфиге (my_nick)
             local myWho = admin.has_known_admin(myNick)
             if myWho then
                 adminIdByCurrentId[myId] = myWho
@@ -1696,6 +1714,15 @@ function main()
     wait(500)
 
     state_mod.load_config()
+    -- v1.2.1: если ник персонажа ещё не задан в конфиге — определить один раз
+    if not st.my_nick or #st.my_nick == 0 then
+        local autoNick = detectMyNick()
+        if autoNick then
+            st.my_nick = autoNick
+            inpMyNick.v = autoNick
+            state_mod.save_config()
+        end
+    end
     optEnabled.v = st.enabled
     optForceCab.v = st.force_cab
     optNotify.v = st.notify_telegram
@@ -1999,6 +2026,25 @@ local renderUi = function()
             imgui.PushItemWidth(280 * fsc)
             imgui.InputText(u8"Токен бота", inpToken)
             imgui.InputText(u8"Chat ID", inpChat)
+            imgui.Separator()
+            imgui.TextWrapped(u8"Ник персонажа (для уведомлений):")
+            imgui.PushItemWidth(210 * fsc)
+            imgui.InputText(u8"Ник", inpMyNick)
+            imgui.PopItemWidth()
+            if imgui.Button(u8"Автоопределить ник", imgui.ImVec2(210 * fsc, 0)) then
+                local autoNick = detectMyNick()
+                if autoNick then
+                    inpMyNick.v = autoNick
+                    saveAll()
+                    pcall(sampAddChatMessage, u8:decode(u8"Machinist: ник определён: " .. autoNick), 0xAAFFAA)
+                else
+                    pcall(sampAddChatMessage, u8:decode(u8"Machinist: не удалось определить ник (SAMP недоступен)"), 0xFF8888)
+                end
+            end
+            if imgui.Button(u8"Сохранить ник", imgui.ImVec2(210 * fsc, 0)) then
+                saveAll()
+                pcall(sampAddChatMessage, u8:decode(u8"Machinist: ник сохранён: " .. (st.my_nick or "")), 0xAAFFAA)
+            end
                         imgui.Separator()
             imgui.TextWrapped(u8"Администраторы:")
             imgui.PushItemWidth(160 * fsc)
