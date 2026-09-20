@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   — не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   — не показывать приветственные сообщения в чате
 script_name("MachinistByYaroRage")
-script_version("1.2.1")
+script_version("1.2.2")
 script_author("YaroRage")
 
 require "moonloader"
@@ -953,6 +953,21 @@ local function applyTrainBoost(limitMs)
     if nv > cur then fts[0] = nv end
 end
 
+-- v1.2.2: жёсткий фриз поезда: принудительно держим fTrainSpeed = 0 через
+-- память (как applyTrainBoost, только в ноль). Мгновенно гасит любую скорость
+-- -- состав встаёт ровно там, где сервер прислал команду «Остановитесь на
+-- станции», и не катится (ни вперёд, ни назад) при отпущенных клавишах.
+local function hardFreezeTrain(active)
+    if not active then return end
+    local ok, vehPtr = pcall(readMemory, 0xBA18FC, 4, false)
+    if not ok or not vehPtr or tonumber(vehPtr) == 0 then return end
+    vehPtr = tonumber(vehPtr)
+    local okC, cls = pcall(readMemory, vehPtr + 0x590, 4, false)
+    if not okC or tonumber(cls) ~= 6 then return end -- не поезд
+    local fts = ffi.cast("float*", vehPtr + 0x5A4)
+    if fts[0] ~= 0 then fts[0] = 0 end
+end
+
 -- Нажать газ (игровая клавиша W), как в mashinist.lua — без writeMemory.
 local function pressGasNative()
     -- Газ — только игровая клавиша W. Accel для сервера уходит через
@@ -1215,11 +1230,26 @@ local function driveTick()
     -- «Остановитесь на станции» (stopCmd ниже). Кривую применяем, только когда
     -- состав с текущей скорости не успевает затормозить у маркера (v^2 > 2ad),
     -- чтобы не «ползать» на 10-20 км/ч задолго до станции в ожидании таймера.
+    -- v1.2.2: подкат к станции. Маркер setStation и реальный серверный триггер
+    -- остановки на станциях Radmir СДВИНУТЫ (на каждой станции по-своему),
+    -- поэтому остановка «по маркеру» не работает: состав вставал у маркера,
+    -- разгонялся заново «искать трейдер», и стоп получался как повезёт. Теперь
+    -- с последних stop_crawl_zone метров катимся на stop_crawl км/ч (10) и НЕ
+    -- останавливаемся, пока не придёт таймер «Остановитесь на станции» (он
+    -- приходит именно на правильном триггере). В момент команды — жёсткий
+    -- фриз поезда на stop_freeze_sec секунд (см. ниже).
+    local crawl = (st.stop_crawl and st.stop_crawl > 0) and st.stop_crawl or 10
+    local crawlZone = (st.stop_crawl_zone and st.stop_crawl_zone > 0) and st.stop_crawl_zone or 150
     if stationKnown and not stopCmd then
         local d = distance - brakeMargin
         if d < 0 then d = 0 end
         if speedMs * speedMs > 2 * aComf * math.max(1, d) then
             allowed = math.min(allowed, math.sqrt(2 * aComf * d) * 3.6)
+        end
+        if distance <= crawlZone and allowed < crawl then
+            -- не встаём у смещённого маркера — катимся на 10 км/ч к триггеру
+            allowed = crawl
+            drive.lastAction = u8"подкат к станции (10 км/ч)"
         end
     end
     -- v1.1.9: экстренный сброс: за 250 м до станции скорость не выше 90 км/ч.
@@ -1230,28 +1260,33 @@ local function driveTick()
     local stopping = false
     -- Команда сервера «Остановитесь на станции»: цель — полный стоп.
     local stopHard = false
+    local stopFreezeSec = (st.stop_freeze_sec and st.stop_freeze_sec > 0) and st.stop_freeze_sec or 5
     if stopCmd then
-        if distance > 200 then
-            -- v0.9.8: дистанция setStation уже переключилась на СЛЕДУЮЩУЮ
-            -- станцию (значит текущую проехали), но сервер требует стоять —
-            -- тормозим сразу и здесь, иначе «дальняя» дистанция не тормозит
-            -- и состав уезжает мимо станции.
-            allowed = 0
-            stopHard = true
-        else
-            local d = distance - 3
-            if d < 0 then d = 0 end
-            -- v1.2.0: минимум ~6 км/ч убран — он держал состав на 6-10 км/ч,
-            -- и тот проезжал станцию прежде, чем сервер переключал setStation
-            -- на следующую (distance > 200). Теперь кривая ведёт скорость к
-            -- нулю у самого маркера, а полный тормоз на последних метрах
-            -- (см. stopApproach ниже) гарантирует остановку ДО стоп-точки.
-            -- Когда d <= 1, brakeTarget = 0, состав останавливается у маркера.
-            local brakeTarget = math.sqrt(2 * aComf * d) * 3.6
-            allowed = math.min(allowed, brakeTarget)
-        end
         stopping = true
-        drive.lastAction = u8"плавное торможение на станции"
+        stopHard = true
+        -- v1.2.2: это и есть реальный триггер станции (может быть смещён
+        -- относительно маркера). Скорость к моменту команды уже ~10 км/ч
+        -- (подкат выше) — гасим до нуля и включаем жёсткий фриз fTrainSpeed=0.
+        if drive.stop_freeze_until == nil then
+            drive.stop_freeze_until = os.time() + stopFreezeSec
+        end
+        local d = distance - 3
+        if d < 0 then d = 0 end
+        local brakeTarget = math.sqrt(2 * aComf * d) * 3.6
+        if speed > brakeTarget + 1 then
+            allowed = math.min(allowed, brakeTarget)
+        else
+            allowed = 0
+        end
+        drive.lastAction = u8"остановка: фриз поезда на станции"
+    end
+    -- v1.2.2: жёсткий фриз: пока активен таймер, держим fTrainSpeed = 0 через
+    -- память каждый кадр — поезд стоит мёртво, не катится назад/вперёд.
+    if drive.stop_freeze_until and os.time() >= drive.stop_freeze_until then
+        drive.stop_freeze_until = nil
+    end
+    if drive.stop_freeze_until then
+        hardFreezeTrain(true)
     end
     -- v0.9.8: при «жёстком» стопе докрутка не нужна — состав уже проехал
     -- станцию, докрутка завершена принудительно, чтобы сработала стоянка.
@@ -1325,6 +1360,7 @@ local function driveTick()
             drive.station_arrive_time = nil
             drive.crawl_start = nil
             drive.crawl_done = false
+            drive.stop_freeze_until = nil
             drive.phase = "DRIVE"
             releaseBrake()
             if speed < target then pressGasNative() end
@@ -1332,8 +1368,13 @@ local function driveTick()
                 or u8"отправление после стоянки"
         else
             drive.phase = "STOP"
-            setBrakeLevel(30)
-            drive.lastAction = u8"стоянка на станции"
+            -- v1.2.2: тормоз-клавишу НЕ жмём: у GTA-поезда удержание S = задний
+            -- ход, из-за неё состав ползёт назад на станции. Стоим за счёт
+            -- жёсткого фриза fTrainSpeed = 0 (удерживается каждый кадр),
+            -- поэтому на стоянке поезд не катится ни вперёд, ни назад.
+            releaseBrake()
+            hardFreezeTrain(true)
+            drive.lastAction = u8"стоянка на станции (фриз)"
         end
         drive.keys = drive._gasPressed and 8 or 0
         return

@@ -51,6 +51,8 @@ M.state = {
     stop_overshoot = 50,        -- v0.9.7: сколько МЕТРОВ проехать ЗА стоп-точкой
                                 --        станции (докрутка до серверного триггера)
     stop_crawl = 10,            -- v0.9.7: скорость докрутки за стоп-точку (км/ч)
+    stop_crawl_zone = 150,      -- v1.2.2: дистанция начала подката к станции (метры)
+    stop_freeze_sec = 5,        -- v1.2.2: длительность жёсткого фриза после команды «Остановитесь на станции» (сек)            -- v0.9.7: скорость докрутки за стоп-точку (км/ч)
     station_release_delay = 30, -- v0.9.8: страховка — если сервер не прислал ни
                                 --        одной команды, уехать через N секунд
     need_go = false,          -- v0.8.1: сервер требует движения («Увеличьте скорость»)
@@ -158,6 +160,8 @@ local function save_config()
         f:write("speed_boost=" .. tostring(s.speed_boost) .. "\n")
         f:write("speed_boost=" .. tostring(s.speed_boost) .. "\n")
         f:write("stop_overshoot=" .. tostring(s.stop_overshoot) .. "\n")
+    f:write("stop_crawl_zone=" .. tostring(s.stop_crawl_zone) .. "\n")
+    f:write("stop_freeze_sec=" .. tostring(s.stop_freeze_sec) .. "\n")
         f:write("stop_crawl=" .. tostring(s.stop_crawl) .. "\n")
         f:write("station_release_delay=" .. tostring(s.station_release_delay) .. "\n")
         f:write("dbg_no_thread=" .. (s.dbg_no_thread and "1" or "0") .. "\n")
@@ -203,6 +207,8 @@ elseif k:find("^my_nick") then s.my_nick = v
                 elseif k:find("^tap_interval") then s.tap_interval = tonumber(v) or 0.45
                 elseif k:find("^stop_dist") then s.stop_dist = tonumber(v) or 25
                 elseif k:find("^stop_overshoot") then s.stop_overshoot = tonumber(v) or 50
+                elseif k:find("^stop_crawl_zone") then s.stop_crawl_zone = tonumber(v) or 150
+                elseif k:find("^stop_freeze_sec") then s.stop_freeze_sec = tonumber(v) or 5
                 elseif k:find("^stop_crawl") then s.stop_crawl = tonumber(v) or 10
                 elseif k:find("^station_release_delay") then s.station_release_delay = tonumber(v) or 30
                 elseif k:find("^keep_speed") then s.keep_speed = v == "1"
