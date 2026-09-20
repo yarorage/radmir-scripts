@@ -199,7 +199,7 @@
 --   dbg_no_gui     = 1   Ч не трогать imgui (хук OnDrawFrame/Process/ShowCursor)
 --   dbg_no_chat    = 1   Ч не показывать приветственные сообщени€ в чате
 script_name("MachinistByYaroRage")
-script_version("1.2.5")
+script_version("1.2.6")
 script_author("YaroRage")
 
 require "moonloader"
@@ -936,8 +936,27 @@ end
 --   nVehicleClass на +0x590 (6 = поезд), fTrainSpeed (float) на +0x5A4.
 -- ”множаем fTrainSpeed каждый газ-тик, но не выше целивый скорости
 -- (allowed в м/с) Ч поезд реально разгон€етс€ в N раз быстрее.
+-- v1.2.6-ƒ»ј√Ќќ—“» ј (¬–≈ћ≈ЌЌјя): логирование причин блокировки спидхака
+-- в MachinistByYaroRage\speedboost_dbg.txt. ”далить после отладки.
+local dbgBoostLastMs = 0
+local function dbgBoostTick()
+    return dbgBoostLastMs == 0 or (wallClockMs() - dbgBoostLastMs) >= 200
+end
+local function dbgBoost(what, extra)
+    if not dbgBoostTick() then return end
+    dbgBoostLastMs = wallClockMs()
+    local fh = io.open(getWorkingDirectory():gsub("[\\/]+$", "") .. "\\MachinistByYaroRage\\speedboost_dbg.txt", "a")
+    if fh then
+        fh:write(os.date("%H:%M:%S") .. " [" .. what .. "] " .. (extra or "") .. "\n")
+        fh:close()
+    end
+end
+
 local function applyTrainBoost(limitMs)
-    if not limitMs or limitMs <= 0 then return end
+    if not limitMs or limitMs <= 0 then
+        dbgBoost("limit<=0", "limitMs=" .. tostring(limitMs))
+        return
+    end
     local boost = (st.speed_boost and st.speed_boost > 1.0) and st.speed_boost or 1.0
     if boost <= 1.0 then return end
     local ok, vehPtr = pcall(readMemory, 0xBA18FC, 4, false)
@@ -954,14 +973,25 @@ local function applyTrainBoost(limitMs)
     -- поэтому он Ђне пашетї. Ѕустим только когда состав реально катитс€
     -- (cur > 0.05): на сто€нке скорость не копитс€, Ђвыстрелаї назад/вперЄд
     -- при отправлении нет.
-    if cur <= 0.05 then return end
+    if cur <= 0.05 then
+        dbgBoost("block-cur<=0.05", string.format("cur=%.4f boost=%.2f limit=%.2f", cur, boost, limitMs))
+        return
+    end
     -- v1.2.4: не бустим из резервных тиков (свЄрнутое окно): кадровый поток
     -- стоит, физика почти не идЄт, а умножение fTrainSpeed копит разгон Ч
     -- при возврате в окно поезд рывком/выстрелом набирает большую скорость.
-    if drive._reserveTick then return end
+    if drive._reserveTick then
+        dbgBoost("block-reserve", string.format("cur=%.4f boost=%.2f limit=%.2f", cur, boost, limitMs))
+        return
+    end
     local nv = cur * boost
     if nv > limitMs then nv = limitMs end
-    if nv > cur then fts[0] = nv end
+    if nv > cur then
+        fts[0] = nv
+        dbgBoost("applied", string.format("cur=%.4f boost=%.2f limit=%.2f nv=%.4f", cur, boost, limitMs, nv))
+    else
+        dbgBoost("no-nv", string.format("cur=%.4f boost=%.2f limit=%.2f nv=%.4f", cur, boost, limitMs, nv))
+    end
 end
 
 -- v1.2.2: жЄсткий фриз поезда: принудительно держим fTrainSpeed = 0 через
@@ -1456,6 +1486,13 @@ local function driveTick()
     -- applyTrainBoost по пам€ти (fTrainSpeed > 1 м/с = реальное движение
     -- вперЄд) плюс исключение stayCmd (Ђќжидайте отправлени€ї/Ђ—адитесь
     -- в поездї), чтобы на сто€нке не накапливать скорость и не Ђвыстреливатьї.
+    if dbgBoostTick() then
+        dbgBoostLastMs = wallClockMs()
+        dbgBoost("ctx", string.format("speed=%.1f allowed=%.1f gas=%d stop=%d stopHard=%d stay=%d go=%d est=%.2f estAge=%.0fms",
+            speed, allowed, drive._gasPressed and 1 or 0, stopping and 1 or 0, stopHard and 1 or 0,
+            stayCmd and 1 or 0, goCmd and 1 or 0, st.speed_est or 0,
+            (st.speed_est_at and (nowMs - st.speed_est_at)) or -1))
+    end
     if not stopping and not stopHard and not stayCmd and drive._gasPressed
         and speed < allowed - 0.5 then
         applyTrainBoost(allowed / 3.6)
