@@ -1,7 +1,7 @@
 --============================================================================================
 script_name("CheatByYaroRage")
 script_author("YaroRage")
-script_version("0.9.4")
+script_version("0.9.5")
 --==================================[ НАСТРОЙКИ ЧИТА ]==============================================
 require 'moonloader'
 require "lib.sampfuncs"
@@ -514,7 +514,6 @@ local hotkeys = {
     legit = {v = {}},
     fullskillgun = {v = {}},
     allowBunnyhop = {v = {}},
-    NoAnimationMoney = {v = {}},
     silentmode = {v = {}},
     nodamage = {v = {}},
     autokick = {v = {}},
@@ -567,7 +566,6 @@ local antistun = imgui.ImBool(false)
 local ifastconnect = imgui.ImBool(false)
 local eyefish = imgui.ImBool(false)
 local allowBunnyhop = imgui.ImBool(false)
-local NoAnimationMoney = imgui.ImBool(false)
 local godcar = imgui.ImBool(false)
 -- Ползунок GM: до какого %% HP машина может ломаться, дальше HP блокируется (50-99).
 local gm_hp_slider = imgui.ImInt(95)
@@ -657,7 +655,6 @@ local mainIni = inicfg.load({
 		maxspeed = false,
 		maxspeed_limit = 220,
 		maxspeed_step = 30,
-		NoAnimationMoney = false,
 		Fov = 5.0,
 		damageinf = false,
 		nametags_dist = 8,
@@ -713,7 +710,6 @@ maxSpeedOn = maxspeed.v
 maxSpeedLimit = maxspeed_limit.v
 maxSpeedMul = maxspeed_mul.v
 maxSpeedStep = maxspeed_step.v
-NoAnimationMoney.v = mainIni.CheatByYaroRage.NoAnimationMoney or false
 sbivx.v = mainIni.CheatByYaroRage.sbivx or false
 SpeedHack.v = mainIni.CheatByYaroRage.SpeedHack or false
 SpeedSmooth.v = mainIni.CheatByYaroRage.SpeedSmooth or 15
@@ -807,7 +803,6 @@ local profile_vars = {
 	admin_hud_scale = admin_hud_scale,
 	admin_hud_color_r = admin_hud_color_r,
 	admin_hud_color_g = admin_hud_color_g,
-	NoAnimationMoney = NoAnimationMoney,
 	admin_hud_color_b = admin_hud_color_b,
 	masterToggle = masterToggle,
 	surveillance_enabled = surveillance_enabled,
@@ -1397,11 +1392,6 @@ local function mainLoop()
 			end
 		end
 
-		if NoAnimationMoney.v then
-			memory.setuint8(5701879, 184, true)
-			memory.copy(5701883, memory.strptr("???   "), 6, true)
-			memory.setuint8(5701891, 235, true)
-		end
 
 		if fullskillgun.v then
 			skillTick = (skillTick or 0) + 1
@@ -2477,8 +2467,6 @@ function drawPlayerTab()
 				imgui.TextDisabled(u8'Зум прицела (ПКМ на снайперке)')
 				sbox(u8'FastConnect', ifastconnect)
 				imgui.TextDisabled(u8'Быстрое подключение к серверу')
-				sbox(u8'NoAnimationMoney', NoAnimationMoney)
-				imgui.TextDisabled(u8'Без анимации отдачи денег')
 				sbox(u8'ShotMax', shotmax)
 				imgui.TextDisabled(u8'Максимальный урон (дробовик -> 48 урона)')
 				sbox(u8'Damage Informer', damageinf)
