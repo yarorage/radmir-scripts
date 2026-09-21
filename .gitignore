@@ -12,12 +12,11 @@
 *.user
 *dist/
 
-# Сборки — бинарники собираются из исходников, не храним в репо
+# Сборки — бинарник лаунчера собирается из исходников, не храним в репо
 AutoUpdaterYR.exe
-MoonLoaderUninstall.exe
 
 # Бинарники-помощники коммитятся намеренно для скачивания с raw- URLs
-# AutoStart.exe, MoonGuard.exe — tracked в корне
+# AutoStart.exe, MoonGuard.exe, MoonLoaderUninstall.exe — tracked в корне
 
 # Пользовательские конфиги — привязаны к конкретной машине
 *.ini
